@@ -29,7 +29,7 @@
 
 % \SweaveOpts{fig.path=figure/minimal-,fig.align=center,fig.show=hold}
 
-<<setup,echo=FALSE,results=hide,message=FALSE>>=
+<<setup,echo=FALSE,results=hide,message=FALSE,cache=FALSE>>=
 options(replace.assign=TRUE,width=90)
 knit_hooks$set(par=function(before, options, envir){if (before) par(mar=c(4,4,.1,.1),cex.lab=.95,cex.axis=.9,mgp=c(2,.7,0),tcl=-.3,las=1)})
 @
@@ -60,6 +60,7 @@ hist(x,main='')
 @
 
 Do the above chunks work? You should be able to compile the \TeX{}
-document and get a PDF file like this one: \url{https://github.com/downloads/yihui/knitr/knitr-minimal.pdf}
+document and get a PDF file like this one: \url{https://github.com/downloads/yihui/knitr/knitr-minimal.pdf}.
+The Rnw source of this document is at \url{https://github.com/yihui/knitr/blob/master/inst/examples/knitr-minimal.Rnw}.
 
 \end{document}

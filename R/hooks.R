@@ -46,7 +46,7 @@ hook_plot_tex = function(x, options) {
         resize2 = '} '
     }
 
-    tikz = options$dev == 'tikz' && !options$external
+    tikz = is_tikz_dev(options)
 
     a = options$fig.align; fig.cur = options$fig.cur; fig.num = options$fig.num
     if (is.null(fig.cur)) fig.cur = 0L
@@ -61,8 +61,8 @@ hook_plot_tex = function(x, options) {
     if (hold && fig.cur > 0L && fig.cur < fig.num) align2 = ''
 
     size =
-        paste(sprintf('width=%s', options$out.width),
-              sprintf('height=%s', options$out.height), sep = '', collapse = ',')
+        paste(c(sprintf('width=%s', options$out.width),
+                sprintf('height=%s', options$out.height)), collapse = ',')
 
     paste(align1, resize1,
 
@@ -101,15 +101,18 @@ hook_plot_html = function(x, options) {
 hook_plot_md = function(x, options) {
     base = opts_knit$get('base.url')
     if (is.null(base)) base = ''
-    sprintf('![plot of chunk %s](%s%s.%s)', options$label,
+    sprintf('![plot of chunk %s](%s%s.%s) ', options$label,
             base, x[1], x[2])
 }
 .chunk.hook.tex = function(x, options) {
     if (output_asis(x, options)) return(x)
-    x = str_c(color_def(options$background), '{\\color{fgcolor}\\begin{kframe}\n', x, '\\end{kframe}}')
+    x =
+        str_c(color_def(options$background), '{',
+              ifelse(is_tikz_dev(options), '', '\\color{fgcolor}'),
+              '\\begin{kframe}\n', x, '\\end{kframe}}')
     x = str_c('\\begin{knitrout}\n', x, '\n\\end{knitrout}')
     if (options$split) {
-        name = str_c(options$fig.path, options$label, '.tex')
+        name = fig_path('.tex', options)
         if (!file.exists(dirname(name)))
             dir.create(dirname(name))
         cat(x, file = name)
@@ -117,8 +120,15 @@ hook_plot_md = function(x, options) {
     } else x
 }
 .chunk.hook.html = function(x, options) {
-    if (is_blank(x)) return(x)
-    sprintf('<pre class="knitr">%s</pre>', x)
+    if (output_asis(x, options)) return(x)
+    x = sprintf('<pre class="knitr">%s</pre>', x)
+    if (options$split) {
+        name = fig_path('.html', options)
+        if (!file.exists(dirname(name)))
+            dir.create(dirname(name))
+        cat(x, file = name)
+        sprintf('<iframe src="%s" class="knitr" width="100%%"></iframe>', name)
+    } else x
 }
 
 ## format a single inline object
@@ -165,7 +175,7 @@ run_hooks = function(before, options, envir) {
     hooks.a = hooks.n[setdiff(names(hooks.n), names(hooks.d))] # a list of hooks to run
     out = NULL
     for (i in names(hooks.a)) {
-        if (isTRUE(options[[i]])) {
+        if (!is.null(options[[i]])) {
             ## run only when option is TRUE
             res = hooks.a[[i]](before = before, options = options, envir = envir)
             if (is.character(res)) out = c(out, res)
@@ -204,9 +214,8 @@ render_latex = function() {
         } else hook.v(x, options)}, output = hook.o,
                    warning = hook.v, message = hook.v, error = hook.v,
                    inline = function(x) {
-                       if (is.numeric(x))
-                           return(.inline.hook(format_sci(x, 'latex')))
-                       sprintf('\\texttt{%s}', .inline.hook(x))
+                       if (is.numeric(x)) x = format_sci(x, 'latex')
+                       .inline.hook(x)
                    }, plot = hook_plot_tex,
                    chunk = .chunk.hook.tex)
 }
@@ -239,7 +248,8 @@ render_html = function() {
         z[[i]] = html.hook(i)
     knit_hooks$set(z)
     knit_hooks$set(inline = function(x) {
-        sprintf('<code class="knitr inline">%s</code>', .inline.hook(format_sci(x, 'html')))
+        sprintf(if (inherits(x, 'AsIs')) '%s' else '<code class="knitr inline">%s</code>',
+                .inline.hook(format_sci(x, 'html')))
     }, plot = hook_plot_html, chunk = .chunk.hook.html)
 }
 ##' @rdname output_hooks
@@ -247,7 +257,7 @@ render_html = function() {
 render_markdown = function() {
     knit_hooks$restore()
     ## four spaces lead to <pre></pre>
-    hook.t = function(x, options) evaluate:::line_prompt(x, '    ', '    ')
+    hook.t = function(x, options) str_c('\n\n', line_prompt(x, '    ', '    '), '\n')
     hook.o = function(x, options) if (output_asis(x, options)) x else hook.t(x, options)
     knit_hooks$set(source = hook.t, output = hook.o, warning = hook.t,
                    error = hook.t, message = hook.t,
@@ -259,8 +269,8 @@ render_markdown = function() {
 render_gfm = function() {
     ## gfm and jekyll are derived from markdown
     render_markdown()
-    hook.r = function(x, options) str_c('```r\n', x, '```\n')
-    hook.t = function(x, options) str_c('```\n', x, '```\n')
+    hook.r = function(x, options) str_c('\n\n```r\n', x, '```\n\n')
+    hook.t = function(x, options) str_c('\n\n```\n', x, '```\n\n')
     hook.o = function(x, options) if (output_asis(x, options)) x else hook.t(x, options)
     knit_hooks$set(source = hook.r, output = hook.o, warning = hook.t,
                    error = hook.t, message = hook.t)
@@ -269,8 +279,8 @@ render_gfm = function() {
 ##' @export
 render_jekyll = function() {
     render_markdown()
-    hook.r = function(x, options) str_c('{% highlight r %}\n', x, '{% endhighlight %}\n')
-    hook.t = function(x, options) str_c('{% highlight text %}\n', x, '{% endhighlight %}\n')
+    hook.r = function(x, options) str_c('\n\n{% highlight r %}\n', x, '{% endhighlight %}\n\n')
+    hook.t = function(x, options) str_c('\n\n{% highlight text %}\n', x, '{% endhighlight %}\n\n')
     hook.o = function(x, options) if (output_asis(x, options)) x else hook.t(x, options)
     knit_hooks$set(source = hook.r, output = hook.o, warning = hook.t,
                    error = hook.t, message = hook.t)
@@ -365,7 +375,7 @@ hook_plot_custom = function(before, options, envir){
     hook = switch(fmt, latex = hook_plot_tex, html = hook_plot_html, hook_plot_md)
 
     n = options$fig.num
-    if (is.null(n)) hook(c(name, ext), options) else {
+    if (n <= 1L) hook(c(name, ext), options) else {
         res = unlist(lapply(seq_len(n), function(i) {
             hook(c(str_c(name, i), ext), modifyList(options, list(fig.cur = i)))
         }), use.names = FALSE)

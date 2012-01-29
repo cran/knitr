@@ -67,16 +67,16 @@ knitr
 \shortcut idx
 \color #008000
 \end_index
-\leftmargin 2.5cm
-\topmargin 2.5cm
-\rightmargin 2.5cm
-\bottommargin 2.5cm
+\leftmargin 3cm
+\topmargin 3cm
+\rightmargin 3cm
+\bottommargin 3cm
 \secnumdepth 2
 \tocdepth 2
 \paragraph_separation indent
 \paragraph_indentation default
 \quotes_language english
-\papercolumns 1
+\papercolumns 2
 \papersides 1
 \paperpagestyle default
 \tracking_changes false
@@ -96,7 +96,7 @@ status open
 
 % 
 \backslash
-SweaveOpts{fig.path=figure/minimal-,fig.align=center,fig.show=hold}
+SweaveOpts{fig.path=figure/twocolumn-,fig.align=center,fig.show=hold}
 \end_layout
 
 \end_inset
@@ -110,7 +110,7 @@ status open
 
 \begin_layout Plain Layout
 
-<<setup,echo=FALSE,results=hide,message=FALSE,cache=FALSE>>=
+<<setup,echo=FALSE,results=hide,message=FALSE>>=
 \end_layout
 
 \begin_layout Plain Layout
@@ -135,7 +135,7 @@ knit_hooks$set(par=function(before, options, envir){if (before) par(mar=c(4,4,.1
 \end_layout
 
 \begin_layout Title
-A Minimal Demo of knitr
+Using knitr in A Two-column Document
 \end_layout
 
 \begin_layout Author
@@ -143,41 +143,48 @@ Yihui Xie
 \end_layout
 
 \begin_layout Standard
-You can test if 
+You can use the 
+\family typewriter
+figure*
+\family default
+ environment in LaTeX, and 
+\family typewriter
+results=asis
+\family default
+ in 
 \series bold
 knitr
 \series default
- works with this minimal demo.
- OK, let's get started with some boring random numbers:
+ so that figures can span over two columns.
+ Note your chunk should not have other types of output like text output,
+ or messages or warnings.
+ Currently you will lose the background color for these chunks (
+\begin_inset CommandInset href
+LatexCommand href
+name "issue #102"
+target "https://github.com/yihui/knitr/issues/102"
+
+\end_inset
+
+).
 \end_layout
 
 \begin_layout Standard
-\begin_inset ERT
+\begin_inset Box Boxed
+position "t"
+hor_pos "c"
+has_inner_box 1
+inner_pos "t"
+use_parbox 0
+use_makebox 0
+width "100line%"
+special "none"
+height "2in"
+height_special "none"
 status open
 
 \begin_layout Plain Layout
 
-<<boring-random>>=
-\end_layout
-
-\begin_layout Plain Layout
-
-set.seed(1121)
-\end_layout
-
-\begin_layout Plain Layout
-
-(x=rnorm(20))
-\end_layout
-
-\begin_layout Plain Layout
-
-mean(x);var(x)
-\end_layout
-
-\begin_layout Plain Layout
-
-@
 \end_layout
 
 \end_inset
@@ -186,28 +193,104 @@ mean(x);var(x)
 \end_layout
 
 \begin_layout Standard
-The first element of 
-\family typewriter
-x
-\family default
- is 
-\begin_inset ERT
+\begin_inset Box Boxed
+position "t"
+hor_pos "c"
+has_inner_box 1
+inner_pos "t"
+use_parbox 0
+use_makebox 0
+width "100line%"
+special "none"
+height "2in"
+height_special "none"
 status open
 
 \begin_layout Plain Layout
 
-
-\backslash
-Sexpr{x[1]}
 \end_layout
 
 \end_inset
 
-.
- Boring boxplots and histograms recorded by the PDF device:
+
 \end_layout
 
 \begin_layout Standard
+\begin_inset Box Boxed
+position "t"
+hor_pos "c"
+has_inner_box 1
+inner_pos "t"
+use_parbox 0
+use_makebox 0
+width "100line%"
+special "none"
+height "2in"
+height_special "none"
+status open
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset Box Boxed
+position "t"
+hor_pos "c"
+has_inner_box 1
+inner_pos "t"
+use_parbox 0
+use_makebox 0
+width "100line%"
+special "none"
+height "2in"
+height_special "none"
+status open
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset Box Boxed
+position "t"
+hor_pos "c"
+has_inner_box 1
+inner_pos "t"
+use_parbox 0
+use_makebox 0
+width "100line%"
+special "none"
+height "2in"
+height_special "none"
+status open
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset Float figure
+wide true
+sideways false
+status open
+
+\begin_layout Plain Layout
 \begin_inset ERT
 status open
 
@@ -215,12 +298,12 @@ status open
 
 <<boring-plots,dev=pdf,fig.width=5,fig.height=5,out.width=.45
 \backslash
-linewidth,par=TRUE>>=
+linewidth,par=TRUE,results=asis>>=
 \end_layout
 
 \begin_layout Plain Layout
 
-## two plots side by side (option fig.show=hold)
+x=rnorm(100)
 \end_layout
 
 \begin_layout Plain Layout
@@ -243,15 +326,32 @@ hist(x,main='')
 
 \end_layout
 
+\begin_layout Plain Layout
+\begin_inset Caption
+
+\begin_layout Plain Layout
+Two plots spanning over two columns.
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
 \begin_layout Standard
-Do the above chunks work? You should be able to compile the TeX document
- and get a PDF file like this one: 
+You should be able to compile the LaTeX document to get a PDF file like:
+ 
 \begin_inset Flex URL
 status collapsed
 
 \begin_layout Plain Layout
 
-https://github.com/downloads/yihui/knitr/knitr-minimal.pdf
+https://github.com/downloads/yihui/knitr/knitr-twocolumn.pdf
 \end_layout
 
 \end_inset
@@ -263,7 +363,7 @@ status collapsed
 
 \begin_layout Plain Layout
 
-https://github.com/yihui/knitr/blob/master/inst/examples/knitr-minimal.Rnw
+https://github.com/yihui/knitr/blob/master/inst/examples/knitr-twocolumn.Rnw
 \end_layout
 
 \end_inset

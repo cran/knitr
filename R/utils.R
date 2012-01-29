@@ -1,6 +1,6 @@
 ## copy objects in one environment to the other
 copy_env = function(from, to) {
-    x = ls(envir = from, all = TRUE)
+    x = ls(envir = from, all.names = TRUE)
     for (i in x) {
         assign(i, get(i, envir = from, inherits = FALSE), envir = to)
     }
@@ -19,13 +19,24 @@ knit_counter = function(init = 0L) {
 plot_counter = knit_counter(1L)
 chunk_counter = knit_counter(1L)
 
+line_prompt = evaluate:::line_prompt
+
 ## add a prefix to output
 comment_out = function(x, options) {
     prefix = options$comment
     if (!is.null(prefix) && nzchar(prefix) && !is.na(prefix)) {
         prefix = str_c(prefix, ' ')
-        evaluate:::line_prompt(x, prompt = prefix, continue = prefix)
+        line_prompt(x, prompt = prefix, continue = prefix)
     } else x
+}
+
+## assign string in comments to a global variable
+comment_to_var = function(x, varname, pattern) {
+    if (str_detect(x, pattern)) {
+        assign(varname, str_replace(x, pattern, ''), envir = globalenv())
+        return(TRUE)
+    }
+    FALSE
 }
 
 hiren_latex = renderer_latex(document = FALSE)
@@ -67,7 +78,7 @@ color_def = function(col, variable = 'shadecolor') {
 
 ## split by semicolon
 sc_split = function(string) {
-    str_split(string, fixed(';'))[[1]]
+    str_trim(str_split(string, fixed(';'))[[1]])
 }
 
 ## extract LaTeX packages for tikzDevice
@@ -130,6 +141,11 @@ format_sci = function(x, format = 'latex', d = getOption('digits')) {
 is_abs_path = function(x) {
     if (.Platform$OS.type == 'windows')
         grepl(':', x, fixed = TRUE) || grepl('^\\\\', x) else grepl('^[/~]', x)
+}
+
+## is tikz device without externalization?
+is_tikz_dev = function(options) {
+    options$dev == 'tikz' && !options$external
 }
 
 ## compatibility with Sweave and old beta versions of knitr
@@ -203,12 +219,23 @@ fix_options = function(options) {
     options
 }
 
-## try eval an option (character) to an expected result
-eval_opt = function(x, expect_class = is.logical) {
-    if (expect_class(x)) return(x)
-    res = eval(parse(text = x), envir = globalenv())
-    if (!expect_class(res)) stop('option value ', x, ' did not give an expected result')
-    res
+## try eval an option (character) to its value
+eval_opt = function(x) {
+    if (!is.character(x)) return(x)
+    eval(parse(text = x), envir = globalenv())
+}
+
+## counterpart of isTRUE()
+isFALSE = function(x) identical(x, FALSE)
+
+## choose a subset of source code to echo (iss: all indices of source;
+## echo: which to echo; n: length of all results)
+echo_index = function(iss, echo, n) {
+    echo = na.omit(seq_along(iss)[echo])  # in case echo < 0L
+    iss = c(iss, n + 1L)
+    idx = NULL
+    for (i in echo) idx = c(idx, seq.int(iss[i], iss[i + 1L] - 1L))
+    idx
 }
 
 ##' Path for figure files
@@ -231,6 +258,22 @@ fig_path = function(suffix = '', options = opts_current$get()) {
     str_c(valid_prefix(options$fig.path), options$label, suffix)
 }
 
+##' The environment in which a code chunk is evaluated
+##'
+##' This function makes the environment of a code chunk accessible
+##' inside a chunk.
+##'
+##' In some special cases, we need access to the environment of the
+##' current chunk; a typical example is when we use \code{source()} in
+##' a cached chunk, we have to make sure the script is executed in the
+##' correct environment (should not use the default local
+##' environment). See references for an example.
+##' @references \url{http://yihui.github.com/knitr/demo/cache/}
+##' @export
+knit_env = function() {
+    .knitEnv$knit_env
+}
+
 ##' Convert Rnw to PDF using knit and texi2pdf
 ##'
 ##' Knit the input Rnw document to a tex document, and compile it
@@ -242,6 +285,6 @@ fig_path = function(suffix = '', options = opts_current$get()) {
 ##' @seealso \code{\link{knit}}, \code{\link[tools]{texi2pdf}}
 knit2pdf = function(input){
     out = knit(input)
-    owd = setwd(dirname(input)); on.exit(setwd(owd))
-    texi2pdf(out, clean = TRUE)
+    owd = setwd(dirname(out)); on.exit(setwd(owd))
+    texi2pdf(basename(out), clean = TRUE)
 }

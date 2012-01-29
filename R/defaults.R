@@ -14,7 +14,10 @@ new_defaults = function(value = list()) {
             dots = dots[[1]]
         defaults <<- merge(dots)
     }
-    merge = function(values) modifyList(defaults, values)
+    merge = function(values) {
+        defaults[names(values)] = values
+        defaults
+    }
     restore = function() defaults <<- value
 
     list(get = get, set = set, merge = merge, restore = restore)
@@ -35,14 +38,14 @@ new_defaults = function(value = list()) {
 opts_chunk =
     new_defaults(list(eval = TRUE, echo = TRUE, results = 'markup', tidy = TRUE,
                       cache = FALSE, dependson = NULL, cache.path = 'cache/',
-                      ref.label = NULL,
+                      ref.label = NULL, child = NULL,
                       prompt = FALSE, comment = '##',
                       fig.keep = 'high', fig.show = 'asis', fig.align = 'default',
                       fig.path = '', fig.ext = NULL, dev = 'pdf', dpi = 72,
                       fig.width = 7, fig.height = 7,
                       out.width = NULL, out.height = NULL,
                       resize.width = NULL, resize.height = NULL,
-                      external = FALSE, sanitize = FALSE,
+                      external = TRUE, sanitize = FALSE,
                       highlight = TRUE, size = 'normalsize',
                       warning = TRUE, error = TRUE, message = TRUE,
                       background = '.97;.97;.97', split = FALSE, include = TRUE,
@@ -64,6 +67,7 @@ all_patterns =
 
     list(`rnw` = list(chunk.begin = '^<<(.*)>>=', chunk.end = '^@\\s*$',
          inline.code = '\\\\Sexpr\\{([^\\}]*)\\}',
+         input.doc = '\\\\SweaveInput\\{([^\\}]*)\\}',
          global.options = '\\\\SweaveOpts\\{([^}]*)\\}',
          header.begin = '\n*\\s*\\\\documentclass[^\\}]+\\}',
          document.begin = '\n*\\s*\\\\begin\\{document\\}',
@@ -97,10 +101,10 @@ all_patterns =
 ##' @examples opts_knit$get('verbose'); opts_knit$set(verbose = TRUE)  # change it
 opts_knit =
     new_defaults(list(progress = TRUE, verbose = FALSE,
-                      out.format = NULL,
+                      out.format = NULL, child.command = 'input',
                       base.dir = NULL, base.url = NULL,
-
-                      all.patterns = all_patterns,
+                      eval.opts = c('eval', 'echo'),
+                      all.patterns = all_patterns, tangle = FALSE,
 
                       header = c(highlight = '', tikz = '', framed = ''))
 )

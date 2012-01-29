@@ -15,16 +15,19 @@ call_block = function(block) {
     params$code = unlist(knit_code$get(ref.label), use.names = FALSE)
     if (opts_knit$get('progress')) print(block)
 
-    params$echo = eval_opt(params$echo)
-    params$eval = eval_opt(params$eval)
+    ## evaluate options as R code instead of character strings
+    for (o in opts_knit$get('eval.opts')) params[[o]] = eval_opt(params[[o]])
 
-    if ((!params$eval && !params$echo) || length(params$code) == 0 ||
+    if (params$eval && !is.null(params$child)) {
+        cmds = lapply(sc_split(params$child), knit_child)
+        return(str_c(unlist(cmds), collapse = '\n'))
+    }
+
+    if ((!params$eval && isFALSE(params$echo)) || length(params$code) == 0 ||
         all(is_blank(params$code)))
         return('') # a trivial chunk; do nothing
 
-    if (params$dev == 'tikz') set_header(tikz = '\\usepackage{tikz}')
-
-    owd = setwd(input_dir()); on.exit(setwd(owd))
+    if (is_tikz_dev(params)) set_header(tikz = '\\usepackage{tikz}')
 
     ## Check cache
     hash =
@@ -43,7 +46,8 @@ block_exec = function(code, ...) {
     options = list(...)
 
     ## tidy code if echo
-    if (options$echo && options$tidy) {
+    echo = options$echo
+    if (!isFALSE(echo) && options$tidy) {
         res = try(tidy.source(text = code, output = FALSE), silent = TRUE)
         if (!inherits(res, 'try-error')) {
             code = res$text.tidy
@@ -62,6 +66,7 @@ block_exec = function(code, ...) {
 
     ## eval chunks (in an empty envir if cache)
     env = if (options$cache) new.env(parent = globalenv()) else globalenv()
+    .knitEnv$knit_env = env # make a copy of the envir
 
     ## open a graphical device to record graphics
     dargs = formals(getOption('device'))  # is NULL in RStudio's GD
@@ -79,11 +84,18 @@ block_exec = function(code, ...) {
     }
 
     res.before = run_hooks(before = TRUE, options, env) # run 'before' hooks
+    owd = setwd(input_dir())
     res = evaluate(code, envir = env) # run code
+    setwd(owd)
 
     ## remove some components according options
-    if (!options$echo)
+    if (isFALSE(echo)) {
         res = Filter(Negate(is.source), res)
+    } else if (is.numeric(echo)) {
+        ## choose expressions to echo using a numeric vector
+        iss = which(sapply(res, is.source))
+        res = res[echo_index(iss, echo, length(res))]
+    }
     if (options$results == 'hide')
         res = Filter(Negate(is.character), res)
     if (!options$warning)
@@ -131,7 +143,6 @@ block_exec = function(code, ...) {
         if (length(k2)) res = res[-k2] # remove lines that have been merged back
     }
 
-    owd = setwd(input_dir()); on.exit(setwd(owd), add = TRUE)
     output = str_c(unlist(wrap(res, options)), collapse = '') # wrap all results together
 
     res.after = run_hooks(before = FALSE, options, env) # run 'after' hooks
@@ -148,7 +159,7 @@ block_exec = function(code, ...) {
         ## purge my old cache and cache of chunks dependent on me
         cache$purge(str_c(valid_prefix(options$cache.path),
                           c(options$label, dep_list$get(options$label)), '_*'))
-        cache$save(c(ls(env, all = TRUE), outname), hash)
+        cache$save(c(ls(env, all.names = TRUE), outname), hash)
     }
 
     if (!options$include) '' else output
@@ -173,11 +184,13 @@ inline_exec = function(block) {
 
     loc = block$location
     for (i in 1:n) {
-        res = eval(parse(text = code[i]), envir = globalenv())
+        res = try(eval(parse(text = code[i]), envir = globalenv()))
         d = nchar(input)
         ## replace with evaluated results
         str_sub(input, loc[i, 1], loc[i, 2]) = if (length(res)) {
-            knit_hooks$get('inline')(res)
+            if (inherits(res, 'try-error')) {
+                knit_hooks$get('error')(str_c('\n', res, '\n'), opts_chunk$get())
+            } else knit_hooks$get('inline')(res)
         } else ''
         if (i < n) loc[(i + 1):n, ] = loc[(i + 1):n, ] - (d - nchar(input))
         ## may need to move back and forth because replacement may be longer or shorter
@@ -189,8 +202,13 @@ process_tangle = function(x) {
     UseMethod('process_tangle', x)
 }
 process_tangle.block = function(x) {
-    label = x$params$label
-    label_code(knit_code$get(label), label)
+    params = opts_chunk$merge(x$params)
+    label = params$label
+    code = if (params$eval && !is.null(params$child)) {
+        cmds = lapply(sc_split(params$child), knit_child, tangle = TRUE)
+        str_c(unlist(cmds), collapse = '\n')
+    } else knit_code$get(label)
+    label_code(code, label)
 }
 process_tangle.inline = function(x) return('')
 

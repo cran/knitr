@@ -1,30 +1,39 @@
 \name{knit}
 \alias{knit}
+\alias{purl}
 \title{Knit a document}
 \usage{
-knit(input, output, tangle = FALSE)
+knit(input, output, tangle = FALSE, text = NULL)
+
+purl(...)
 }
 \arguments{
   \item{input}{path of the input file}
 
-  \item{output}{path of output file (note the working
-  directory will be set to the directory of the input file,
-  so this argument is usually a filename without a
-  directory name); if not set, this function will try to
-  guess}
+  \item{output}{path of the output file; if not set, this
+  function will try to guess and it will be under the same
+  directory as \code{input}}
 
   \item{tangle}{whether to tangle the R code from the input
   file (like \code{\link[utils]{Stangle}})}
+
+  \item{text}{a character vector as an alternative way to
+  provide the input file (\code{text} is written into a
+  temporary file as \code{input}); this argument is mainly
+  for test purposes only}
+
+  \item{...}{arguments passed to \code{\link{knit}}}
 }
 \value{
   The compiled document is written into the output file,
-  and the output filename is returned.
+  and the path of the output file is returned.
 }
 \description{
   This function takes an input file, extracts the R code in
   it according to a list of patterns, evaluates the code
   and writes the output in another file. It can also tangle
-  R source code from the input document.
+  R source code from the input document (\code{purl()} is a
+  wrapper to \code{knit(..., tangle = TRUE)}).
 }
 \details{
   For most of the time, it is not necessary to set any
@@ -70,14 +79,33 @@ knit(input, output, tangle = FALSE)
   know more about \pkg{knitr}, including the full
   documentation of chunk options and demos, etc.
 }
+\note{
+  The name \code{knit} comes from its counterpart
+  \samp{weave} (as in Sweave), and the name \code{purl} (as
+  \samp{tangle} in Stangle) comes from a knitting method
+  `knit one, purl one'.
+
+  If the input document has child documents, they will also
+  be compiled recursively. See \code{\link{knit_child}}.
+
+  The working directory when evaluating R code chunks is
+  the directory of the input document, so if the R code
+  involves with external files (like \code{read.table()}),
+  it is better to put these files under the same directory
+  of the input document so that we can use relative paths.
+  It is recommended to change the working directory to the
+  input directory before calling \code{knit()}, especially
+  when the input document contains child documents.
+}
 \examples{
 library(knitr)
 (f = tempfile(fileext = ".Rnw"))
 file.copy(system.file("examples", "knitr-minimal.Rnw", 
     package = "knitr"), f, overwrite = TRUE)
 knit(f)
+## or setwd(dirname(f)); knit(basename(f))
 
-knit(f, tangle = TRUE)  # extract R code only
+purl(f)  # extract R code only
 }
 \references{
   Package homepage: \url{http://yihui.github.com/knitr/}
