@@ -72,7 +72,7 @@ save_plot = function(plot, name, options) {
                Cairo_svg = load_device('Cairo_svg', 'cairoDevice'),
 
                tikz = function(...) {
-                   if (do.call('require', list(package = 'tikzDevice'))) {
+                   if (suppressPackageStartupMessages(require('tikzDevice'))) {
                        packages =
                            switch(getOption("tikzDefaultEngine"),
                                   pdftex = getOption("tikzLatexPackages"),
@@ -102,7 +102,8 @@ save_plot = function(plot, name, options) {
                             pdftex = getOption('tikzLatex'),
                             xetex = getOption("tikzXelatex"),
                             stop("a LaTeX engine must be specified for tikzDevice",
-                                 call. = FALSE)), shQuote(basename(path)), sep = ' '))
+                                 call. = FALSE)), shQuote(basename(path)), sep = ' '),
+               ignore.stdout = TRUE)
         setwd(owd)
         if (file.exists(pdf.plot)) ext = 'pdf' else {
             stop('failed to compile ', path, ' to PDF', call. = FALSE)

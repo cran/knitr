@@ -1,4 +1,4 @@
-%% LyX 2.1.0svn created this file.  For more info, see http://www.lyx.org/.
+%% LyX 2.0.3 created this file.  For more info, see http://www.lyx.org/.
 %% Do not edit unless you really know what you are doing.
 \documentclass{article}
 \usepackage[sc]{mathpazo}
@@ -38,10 +38,11 @@
 
 \begin{document}
 
-% \SweaveOpts{fig.path=figure/manual-,cache.path=cache/manual-,fig.align=center,external=TRUE,fig.show=hold,par=TRUE}
+% \SweaveOpts{fig.path='figure/manual-', cache.path='cache/manual-', fig.align='center', external=TRUE, fig.show='hold', par=TRUE}
 
-<<setup,echo=FALSE,results=hide,message=FALSE>>=
+<<setup, include=FALSE, cache=FALSE>>=
 options(replace.assign=TRUE,width=90)
+## tune details of base graphics (http://yihui.name/knitr/hooks)
 knit_hooks$set(par=function(before, options, envir){
 if (before && options$fig.show!='none') par(mar=c(4,4,.1,.1),cex.lab=.95,cex.axis=.9,mgp=c(2,.7,0),tcl=-.3)
 })
@@ -65,7 +66,7 @@ and generating statistical reports. The \textbf{knitr} package \citep{knitr-manu
 is following the steps of Sweave. For this manual, I assume readers
 have some background knowledge of Sweave to understand the technical
 details; for a reference of available options, hooks and demos, see
-the package homepage \url{http://yihui.github.com/knitr/}.
+the package homepage \url{http://yihui.name/knitr/}.
 
 
 \section{Hello World}
@@ -77,9 +78,9 @@ is that extending Sweave by hacking \textsf{SweaveDrivers.R} in the
 \ref{fig:cars-demo} is a simple demo of some features of \textbf{knitr}.
 
 \begin{figure}
-<<cars-demo,dev=tikz,fig.width=4,fig.height=2.8,out.width=.45\textwidth,message=FALSE,cache=TRUE>>=
+<<cars-demo,dev='tikz',fig.width=4,fig.height=2.8,out.width='.45\\textwidth',message=FALSE,cache=TRUE>>=
 fit=lm(dist~speed,data=cars) # linear regression
-par(mar=c(4, 4, 1, .1), mgp=c(2,1,0),bg='white')
+par(mar=c(4, 4, 1, .1), mgp=c(2,1,0), bg='white')
 with(cars,plot(speed,dist,panel.last=abline(fit)))
 text(10,100,'$Y = \\beta_0 + \\beta_1x + \\epsilon$')
 library(ggplot2)
@@ -91,9 +92,9 @@ qplot(speed, dist, data=cars)+geom_smooth()
 in \textbf{ggplot2}; (3) device size is $4\times2.8$ (inches) but
 output size is adjusted to \texttt{.45\textbackslash{}textwidth} in
 chunk options; (4) base graphics and \textbf{ggplot2} can sit side
-by side; (5) use the \emph{tikz()} device in \textbf{tikzDevice} simply
-by setting chunk option \texttt{dev=tikz} (hence can write native
-\protect\LaTeX{} expressions in R plots); (6) code highlighting.}
+by side; (5) use the \emph{tikz()} device in \textbf{tikzDevice} by
+setting chunk option \texttt{dev='tikz'} (hence can write native \protect\LaTeX{}
+expressions in R plots); (6) code highlighting.}
 \end{figure}
 
 
@@ -102,10 +103,12 @@ but here I show the code just for the sake of demonstration. If we
 type \emph{qplot()} in R, we get a plot, and the same thing happens
 in \textbf{knitr}. If we draw two plots in the code, \textbf{knitr}
 will show two plots and we do not need to tell it how many plots are
-there in the code in advance. If we set \texttt{out.width=.49\textbackslash{}textwidth}
+there in the code in advance. If we set \texttt{out.width='.49\textbackslash{}\textbackslash{}textwidth'}
 in chunk options, we get it in the final output document. If we say
-\texttt{fig.align=center}, the plots are centered. That's it. Many
-enhancements and new features will be introduced later.
+\texttt{fig.align='center'}, the plots are centered. That's it. Many
+enhancements and new features will be introduced later. If you come
+from the Sweave land, you can take a look at the page of transition
+first: \url{http://yihui.name/knitr/demo/sweave/}.
 
 
 \section{Design}
@@ -117,12 +120,12 @@ such as the support to a wide range of graphics devices and cache.
 Below is a brief description of the process:
 \begin{enumerate}
 \item \textbf{knitr} takes an input file and automatically determines an
-appropriate set of \href{http://yihui.github.com/knitr/patterns}{patterns}
+appropriate set of \href{http://yihui.name/knitr/patterns}{patterns}
 to use if they are not provided in advance (e.g. \textsf{file.Rnw}
 will use \texttt{knit\_patterns\$get('rnw')});
-\item a set of out \href{http://yihui.github.com/knitr/hooks}{hooks} will
+\item a set of output \href{http://yihui.name/knitr/hooks}{hooks} will
 also be set up automatically according to the filename extension (e.g.
-use \LaTeX{} environments to wrap R results for \LaTeX{} output);
+use \LaTeX{} environments or HTML elements to wrap up R results);
 \item the input file is read in and split into pieces consisting of R code
 chunks and normal texts; the former will be executed one after the
 other, and the latter may contain global chunk options or inline R
@@ -136,11 +139,12 @@ R source code)
 \item if \texttt{cache=TRUE} for this chunk, \textbf{knitr} will first check
 if there are previously cached results under the cache directory before
 really evaluating the chunk; if cached results exist and this code
-chunk has not been changed (use MD5 sum to verify), the cached results
-will be (lazy-) loaded, otherwise new cache will be built; if a cached
-chunk depends on other chunks (see the \texttt{dependson} \href{http://yihui.github.com/knitr/options}{option})
-and any one of these chunks has changed, this chunk must be forcibly
-updated (old cache will be purged)
+chunk has not been changed since last run (use MD5 sum to verify),
+the cached results will be (lazy-) loaded, otherwise new cache will
+be built; if a cached chunk depends on other chunks (see the \texttt{dependson}
+\href{http://yihui.name/knitr/options}{option}) and any one of these
+chunks has changed, this chunk must be forcibly updated (old cache
+will be purged)
 \item there are six types of possible output from \textbf{evaluate}, and
 their classes are \texttt{character} (normal text output), \texttt{source}
 (source code), \texttt{warning}, \texttt{message}, \texttt{error}
@@ -174,7 +178,7 @@ are from the default chunk option \texttt{comment}. Users may define
 a hook function for the source code like this to use the \texttt{lstlisting}
 environment:
 
-<<hook-source,eval=FALSE>>=
+<<hook-source, eval=FALSE>>=
 knit_hooks$set(source = function(x, options) {
 paste('\\begin{lstlisting}\n', x, '\\end{lstlisting}\n', sep = '')
 })
@@ -203,7 +207,7 @@ wait; output from inline R code (e.g. \texttt{\textbackslash{}Sexpr\{x{[}1{]}\}}
 is automatically formatted in \TeX{} math notation (like \Sexpr{123456789})
 if the result is numeric, and we will not get too many digits by default.
 You may check out a number of specific manuals dedicated to specific
-features such as graphics in the website: \url{http://yihui.github.com/knitr/demos}.
+features such as graphics in the website: \url{http://yihui.name/knitr/demos}.
 
 
 \subsection{Code Decoration}
@@ -222,7 +226,7 @@ output with prompts (set option \texttt{prompt=TRUE}), and you will
 quickly realize the inconvenience to the readers if they want to copy
 and run the code in the output document:
 
-<<stupid-prompts,prompt=TRUE,comment=NA,highlight=FALSE>>=
+<<stupid-prompts, prompt=TRUE, comment=NA, highlight=FALSE>>=
 x=rnorm(5)
 x
 var(x)
@@ -230,11 +234,11 @@ var(x)
 
 The example below shows the effect of \texttt{tidy=TRUE/FALSE}:
 
-<<tidy-no,eval=FALSE,tidy=FALSE>>=
+<<tidy-no, eval=FALSE, tidy=FALSE>>=
 ## option tidy=FALSE
 for(k in 1:10){j=cos(sin(k)*k^2)+3;print(j-5)}
 @
-<<tidy-yes,eval=FALSE,tidy=TRUE>>=
+<<tidy-yes, eval=FALSE, tidy=TRUE>>=
 ## option tidy=TRUE
 for(k in 1:10){j=cos(sin(k)*k^2)+3;print(j-5)}
 @
@@ -270,8 +274,8 @@ support for other graphics devices, which has been implemented since
 R 2.13.0. Instead of using logical options like \texttt{png} or \texttt{jpeg}
 (this list can go on and on), \textbf{knitr} uses a single option
 \texttt{dev} (like \texttt{grdevice} in Sweave) which has support
-for more than 20 devices. For instance, \texttt{dev=png} will use
-the \emph{png()} device, and \texttt{dev=CairoJPEG} uses the \emph{CairoJPEG()}
+for more than 20 devices. For instance, \texttt{dev='png'} will use
+the \emph{png()} device, and \texttt{dev='CairoJPEG'} uses the \emph{CairoJPEG()}
 device in the \textbf{Cairo} package (it has to be installed first,
 of course). If none of these devices is satisfactory, you can provide
 the name of a customized device function, which must have been defined
@@ -290,7 +294,7 @@ been evaluated. For example, the code below consists of three expressions,
 out of which two are related to drawing plots, therefore \textbf{evaluate}
 will produce two plots by default:
 
-<<low-level-plots,fig.keep=all,dev=tikz,fig.width=2.5,fig.height=2.5,out.width=.3\textwidth,cache=TRUE>>=
+<<low-level-plots, fig.keep='all', dev='tikz', fig.width=2.5, fig.height=2.5, out.width='.3\\textwidth', cache=TRUE>>=
 par(mar=c(3,3,.1,.1))
 plot(1:10, ann=FALSE,las=1)
 text(5,9,'mass $\\rightarrow$ energy\n$E=mc^2$')
@@ -299,8 +303,8 @@ text(5,9,'mass $\\rightarrow$ energy\n$E=mc^2$')
 This brings a significant difference with traditional tools in R for
 dynamic report generation, since low-level plotting changes can also
 be recorded. The option \texttt{fig.keep} controls which plots to
-keep in the output; \texttt{fig.keep=all} will keep low-level changes
-as separate plots; by default (\texttt{fig.keep=high}), \textbf{knitr}
+keep in the output; \texttt{fig.keep='all'} will keep low-level changes
+as separate plots; by default (\texttt{fig.keep='high'}), \textbf{knitr}
 will merge low-level plot changes into the previous high-level plot,
 like most graphics devices do. This feature may be useful for teaching
 R graphics step by step. Note, however, low-level plotting commands
@@ -309,14 +313,14 @@ accumulatively, but high-level plotting commands, regardless of where
 they are, will always be recorded. For example, this chunk will only
 produce 2 plots instead of 21 plots because there are 2 complete expressions:
 
-<<low-plot-loop,eval=FALSE>>=
+<<low-plot-loop, eval=FALSE>>=
 plot(0,0,type='n',ann=FALSE)
 for(i in seq(0, 2*pi,length=20)) points(cos(i),sin(i))
 @
 
 But this will produce 20 plots as expected:
 
-<<high-plot-loop,eval=FALSE>>=
+<<high-plot-loop, eval=FALSE>>=
 for(i in seq(0, 2*pi,length=20)) {plot(cos(i),sin(i),xlim=c(-1,1),ylim=c(-1,1))}
 @
 
@@ -325,20 +329,20 @@ to let \textbf{knitr} keep all the plots in a chunk and insert them
 into the output document, so we no longer need the \texttt{cat('\textbackslash{}\textbackslash{}includegraphics\{\}')}
 trick.
 
-We can discard all previous plots and keep the last one only by \texttt{fig.keep=last},
-or keep only the first plot by \texttt{fig.keep=first}, or discard
-all plots by \texttt{fig.keep=none}.
+We can discard all previous plots and keep the last one only by \texttt{fig.keep='last'},
+or keep only the first plot by \texttt{fig.keep='first'}, or discard
+all plots by \texttt{fig.keep='none'}.
 
 
 \subsubsection{Plot Rearrangement}
 
 The option \texttt{fig.show} can decide whether to hold all plots
 while evaluating the code and ``flush'' all of them to the end of
-a chunk (\texttt{fig.show=hold}), or just insert them to the place
-where they were created (by default \texttt{fig.show=asis}). Here
-is an example of \texttt{fig.show=asis}:
+a chunk (\texttt{fig.show='hold'}), or just insert them to the place
+where they were created (by default \texttt{fig.show='asis'}). Here
+is an example of \texttt{fig.show='asis'}:
 
-<<fig-hold,fig=TRUE,fig.show=asis,dev=pdf,fig.width=6,fig.height=4,out.width=.35\linewidth>>=
+<<fig-hold, fig=TRUE, fig.show='asis', dev='pdf', fig.width=6, fig.height=4, out.width='.35\\linewidth'>>=
 contour(volcano)  # contour lines
 filled.contour(volcano)  # fill contour plot with colors
 @
@@ -360,7 +364,7 @@ note the PNG device is used because PDF files are too large. You should
 be able to see the animation immediately with Acrobat Reader since
 it was set to play automatically:
 
-<<animate-demo,fig.show=animate,dev=png,out.width=.45\linewidth,interval=.5,aniopts=controls;loop;autoplay,cache=TRUE>>=
+<<animate-demo, fig.show='animate', dev='png', out.width='.45\\linewidth', interval=.5, aniopts='controls,loop,autoplay',  cache=TRUE>>=
 library(animation)
 demo('Mandelbrot', echo = FALSE, package = 'animation')
 @
@@ -373,7 +377,7 @@ size of plots in the graphics device, and the real size in the output
 document can be different (see \texttt{out.width} and \texttt{out.height}).
 When there are multiple plots per chunk, it is possible to arrange
 more than one plot per line in \LaTeX{} -- just specify \texttt{out.width}
-to be less than half of the current line width.
+to be less than half of the current line width, e.g. \texttt{out.width='.49\textbackslash{}\textbackslash{}linewidth'}.
 
 
 \subsubsection{The tikz Device}
@@ -381,14 +385,14 @@ to be less than half of the current line width.
 Beside PDF, PNG and other traditional R graphical devices, \textbf{knitr}
 has special support to tikz graphics via the \textbf{tikzDevice} package
 \citep{tikzDevice-manual}, which is similar to \textbf{pgfSweave}.
-If we set the chunk option \texttt{dev=tikz}, the \emph{tikz()} device
-in \textbf{tikzDevice} will be used to record plots. Options \texttt{sanitize}
-and \texttt{external} are related to the tikz device: see the documentation
-of \emph{tikz()} for explanation on \texttt{sanitize}, and \texttt{external=TRUE}
+If we set the chunk option \texttt{dev='tikz'}, the \emph{tikz()}
+device in \textbf{tikzDevice} will be used to record plots. Options
+\texttt{sanitize} and \texttt{external} are related to the tikz device:
+see the documentation of \emph{tikz()} for details. Note \texttt{external=TRUE}
 in \textbf{knitr} has a different meaning with \textbf{pgfSweave}
 -- it means \texttt{standAlone=TRUE} in \emph{tikz()}, and the tikz
 graphics output will be compiled to PDF \emph{immediately} after it
-was created, so the ``externalization'' does not depend on the \textbf{tikz}
+is created, so the ``externalization'' does not depend on the \textbf{tikz}
 package; to maintain consistency in (font) styles, \textbf{knitr}
 will read the preamble of the input document and use it in the tikz
 device. At the moment, I'm not sure if this is a faithful way to externalize
@@ -403,7 +407,7 @@ Below is an example taken from StackOverflow%
 $\mathrm{d}\mathbf{x}_{t}=\alpha[(\theta-\mathbf{x}_{t})\mathrm{d}t+4]\mathrm{d}B_{t}$
 in R graphics:
 
-<<math-expr-R,eval=FALSE>>=
+<<math-expr-R, eval=FALSE>>=
 qplot(1:10, 1:10) + opts(title = substitute(paste(d * 
     bolditalic(x)[italic(t)] == alpha * (theta - bolditalic(x)[italic(t)]) * 
     d * italic(t) + lambda * d * italic(B)[italic(t)]), list(lambda = 4))) 
@@ -411,7 +415,7 @@ qplot(1:10, 1:10) + opts(title = substitute(paste(d *
 
 With the tikz device, it is both straightforward and more beautiful: 
 
-<<math-expr-tikz,dev=tikz,fig.width=5,fig.height=3,out.width=.55\linewidth,cache=TRUE,message=FALSE>>=
+<<math-expr-tikz, dev='tikz', fig.width=5, fig.height=3, out.width='.55\\linewidth', cache=TRUE, message=FALSE>>=
 library(ggplot2)
 qplot(1:10, 1:10) + 
 opts(title = sprintf('$\\mathrm{d}\\mathbf{x}_{t} = \\alpha[(\\theta - \\mathbf{x}_{t})\\mathrm{d}t + %d]\\mathrm{d}B_{t}$', 4))
@@ -431,7 +435,7 @@ to read, and a contour plot or a hexagon plot showing the 2D density
 can be a better alternative (they are smaller in size).
 
 The graphics manual contains more detailed information and you can
-check it out in the \href{http://yihui.github.com/knitr/demo/graphics/}{website}.
+check it out in the \href{http://yihui.name/knitr/demo/graphics/}{website}.
 
 
 \subsection{Cache}
@@ -456,7 +460,7 @@ based on the object of its subset.
 The paths of cache files are determined by the chunk option \texttt{cache.path};
 by default all cache files are created under a directory \textsf{cache}
 relative to the current working directory, and if the option value
-contains a directory (e.g. \texttt{cache.path=cache/abc-}), cache
+contains a directory (e.g. \texttt{cache.path='cache/abc-'}), cache
 files will be stored under that directory (automatically created if
 it does not exist). The cache is invalidated and purged on any changes
 to the code chunk, including both the R code and chunk options%
@@ -491,29 +495,31 @@ will still use old cached results, unless there is a way to detect
 such changes from other chunks. There is an option called \texttt{dependson}
 in \textbf{cacheSweave} which does this job. We can explicitly specify
 which other chunks this chunk depends on by setting an option like
-\texttt{dependson=chunkA;chunkB}. Each time the cache of a chunk is
-rebuilt, all other chunks which depend on this chunk will lose cache,
-hence their cache will be rebuilt as well.
+\texttt{dependson='chunkA;chunkB'} or equivalently \texttt{dependson=c('chunkA',
+'chunkB')}. Each time the cache of a chunk is rebuilt, all other chunks
+which depend on this chunk will lose cache, hence their cache will
+be rebuilt as well.
 
 
 \subsection{Code Externalization}
 
 It can be more convenient to write R code in a separate file, rather
 than mixing it into a \LaTeX{} document; for example, we can run R
-code successively from one chunk to the other without jumping through
-other texts. Since I prefer using \LyX{} to write reports, Sweave
-is even more inconvenient because I have to recompile the whole document
-each time, even if I only want to know the results of a single chunk.
-Therefore \textbf{knitr} introduced the feature of code externalization
-to a separate R script. Currently the setting is like this: the R
-script also uses chunk labels (marked in the form \texttt{\#\# @knitr
-chunk-label} by default); if the code chunk in the input document
-is empty, \textbf{knitr} will match its label with the label in the
-R script to input external R code. For example, suppose this is a
-code chunk labelled as \texttt{Q1} in an R script named \textsf{homework1-xie.R}
-which is under the same directory as the Rnw document:
+code successively in a pure R script from one chunk to the other without
+jumping through other texts. Since I prefer using \LyX{} to write
+reports, Sweave is even more inconvenient because I have to recompile
+the whole document each time, even if I only want to know the results
+of a single chunk. Therefore \textbf{knitr} introduced the feature
+of code externalization to a separate R script. Currently the setting
+is like this: the R script also uses chunk labels (marked in the form
+\texttt{\#\# @knitr chunk-label} by default); if the code chunk in
+the input document is empty, \textbf{knitr} will match its label with
+the label in the R script to input external R code. For example, suppose
+this is a code chunk labelled as \texttt{Q1} in an R script named
+\textsf{homework1-xie.R} which is under the same directory as the
+Rnw document:
 
-<<ext-r-code,eval=FALSE>>=
+<<ext-r-code, eval=FALSE>>=
 ## @knitr Q1
 gcd = function(m, n) {
     while ((r <- m %% n) != 0) {
@@ -526,14 +532,14 @@ gcd = function(m, n) {
 In the Rnw document, we can first read the script using the function
 \emph{read\_chunk()}:
 
-<<read-chunk,eval=FALSE>>=
+<<read-chunk, eval=FALSE>>=
 read_chunk('homework1-xie.R')
 @
 
 This is usually done in an early chunk, and we can use the chunk \texttt{Q1}
 later in the Rnw document:
 
-<<use-ext-chunk,echo=FALSE,comment=NA>>=
+<<use-ext-chunk, echo=FALSE, comment=NA>>=
 cat('<<Q1, echo=TRUE, tidy=TRUE>>=','@',sep='\n')
 @
 
@@ -541,13 +547,26 @@ Different documents can read the same R script, so the R code can
 be reusable across different input documents.
 
 
-\subsection{Conditional Evaluation\label{sub:conditional}}
+\subsection{Evaluation of Chunk Options\label{sub:conditional}}
 
-Instead of setting chunk options \texttt{eval} and \texttt{echo} to
-be \texttt{TRUE} or \texttt{FALSE}, their values can be controlled
-by global variables in the current R session. This enables \textbf{knitr}
-to conditionally evaluate code chunks according to variables. For
-example, here we assign \texttt{TRUE} to a variable \texttt{dothis}:
+By default \textbf{knitr} uses a new syntax to parse chunk options:
+it treats them as function arguments instead of a text string to be
+split to obtain option values. This gives the user much more power
+than the old syntax; we can pass arbitrary R objects to chunk options
+besides simple ones like \texttt{TRUE}/\texttt{FALSE}, numbers and
+character strings. The page \url{http://yihui.name/knitr/demo/sweave/}
+has given two examples to show the advantages of the new syntax. Here
+we show yet another useful application.
+
+Before \textbf{knitr} 0.3, there was a feature named ``conditional
+evaluation''%
+\footnote{request from \url{https://plus.google.com/u/0/116405544829727492615/posts/43WrRUffjzK}%
+}. The idea is, instead of setting chunk options \texttt{eval} and
+\texttt{echo} to be \texttt{TRUE} or \texttt{FALSE} (constants), their
+values can be controlled by global variables in the current R session.
+This enables \textbf{knitr} to conditionally evaluate code chunks
+according to variables. For example, here we assign \texttt{TRUE}
+to a variable \texttt{dothis}:
 
 <<cond-variable>>=
 dothis=TRUE
@@ -557,7 +576,7 @@ In the next chunk, we set chunk options \texttt{eval=dothis} and \texttt{echo=!d
 both are valid R expressions since the variable \texttt{dothis} exists.
 As we can see, the source code is hidden, but it was indeed evaluated:
 
-<<cond-out1,eval=dothis,echo=!dothis>>=
+<<cond-out1, eval=dothis, echo=!dothis>>=
 print('you cannot see my source because !dothis is FALSE')
 @
 
@@ -571,6 +590,15 @@ dothis
 If we change the value of \texttt{dothis} to \texttt{FALSE}, neither
 of the above chunks will be evaluated any more. Therefore we can control
 many chunks with a single variable, and present results selectively.
+
+This old feature requires \textbf{knitr} to treat \texttt{eval} and
+\texttt{echo} specially, and we can easily see that it is no longer
+necessary with the new syntax: \texttt{eval=dothis} will tell R to
+find the variable \texttt{dothis} automatically just like we call
+a function \texttt{foobar(eval = dothis)}. What is more, all options
+will be evaluated as R expressions unless they are already constants
+which do not need to be evaluated, so this old feature has been generalized
+to all other options naturally.
 
 
 \subsection{Customization}
@@ -588,7 +616,7 @@ head(hook_rgl)  # the hook function is defined as this
 
 Then we only have to set the chunk option \texttt{rgl=TRUE}:
 
-<<fancy-rgl,rgl=TRUE,dev=png,fig.width=5,fig.height=5,out.width=2in,message=FALSE,cache=TRUE>>=
+<<fancy-rgl, rgl=TRUE, dev='png', fig.width=5, fig.height=5, out.width='2in', message=FALSE, cache=TRUE>>=
 library(rgl)
 demo('bivar', package='rgl', echo=FALSE) 
 par3d(zoom=.7)
@@ -597,119 +625,21 @@ par3d(zoom=.7)
 Due to the flexibility of output hooks, \textbf{knitr} supports several
 different output formats. The implementation is fairly easy, e.g.,
 for \LaTeX{} we put R output in \texttt{verbatim} environments, and
-in HTML, it is only a matter of putting output in a \texttt{div} layer.
-These are simply character string operations. The demo of using the
-\textbf{listings} package in the \href{http://yihui.github.com/knitr/demo/listings/}{website}
-shows this idea clearly.
+in HTML, it is only a matter of putting output in \texttt{div} layers.
+These are simply character string operations. Many demos in \url{http://yihui.name/knitr/demos}
+show this idea clearly. This manual did not cover all the features
+of \textbf{knitr}, and users are encouraged to thumb through the website
+to know more possible features.
 
 
-\section{Comparison}
+\section{Editors}
 
-Some features of Sweave were dropped in \textbf{knitr} and some were
-changed, including:
-\begin{description}
-\item [{concordance}] was dropped: I have never used it and I do not plan
-to reimplement it either
-\item [{keep.source}] was merged into a more flexible option \texttt{tidy} 
-\item [{print}] was dropped: whether an R expression is going to be printed
-is consistent with your experince of using R (e.g., \texttt{x <- 1}
-will not be printed, while \texttt{1:10} will; just imagine you are
-typing the commands in an R console/terminal); if you really want
-the output of an expression to be invisible, you may use the function
-\emph{invisible()} 
-\item [{term}] was dropped (think \texttt{term=TRUE}) 
-\item [{stripe.white}] was dropped (rarely used, and can be achieved by
-hooks)
-\item [{prefix}] was dropped (think \texttt{prefix=TRUE})
-\item [{prefix.string}] was renamed to \texttt{fig.path} and it is always
-used for figure filenames
-\item [{eps,~pdf}] and all logical options for graphics devices were dropped:
-please use the new option \texttt{dev}, which is similar to \texttt{grdevice}
-in Sweave but has more than 20 predefined graphical devices (if that
-is not enough, please let me know, or set it in chunk options by yourself);
-note only one device can be used for a chunk (in old ages, we may
-have to use both \texttt{eps} and \texttt{pdf}, but nowadays there
-is usually no need to generate multiple image formats for the same
-plot)
-\item [{fig}] was dropped; now use \texttt{fig.keep}: \texttt{fig.keep=high}
-is equivalent to \texttt{fig=TRUE} and \texttt{fig.keep=none} is the
-same as \texttt{fig=FALSE}
-\item [{width,~height}] were dropped; use \texttt{fig.width} and \texttt{fig.height}
-instead
-\end{description}
-For logical options, only \texttt{TRUE}/\texttt{FALSE}/\texttt{T}/\texttt{F}
-are supported (the first two are recommended), and \texttt{true}/\texttt{false}
-will not work, e.g., \texttt{eval=FALSE} is OK, and \texttt{eval=false}
-is not (not exactly true; see Section \ref{sub:conditional}). Chunk
-reference using \texttt{<\textcompwordmark{}<chunk-label>\textcompwordmark{}>}
-was dropped; if you want to reuse a chunk, either consider writing
-a function instead of explicitly repeating code, or make use of code
-externalization as introduced before, or use the new option \texttt{ref.label}
-(see the demo ``\href{http://yihui.github.com/knitr/demo/reference/}{Chunk Reference}''
-in the website).
+You can use any text editors to write the source documents, but some
+have built-in support for \textbf{knitr}. Both RStudio (\url{http://www.rstudio.org})
+and \LyX{} (\url{http://www.lyx.org}) have full support for \textbf{knitr},
+and you can compile the document to PDF with just one click. See \url{http://yihui.name/knitr/demo/rstudio/}
+and \url{http://yihui.name/knitr/demo/lyx/} respectively.
 
-Besides, the \LaTeX{} style file \textsf{Sweave.sty} was dropped as
-well; it has brought too much confusion to users since it is shipped
-with R instead of \LaTeX{}; \textbf{knitr} has built-in styles using
-standard \LaTeX{} packages, and users are free to change them using
-hooks. 
-
-For inline R code as in \texttt{\textbackslash{}Sexpr\{\}}, \textbf{knitr}
-will automatically format the results -- numbers will be written in
-real scientific notations (e.g. $3.14\times10^{-5}$ instead of the
-less readable \texttt{3.14e-05}). We can also call \texttt{knit(...,
-tangle = TRUE)} to tangle R code, which is similar to \emph{Stangle()}.
-
-Some answers to Sweave FAQ's from \texttt{vignette('Sweave', package='utils')}
-are different in \textbf{knitr}:
-\begin{description}
-\item [{A.4}] empty figure chunks will not cause \LaTeX{} errors because
-figures will not be generated at all, and it is safe to use \texttt{fig.keep}
-(close to \texttt{fig=TRUE} in Sweave) even if there are not plots
-in a chunk
-\item [{A.5}] \textbf{lattice}, \textbf{ggplot2} and other grid-based graphics
-will work as expected in \textbf{knitr}
-\item [{A.7}] multiple figures per chunk will work as expected; no need
-to use any special tricks
-\item [{A.9}] we can use output hooks to change the formatting of output,
-and there is complete freedom -- the output does not have to rely
-on the \textbf{fancyvrb} package, and there is no need to hack at
-\textsf{Sweave.sty} either
-\item [{A.10}] the width option is set to 75 by default in \textbf{knitr},
-since R's default is often too wide (besides, the \texttt{useFancyQuotes}
-option is set to \texttt{FALSE} to avoid a common problem caused by
-multi-byte characters, and \texttt{digits} is set to 4 to avoid too
-many digits)
-\item [{A.13}] \textbf{knitr} comes with a set of hooks to deal with HTML
-output (see \href{http://yihui.github.com/knitr/demos}{demos in the website})
-\end{description}
-Currently the multilingual support is limited, especially under Windows
-(I do not have much experience with encodings). For systems which
-use the UTF8 locale, \textbf{knitr} works fine for multi-byte characters.
-Note, however, \textbf{knitr} does not check the encoding of the input
-document at all, so the tricks in Sweave like using \texttt{\textbackslash{}usepackage{[}foo{]}\{inputenc\}}
-will not work.
-
-It also has some differences with \textbf{pgfSweave} and \textbf{cacheSweave}:
-\begin{itemize}
-\item For the former, \texttt{dev=tikz} in \textbf{knitr} means \texttt{tikz=TRUE}
-in \textbf{pgfSweave}, and \texttt{external=TRUE} was implemented
-differently -- the cache of tikz graphics is moved to the R level
-instead of relying on the \LaTeX{} package \textbf{tikz} (if a tikz
-plot is externalized, \textbf{knitr} will try to compile it to PDF
-immediately and use \texttt{\textbackslash{}includegraphics\{filename\}}
-to insert it into the output; in comparison, \texttt{external=FALSE}
-uses \texttt{\textbackslash{}input\{filename.tikz\}}); this frees
-the users from the GNU \texttt{make} utility and understanding tikz
-externalization;
-\item For the latter, \texttt{cache} was implemented with functions in base
-R (e.g., \emph{lazyLoad()}) and does not rely on other add-on packages;
-for cached chunks, the results from the last run will be written into
-the output, and this is more consistent with the default behavior
-of R code (users may wonder why \texttt{print(x)} does not produce
-any output for cached chunks; plots in cached chunks will still be
-in the output as well); 
-\end{itemize}
 
 \section*{About This Document}
 
@@ -717,7 +647,7 @@ This manual was written in \LyX{} and compiled with \textbf{knitr}.
 The \LyX{} source and the Rnw document exported from \LyX{} can be
 found under these directories:
 
-<<source-location,eval=FALSE>>=
+<<source-location, eval=FALSE>>=
 system.file('examples', 'knitr-manual.lyx', package='knitr')  # lyx source
 system.file('examples', 'knitr-manual.Rnw', package='knitr')  # Rnw source
 @
@@ -727,8 +657,8 @@ to put the two \textsf{.bib} files under the same directory), and
 you need to make sure all the R packages used in this document are
 installed:
 
-<<required-packages,eval=FALSE>>=
-install.packages(c('animation', 'rgl', 'tikzDevice'))
+<<required-packages, eval=FALSE>>=
+install.packages(c('animation', 'rgl', 'tikzDevice', 'ggplot2'))
 @
 
 Feedback and comments on this manual and the package are always welcome.

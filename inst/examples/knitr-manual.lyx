@@ -1,5 +1,5 @@
-#LyX 2.1 created this file. For more info see http://www.lyx.org/
-\lyxformat 420
+#LyX 2.0 created this file. For more info see http://www.lyx.org/
+\lyxformat 413
 \begin_document
 \begin_header
 \textclass article
@@ -54,14 +54,11 @@ knitr
 \use_esint 1
 \use_mhchem 1
 \use_mathdots 1
-\use_undertilde 1
 \cite_engine natbib_authoryear
-\biblio_style jss
 \use_bibtopic false
 \use_indices false
 \paperorientation portrait
 \suppress_date false
-\justification true
 \use_refstyle 1
 \index Index
 \shortcut idx
@@ -96,8 +93,8 @@ status open
 
 % 
 \backslash
-SweaveOpts{fig.path=figure/manual-,cache.path=cache/manual-,fig.align=center,extern
-al=TRUE,fig.show=hold,par=TRUE}
+SweaveOpts{fig.path='figure/manual-', cache.path='cache/manual-', fig.align='center
+', external=TRUE, fig.show='hold', par=TRUE}
 \end_layout
 
 \end_inset
@@ -111,12 +108,17 @@ status open
 
 \begin_layout Plain Layout
 
-<<setup,echo=FALSE,results=hide,message=FALSE>>=
+<<setup, include=FALSE, cache=FALSE>>=
 \end_layout
 
 \begin_layout Plain Layout
 
 options(replace.assign=TRUE,width=90)
+\end_layout
+
+\begin_layout Plain Layout
+
+## tune details of base graphics (http://yihui.name/knitr/hooks)
 \end_layout
 
 \begin_layout Plain Layout
@@ -203,7 +205,7 @@ status collapsed
 
 \begin_layout Plain Layout
 
-http://yihui.github.com/knitr/
+http://yihui.name/knitr/
 \end_layout
 
 \end_inset
@@ -257,9 +259,11 @@ status open
 
 \begin_layout Plain Layout
 
-<<cars-demo,dev=tikz,fig.width=4,fig.height=2.8,out.width=.45
+<<cars-demo,dev='tikz',fig.width=4,fig.height=2.8,out.width='.45
 \backslash
-textwidth,message=FALSE,cache=TRUE>>=
+
+\backslash
+textwidth',message=FALSE,cache=TRUE>>=
 \end_layout
 
 \begin_layout Plain Layout
@@ -269,7 +273,7 @@ fit=lm(dist~speed,data=cars) # linear regression
 
 \begin_layout Plain Layout
 
-par(mar=c(4, 4, 1, .1), mgp=c(2,1,0),bg='white')
+par(mar=c(4, 4, 1, .1), mgp=c(2,1,0), bg='white')
 \end_layout
 
 \begin_layout Plain Layout
@@ -358,9 +362,9 @@ tikz()
 \series bold
 tikzDevice
 \series default
- simply by setting chunk option 
+ by setting chunk option 
 \family typewriter
-dev=tikz
+dev='tikz'
 \family default
  (hence can write native LaTeX expressions in R plots); (6) code highlighting.
 \end_layout
@@ -395,18 +399,33 @@ knitr
  in the code in advance.
  If we set 
 \family typewriter
-out.width=.49
+out.width='.49
 \backslash
-textwidth
+
+\backslash
+textwidth'
 \family default
  in chunk options, we get it in the final output document.
  If we say 
 \family typewriter
-fig.align=center
+fig.align='center'
 \family default
 , the plots are centered.
  That's it.
  Many enhancements and new features will be introduced later.
+ If you come from the Sweave land, you can take a look at the page of transition
+ first: 
+\begin_inset Flex URL
+status collapsed
+
+\begin_layout Plain Layout
+
+http://yihui.name/knitr/demo/sweave/
+\end_layout
+
+\end_inset
+
+.
 \end_layout
 
 \begin_layout Section
@@ -435,7 +454,7 @@ knitr
 \begin_inset CommandInset href
 LatexCommand href
 name "patterns"
-target "http://yihui.github.com/knitr/patterns"
+target "http://yihui.name/knitr/patterns"
 
 \end_inset
 
@@ -452,16 +471,16 @@ knit_patterns$get('rnw')
 \end_layout
 
 \begin_layout Enumerate
-a set of out 
+a set of output 
 \begin_inset CommandInset href
 LatexCommand href
 name "hooks"
-target "http://yihui.github.com/knitr/hooks"
+target "http://yihui.name/knitr/hooks"
 
 \end_inset
 
  will also be set up automatically according to the filename extension (e.g.
- use LaTeX environments to wrap R results for LaTeX output);
+ use LaTeX environments or HTML elements to wrap up R results);
 \end_layout
 
 \begin_layout Enumerate
@@ -502,9 +521,9 @@ knitr
 \series default
  will first check if there are previously cached results under the cache
  directory before really evaluating the chunk; if cached results exist and
- this code chunk has not been changed (use MD5 sum to verify), the cached
- results will be (lazy-) loaded, otherwise new cache will be built; if a
- cached chunk depends on other chunks (see the 
+ this code chunk has not been changed since last run (use MD5 sum to verify),
+ the cached results will be (lazy-) loaded, otherwise new cache will be
+ built; if a cached chunk depends on other chunks (see the 
 \family typewriter
 dependson
 \family default
@@ -512,7 +531,7 @@ dependson
 \begin_inset CommandInset href
 LatexCommand href
 name "option"
-target "http://yihui.github.com/knitr/options"
+target "http://yihui.name/knitr/options"
 
 \end_inset
 
@@ -670,7 +689,7 @@ status open
 
 \begin_layout Plain Layout
 
-<<hook-source,eval=FALSE>>=
+<<hook-source, eval=FALSE>>=
 \end_layout
 
 \begin_layout Plain Layout
@@ -798,7 +817,7 @@ status collapsed
 
 \begin_layout Plain Layout
 
-http://yihui.github.com/knitr/demos
+http://yihui.name/knitr/demos
 \end_layout
 
 \end_inset
@@ -866,7 +885,7 @@ status open
 
 \begin_layout Plain Layout
 
-<<stupid-prompts,prompt=TRUE,comment=NA,highlight=FALSE>>=
+<<stupid-prompts, prompt=TRUE, comment=NA, highlight=FALSE>>=
 \end_layout
 
 \begin_layout Plain Layout
@@ -908,7 +927,7 @@ status open
 
 \begin_layout Plain Layout
 
-<<tidy-no,eval=FALSE,tidy=FALSE>>=
+<<tidy-no, eval=FALSE, tidy=FALSE>>=
 \end_layout
 
 \begin_layout Plain Layout
@@ -928,7 +947,7 @@ for(k in 1:10){j=cos(sin(k)*k^2)+3;print(j-5)}
 
 \begin_layout Plain Layout
 
-<<tidy-yes,eval=FALSE,tidy=TRUE>>=
+<<tidy-yes, eval=FALSE, tidy=TRUE>>=
 \end_layout
 
 \begin_layout Plain Layout
@@ -1105,7 +1124,7 @@ grdevice
  in Sweave) which has support for more than 20 devices.
  For instance, 
 \family typewriter
-dev=png
+dev='png'
 \family default
  will use the 
 \emph on
@@ -1113,7 +1132,7 @@ png()
 \emph default
  device, and 
 \family typewriter
-dev=CairoJPEG
+dev='CairoJPEG'
 \family default
  uses the 
 \emph on
@@ -1172,9 +1191,12 @@ status open
 
 \begin_layout Plain Layout
 
-<<low-level-plots,fig.keep=all,dev=tikz,fig.width=2.5,fig.height=2.5,out.width=.3
+<<low-level-plots, fig.keep='all', dev='tikz', fig.width=2.5, fig.height=2.5,
+ out.width='.3
 \backslash
-textwidth,cache=TRUE>>=
+
+\backslash
+textwidth', cache=TRUE>>=
 \end_layout
 
 \begin_layout Plain Layout
@@ -1217,11 +1239,11 @@ fig.keep
 \family default
  controls which plots to keep in the output; 
 \family typewriter
-fig.keep=all
+fig.keep='all'
 \family default
  will keep low-level changes as separate plots; by default (
 \family typewriter
-fig.keep=high
+fig.keep='high'
 \family default
 ), 
 \series bold
@@ -1243,7 +1265,7 @@ status open
 
 \begin_layout Plain Layout
 
-<<low-plot-loop,eval=FALSE>>=
+<<low-plot-loop, eval=FALSE>>=
 \end_layout
 
 \begin_layout Plain Layout
@@ -1276,7 +1298,7 @@ status open
 
 \begin_layout Plain Layout
 
-<<high-plot-loop,eval=FALSE>>=
+<<high-plot-loop, eval=FALSE>>=
 \end_layout
 
 \begin_layout Plain Layout
@@ -1315,15 +1337,15 @@ includegraphics{}')
 \begin_layout Standard
 We can discard all previous plots and keep the last one only by 
 \family typewriter
-fig.keep=last
+fig.keep='last'
 \family default
 , or keep only the first plot by 
 \family typewriter
-fig.keep=first
+fig.keep='first'
 \family default
 , or discard all plots by 
 \family typewriter
-fig.keep=none
+fig.keep='none'
 \family default
 .
 \end_layout
@@ -1347,17 +1369,17 @@ flush
 
  all of them to the end of a chunk (
 \family typewriter
-fig.show=hold
+fig.show='hold'
 \family default
 ), or just insert them to the place where they were created (by default
  
 \family typewriter
-fig.show=asis
+fig.show='asis'
 \family default
 ).
  Here is an example of 
 \family typewriter
-fig.show=asis
+fig.show='asis'
 \family default
 :
 \end_layout
@@ -1368,9 +1390,12 @@ status open
 
 \begin_layout Plain Layout
 
-<<fig-hold,fig=TRUE,fig.show=asis,dev=pdf,fig.width=6,fig.height=4,out.width=.35
+<<fig-hold, fig=TRUE, fig.show='asis', dev='pdf', fig.width=6, fig.height=4,
+ out.width='.35
 \backslash
-linewidth>>=
+
+\backslash
+linewidth'>>=
 \end_layout
 
 \begin_layout Plain Layout
@@ -1469,9 +1494,11 @@ status open
 
 \begin_layout Plain Layout
 
-<<animate-demo,fig.show=animate,dev=png,out.width=.45
+<<animate-demo, fig.show='animate', dev='png', out.width='.45
 \backslash
-linewidth,interval=.5,aniopts=controls;loop;autoplay,cache=TRUE>>=
+
+\backslash
+linewidth', interval=.5, aniopts='controls,loop,autoplay',  cache=TRUE>>=
 \end_layout
 
 \begin_layout Plain Layout
@@ -1522,7 +1549,16 @@ out.height
 \family typewriter
 out.width
 \family default
- to be less than half of the current line width.
+ to be less than half of the current line width, e.g.
+ 
+\family typewriter
+out.width='.49
+\backslash
+
+\backslash
+linewidth'
+\family default
+.
 \end_layout
 
 \begin_layout Subsubsection
@@ -1552,7 +1588,7 @@ pgfSweave
 .
  If we set the chunk option 
 \family typewriter
-dev=tikz
+dev='tikz'
 \family default
 , the 
 \emph on
@@ -1575,11 +1611,8 @@ external
 \emph on
 tikz()
 \emph default
- for explanation on 
-\family typewriter
-sanitize
-\family default
-, and 
+ for details.
+ Note 
 \family typewriter
 external=TRUE
 \family default
@@ -1603,7 +1636,7 @@ tikz()
 \emph on
 immediately
 \emph default
- after it was created, so the 
+ after it is created, so the 
 \begin_inset Quotes eld
 \end_inset
 
@@ -1669,7 +1702,7 @@ status open
 
 \begin_layout Plain Layout
 
-<<math-expr-R,eval=FALSE>>=
+<<math-expr-R, eval=FALSE>>=
 \end_layout
 
 \begin_layout Plain Layout
@@ -1709,9 +1742,11 @@ status open
 
 \begin_layout Plain Layout
 
-<<math-expr-tikz,dev=tikz,fig.width=5,fig.height=3,out.width=.55
+<<math-expr-tikz, dev='tikz', fig.width=5, fig.height=3, out.width='.55
 \backslash
-linewidth,cache=TRUE,message=FALSE>>=
+
+\backslash
+linewidth', cache=TRUE, message=FALSE>>=
 \end_layout
 
 \begin_layout Plain Layout
@@ -1809,7 +1844,7 @@ The graphics manual contains more detailed information and you can check
 \begin_inset CommandInset href
 LatexCommand href
 name "website"
-target "http://yihui.github.com/knitr/demo/graphics/"
+target "http://yihui.name/knitr/demo/graphics/"
 
 \end_inset
 
@@ -1887,7 +1922,7 @@ cache
  a directory (e.g.
  
 \family typewriter
-cache.path=cache/abc-
+cache.path='cache/abc-'
 \family default
 ), cache files will be stored under that directory (automatically created
  if it does not exist).
@@ -1989,7 +2024,11 @@ cacheSweave
  We can explicitly specify which other chunks this chunk depends on by setting
  an option like 
 \family typewriter
-dependson=chunkA;chunkB
+dependson='chunkA;chunkB'
+\family default
+ or equivalently 
+\family typewriter
+dependson=c('chunkA', 'chunkB')
 \family default
 .
  Each time the cache of a chunk is rebuilt, all other chunks which depend
@@ -2003,7 +2042,8 @@ Code Externalization
 \begin_layout Standard
 It can be more convenient to write R code in a separate file, rather than
  mixing it into a LaTeX document; for example, we can run R code successively
- from one chunk to the other without jumping through other texts.
+ in a pure R script from one chunk to the other without jumping through
+ other texts.
  Since I prefer using LyX to write reports, Sweave is even more inconvenient
  because I have to recompile the whole document each time, even if I only
  want to know the results of a single chunk.
@@ -2040,7 +2080,7 @@ status open
 
 \begin_layout Plain Layout
 
-<<ext-r-code,eval=FALSE>>=
+<<ext-r-code, eval=FALSE>>=
 \end_layout
 
 \begin_layout Plain Layout
@@ -2102,7 +2142,7 @@ status open
 
 \begin_layout Plain Layout
 
-<<read-chunk,eval=FALSE>>=
+<<read-chunk, eval=FALSE>>=
 \end_layout
 
 \begin_layout Plain Layout
@@ -2134,7 +2174,7 @@ status open
 
 \begin_layout Plain Layout
 
-<<use-ext-chunk,echo=FALSE,comment=NA>>=
+<<use-ext-chunk, echo=FALSE, comment=NA>>=
 \end_layout
 
 \begin_layout Plain Layout
@@ -2160,7 +2200,7 @@ Different documents can read the same R script, so the R code can be reusable
 \end_layout
 
 \begin_layout Subsection
-Conditional Evaluation
+Evaluation of Chunk Options
 \begin_inset CommandInset label
 LatexCommand label
 name "sub:conditional"
@@ -2171,7 +2211,73 @@ name "sub:conditional"
 \end_layout
 
 \begin_layout Standard
-Instead of setting chunk options 
+By default 
+\series bold
+knitr
+\series default
+ uses a new syntax to parse chunk options: it treats them as function arguments
+ instead of a text string to be split to obtain option values.
+ This gives the user much more power than the old syntax; we can pass arbitrary
+ R objects to chunk options besides simple ones like 
+\family typewriter
+TRUE
+\family default
+/
+\family typewriter
+FALSE
+\family default
+, numbers and character strings.
+ The page 
+\begin_inset Flex URL
+status collapsed
+
+\begin_layout Plain Layout
+
+http://yihui.name/knitr/demo/sweave/
+\end_layout
+
+\end_inset
+
+ has given two examples to show the advantages of the new syntax.
+ Here we show yet another useful application.
+\end_layout
+
+\begin_layout Standard
+Before 
+\series bold
+knitr
+\series default
+ 0.3, there was a feature named 
+\begin_inset Quotes eld
+\end_inset
+
+conditional evaluation
+\begin_inset Quotes erd
+\end_inset
+
+
+\begin_inset Foot
+status open
+
+\begin_layout Plain Layout
+request from 
+\begin_inset Flex URL
+status collapsed
+
+\begin_layout Plain Layout
+
+https://plus.google.com/u/0/116405544829727492615/posts/43WrRUffjzK
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+.
+ The idea is, instead of setting chunk options 
 \family typewriter
 eval
 \family default
@@ -2187,7 +2293,8 @@ TRUE
 \family typewriter
 FALSE
 \family default
-, their values can be controlled by global variables in the current R session.
+ (constants), their values can be controlled by global variables in the
+ current R session.
  This enables 
 \series bold
 knitr
@@ -2251,7 +2358,7 @@ status open
 
 \begin_layout Plain Layout
 
-<<cond-out1,eval=dothis,echo=!dothis>>=
+<<cond-out1, eval=dothis, echo=!dothis>>=
 \end_layout
 
 \begin_layout Plain Layout
@@ -2317,6 +2424,38 @@ FALSE
 , neither of the above chunks will be evaluated any more.
  Therefore we can control many chunks with a single variable, and present
  results selectively.
+\end_layout
+
+\begin_layout Standard
+This old feature requires 
+\series bold
+knitr
+\series default
+ to treat 
+\family typewriter
+eval
+\family default
+ and 
+\family typewriter
+echo
+\family default
+ specially, and we can easily see that it is no longer necessary with the
+ new syntax: 
+\family typewriter
+eval=dothis
+\family default
+ will tell R to find the variable 
+\family typewriter
+dothis
+\family default
+ automatically just like we call a function 
+\family typewriter
+foobar(eval = dothis)
+\family default
+.
+ What is more, all options will be evaluated as R expressions unless they
+ are already constants which do not need to be evaluated, so this old feature
+ has been generalized to all other options naturally.
 \end_layout
 
 \begin_layout Subsection
@@ -2401,8 +2540,8 @@ status open
 
 \begin_layout Plain Layout
 
-<<fancy-rgl,rgl=TRUE,dev=png,fig.width=5,fig.height=5,out.width=2in,message=FALSE,c
-ache=TRUE>>=
+<<fancy-rgl, rgl=TRUE, dev='png', fig.width=5, fig.height=5, out.width='2in',
+ message=FALSE, cache=TRUE>>=
 \end_layout
 
 \begin_layout Plain Layout
@@ -2440,481 +2579,93 @@ knitr
 \family typewriter
 verbatim
 \family default
- environments, and in HTML, it is only a matter of putting output in a 
+ environments, and in HTML, it is only a matter of putting output in 
 \family typewriter
 div
 \family default
- layer.
+ layers.
  These are simply character string operations.
- The demo of using the 
-\series bold
-listings
-\series default
- package in the 
-\begin_inset CommandInset href
-LatexCommand href
-name "website"
-target "http://yihui.github.com/knitr/demo/listings/"
+ Many demos in 
+\begin_inset Flex URL
+status collapsed
+
+\begin_layout Plain Layout
+
+http://yihui.name/knitr/demos
+\end_layout
 
 \end_inset
 
- shows this idea clearly.
+ show this idea clearly.
+ This manual did not cover all the features of 
+\series bold
+knitr
+\series default
+, and users are encouraged to thumb through the website to know more possible
+ features.
 \end_layout
 
 \begin_layout Section
-Comparison
+Editors
 \end_layout
 
 \begin_layout Standard
-Some features of Sweave were dropped in 
+You can use any text editors to write the source documents, but some have
+ built-in support for 
 \series bold
 knitr
 \series default
- and some were changed, including:
-\end_layout
-
-\begin_layout Description
-concordance was dropped: I have never used it and I do not plan to reimplement
- it either
-\end_layout
-
-\begin_layout Description
-keep.source was merged into a more flexible option 
-\family typewriter
-tidy
-\family default
- 
-\end_layout
-
-\begin_layout Description
-print was dropped: whether an R expression is going to be printed is consistent
- with your experince of using R (e.g., 
-\family typewriter
-x <- 1
-\family default
- will not be printed, while 
-\family typewriter
-1:10
-\family default
- will; just imagine you are typing the commands in an R console/terminal);
- if you really want the output of an expression to be invisible, you may
- use the function 
-\emph on
-invisible()
-\emph default
- 
-\end_layout
-
-\begin_layout Description
-term was dropped (think 
-\family typewriter
-term=TRUE
-\family default
-) 
-\end_layout
-
-\begin_layout Description
-stripe.white was dropped (rarely used, and can be achieved by hooks)
-\end_layout
-
-\begin_layout Description
-prefix was dropped (think 
-\family typewriter
-prefix=TRUE
-\family default
-)
-\end_layout
-
-\begin_layout Description
-prefix.string was renamed to 
-\family typewriter
-fig.path
-\family default
- and it is always used for figure filenames
-\end_layout
-
-\begin_layout Description
-eps,
-\begin_inset space ~
-\end_inset
-
-pdf and all logical options for graphics devices were dropped: please use
- the new option 
-\family typewriter
-dev
-\family default
-, which is similar to 
-\family typewriter
-grdevice
-\family default
- in Sweave but has more than 20 predefined graphical devices (if that is
- not enough, please let me know, or set it in chunk options by yourself);
- note only one device can be used for a chunk (in old ages, we may have
- to use both 
-\family typewriter
-eps
-\family default
- and 
-\family typewriter
-pdf
-\family default
-, but nowadays there is usually no need to generate multiple image formats
- for the same plot)
-\end_layout
-
-\begin_layout Description
-fig was dropped; now use 
-\family typewriter
-fig.keep
-\family default
-: 
-\family typewriter
-fig.keep=high
-\family default
- is equivalent to 
-\family typewriter
-fig=TRUE
-\family default
- and 
-\family typewriter
-fig.keep=none
-\family default
- is the same as 
-\family typewriter
-fig=FALSE
-\end_layout
-
-\begin_layout Description
-width,
-\begin_inset space ~
-\end_inset
-
-height were dropped; use 
-\family typewriter
-fig.width
-\family default
- and 
-\family typewriter
-fig.height
-\family default
- instead
-\end_layout
-
-\begin_layout Standard
-For logical options, only 
-\family typewriter
-TRUE
-\family default
-/
-\family typewriter
-FALSE
-\family default
-/
-\family typewriter
-T
-\family default
-/
-\family typewriter
-F
-\family default
- are supported (the first two are recommended), and 
-\family typewriter
-true
-\family default
-/
-\family typewriter
-false
-\family default
- will not work, e.g., 
-\family typewriter
-eval=FALSE
-\family default
- is OK, and 
-\family typewriter
-eval=false
-\family default
- is not (not exactly true; see Section 
-\begin_inset CommandInset ref
-LatexCommand ref
-reference "sub:conditional"
-
-\end_inset
-
-).
- Chunk reference using 
-\family typewriter
-<<chunk-label>>
-\family default
- was dropped; if you want to reuse a chunk, either consider writing a function
- instead of explicitly repeating code, or make use of code externalization
- as introduced before, or use the new option 
-\family typewriter
-ref.label
-\family default
- (see the demo 
-\begin_inset Quotes eld
-\end_inset
-
-
-\begin_inset CommandInset href
-LatexCommand href
-name "Chunk Reference"
-target "http://yihui.github.com/knitr/demo/reference/"
-
-\end_inset
-
-
-\begin_inset Quotes erd
-\end_inset
-
- in the website).
-\end_layout
-
-\begin_layout Standard
-Besides, the LaTeX style file 
-\family sans
-Sweave.sty
-\family default
- was dropped as well; it has brought too much confusion to users since it
- is shipped with R instead of LaTeX; 
-\series bold
-knitr
-\series default
- has built-in styles using standard LaTeX packages, and users are free to
- change them using hooks.
- 
-\end_layout
-
-\begin_layout Standard
-For inline R code as in 
-\family typewriter
-
-\backslash
-Sexpr{}
-\family default
-, 
-\series bold
-knitr
-\series default
- will automatically format the results -- numbers will be written in real
- scientific notations (e.g.
- 
-\begin_inset Formula $3.14\times10^{-5}$
-\end_inset
-
- instead of the less readable 
-\family typewriter
-3.14e-05
-\family default
-).
- We can also call 
-\family typewriter
-knit(..., tangle = TRUE)
-\family default
- to tangle R code, which is similar to 
-\emph on
-Stangle()
-\emph default
 .
-\end_layout
+ Both RStudio (
+\begin_inset Flex URL
+status collapsed
 
-\begin_layout Standard
-Some answers to Sweave FAQ's from 
-\family typewriter
-vignette('Sweave', package='utils')
-\family default
- are different in 
-\series bold
-knitr
-\series default
-:
-\end_layout
+\begin_layout Plain Layout
 
-\begin_layout Description
-A.4 empty figure chunks will not cause LaTeX errors because figures will
- not be generated at all, and it is safe to use 
-\family typewriter
-fig.keep
-\family default
- (close to 
-\family typewriter
-fig=TRUE
-\family default
- in Sweave) even if there are not plots in a chunk
+http://www.rstudio.org
 \end_layout
-
-\begin_layout Description
-A.5 
-\series bold
-lattice
-\series default
-, 
-\series bold
-ggplot2
-\series default
- and other grid-based graphics will work as expected in 
-\series bold
-knitr
-\end_layout
-
-\begin_layout Description
-A.7 multiple figures per chunk will work as expected; no need to use any
- special tricks
-\end_layout
-
-\begin_layout Description
-A.9 we can use output hooks to change the formatting of output, and there
- is complete freedom -- the output does not have to rely on the 
-\series bold
-fancyvrb
-\series default
- package, and there is no need to hack at 
-\family sans
-Sweave.sty
-\family default
- either
-\end_layout
-
-\begin_layout Description
-A.10 the width option is set to 75 by default in 
-\series bold
-knitr
-\series default
-, since R's default is often too wide (besides, the 
-\family typewriter
-useFancyQuotes
-\family default
- option is set to 
-\family typewriter
-FALSE
-\family default
- to avoid a common problem caused by multi-byte characters, and 
-\family typewriter
-digits
-\family default
- is set to 4 to avoid too many digits)
-\end_layout
-
-\begin_layout Description
-A.13 
-\series bold
-knitr
-\series default
- comes with a set of hooks to deal with HTML output (see 
-\begin_inset CommandInset href
-LatexCommand href
-name "demos in the website"
-target "http://yihui.github.com/knitr/demos"
 
 \end_inset
 
-)
+) and LyX (
+\begin_inset Flex URL
+status collapsed
+
+\begin_layout Plain Layout
+
+http://www.lyx.org
 \end_layout
 
-\begin_layout Standard
-Currently the multilingual support is limited, especially under Windows
- (I do not have much experience with encodings).
- For systems which use the UTF8 locale, 
+\end_inset
+
+) have full support for 
 \series bold
 knitr
 \series default
- works fine for multi-byte characters.
- Note, however, 
-\series bold
-knitr
-\series default
- does not check the encoding of the input document at all, so the tricks
- in Sweave like using 
-\family typewriter
+, and you can compile the document to PDF with just one click.
+ See 
+\begin_inset Flex URL
+status collapsed
 
-\backslash
-usepackage[foo]{inputenc}
-\family default
- will not work.
+\begin_layout Plain Layout
+
+http://yihui.name/knitr/demo/rstudio/
 \end_layout
 
-\begin_layout Standard
-It also has some differences with 
-\series bold
-pgfSweave
-\series default
+\end_inset
+
  and 
-\series bold
-cacheSweave
-\series default
-:
+\begin_inset Flex URL
+status collapsed
+
+\begin_layout Plain Layout
+
+http://yihui.name/knitr/demo/lyx/
 \end_layout
 
-\begin_layout Itemize
-For the former, 
-\family typewriter
-dev=tikz
-\family default
- in 
-\series bold
-knitr
-\series default
- means 
-\family typewriter
-tikz=TRUE
-\family default
- in 
-\series bold
-pgfSweave
-\series default
-, and 
-\family typewriter
-external=TRUE
-\family default
- was implemented differently -- the cache of tikz graphics is moved to the
- R level instead of relying on the LaTeX package 
-\series bold
-tikz
-\series default
- (if a tikz plot is externalized, 
-\series bold
-knitr
-\series default
- will try to compile it to PDF immediately and use 
-\family typewriter
+\end_inset
 
-\backslash
-includegraphics{filename}
-\family default
- to insert it into the output; in comparison, 
-\family typewriter
-external=FALSE
-\family default
- uses 
-\family typewriter
-
-\backslash
-input{filename.tikz}
-\family default
-); this frees the users from the GNU 
-\family typewriter
-make
-\family default
- utility and understanding tikz externalization;
-\end_layout
-
-\begin_layout Itemize
-For the latter, 
-\family typewriter
-cache
-\family default
- was implemented with functions in base R (e.g., 
-\emph on
-lazyLoad()
-\emph default
-) and does not rely on other add-on packages; for cached chunks, the results
- from the last run will be written into the output, and this is more consistent
- with the default behavior of R code (users may wonder why 
-\family typewriter
-print(x)
-\family default
- does not produce any output for cached chunks; plots in cached chunks will
- still be in the output as well); 
+ respectively.
 \end_layout
 
 \begin_layout Section*
@@ -2937,7 +2688,7 @@ status open
 
 \begin_layout Plain Layout
 
-<<source-location,eval=FALSE>>=
+<<source-location, eval=FALSE>>=
 \end_layout
 
 \begin_layout Plain Layout
@@ -2979,12 +2730,12 @@ status open
 
 \begin_layout Plain Layout
 
-<<required-packages,eval=FALSE>>=
+<<required-packages, eval=FALSE>>=
 \end_layout
 
 \begin_layout Plain Layout
 
-install.packages(c('animation', 'rgl', 'tikzDevice'))
+install.packages(c('animation', 'rgl', 'tikzDevice', 'ggplot2'))
 \end_layout
 
 \begin_layout Plain Layout

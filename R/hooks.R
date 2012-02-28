@@ -22,17 +22,17 @@
 ##' @param options a list of the current chunk options
 ##' @rdname hook_plot
 ##' @return A character string (code with plot filenames wrapped)
-##' @references \url{http://yihui.github.com/knitr/demo/plot-hook/}
+##' @references \url{http://yihui.name/knitr/hooks}
 ##' @seealso \code{\link{hook_plot_custom}}
 ##' @export
 ##' @examples ## this is what happens for a chunk like this
-##' ## <<foo-bar-plot, dev=pdf, out.width=.7\linewidth, fig.align=right>>=
-##' hook_plot_tex(c('foo-bar-plot', 'pdf'), opts_chunk$merge(list(out.width='.7\\linewidth',fig.align='right')))
+##' ## <<foo-bar-plot, dev='pdf', fig.align='right'>>=
+##' hook_plot_tex(c('foo-bar-plot', 'pdf'), opts_chunk$merge(list(fig.align='right')))
 ##'
-##' ## <<bar, dev=tikz>>=
+##' ## <<bar, dev='tikz'>>=
 ##' hook_plot_tex(c('bar', 'tikz'), opts_chunk$merge(list(dev='tikz')))
 ##'
-##' ## <<foo, dev=pdf, fig.show=animate, interval=.1>>=
+##' ## <<foo, dev='pdf', fig.show='animate', interval=.1>>=
 ##' ## 5 plots are generated in this chunk
 ##' hook_plot_tex(c('foo5', 'pdf'), opts_chunk$merge(list(fig.show='animate',interval=.1,fig.cur=5, fig.num=5)))
 hook_plot_tex = function(x, options) {
@@ -53,18 +53,34 @@ hook_plot_tex = function(x, options) {
     animate = options$fig.show == 'animate'
     if (!tikz && animate && fig.cur < fig.num) return('')
 
-    align1 = switch(a, left = '\n\n', center = '\n\n\\centering{}', right = '\n\n\\hfill{}', '')
-    align2 = switch(a, left = '\\hfill{}\n\n', center = '\n\n', right = '\n\n', '')
+    align1 = align2 = ''
     ## multiple plots: begin at 1, end at fig.num
-    hold = options$fig.show == 'hold'
-    if (hold && fig.cur > 1L) align1 = ''
-    if (hold && fig.cur > 0L && fig.cur < fig.num) align2 = ''
+    ai = options$fig.show != 'hold'
+    plot1 = ai || fig.cur <= 1L; plot2 = ai || fig.cur == 0L || fig.cur == fig.num
+    if (plot1) align1 = switch(a, left = '\n\n', center = '\n\n\\centering{}',
+                                  right = '\n\n\\hfill{}', '')
+    if (plot2) align2 = switch(a, left = '\\hfill{}\n\n', center = '\n\n',
+                                  right = '\n\n', '')
+    ## figure environment: caption, short caption, label
+    cap = options$fig.cap; fig1 = fig2 = ''
+    if(length(cap) && !is.na(cap)) {
+        if (plot1) {
+            fig1 = sprintf('\\begin{figure}[%s]\n', options$fig.pos)
+        }
+        if (plot2) {
+            lab = str_c(options$fig.lp, options$label)
+            scap = options$fig.scap
+            if (is.null(scap)) scap = str_split(cap, '\\.|;|:')[[1L]][1L]
+            scap = if(is.na(scap)) '' else str_c('[', scap, ']')
+            fig2 = sprintf('\\caption%s{%s\\label{%s}}\n\\end{figure}\n', scap, cap, lab)
+        }
+    }
 
     size =
         paste(c(sprintf('width=%s', options$out.width),
                 sprintf('height=%s', options$out.height)), collapse = ',')
 
-    paste(align1, resize1,
+    paste(fig1, align1, resize1,
 
           if (tikz) {
               sprintf('\\input{%s.tikz}', x[1])
@@ -81,15 +97,14 @@ hook_plot_tex = function(x, options) {
               sprintf('\\includegraphics%s{%s} ', size, x[1])
           },
 
-          resize2, align2, sep = '')
+          resize2, align2, fig2, sep = '')
 }
 ##' @rdname hook_plot
 ##' @export
 hook_plot_html = function(x, options) {
     ## TODO: output size not implemented for HTML yet
     a = options$fig.align
-    sprintf('<img src="%s" class="plot" %s/>\n',
-            paste(x, collapse = '.'),
+    sprintf('<img src="%s" class="plot" %s/>\n', .upload.url(x),
             switch(a,
                    default = '',
                    left = 'style="float: left"',
@@ -101,15 +116,30 @@ hook_plot_html = function(x, options) {
 hook_plot_md = function(x, options) {
     base = opts_knit$get('base.url')
     if (is.null(base)) base = ''
-    sprintf('![plot of chunk %s](%s%s.%s) ', options$label,
-            base, x[1], x[2])
+    sprintf('![plot of chunk %s](%s%s) ', options$label, base, .upload.url(x))
 }
+
+## a wrapper to imgur_upload to get the URL of images when option upload==TRUE
+.upload.url = function(x) {
+    file = paste(x, collapse = '.')
+    if (opts_knit$get('upload')) {
+        imgur_upload(file)$links$original
+    } else file
+}
+
 .chunk.hook.tex = function(x, options) {
-    if (output_asis(x, options)) return(x)
-    x =
-        str_c(color_def(options$background), '{',
-              ifelse(is_tikz_dev(options), '', '\\color{fgcolor}'),
-              '\\begin{kframe}\n', x, '\\end{kframe}}')
+    k1 = str_c(color_def(options$background),
+               ifelse(is_tikz_dev(options), '', '\\color{fgcolor}'), '\\begin{kframe}\n')
+    k2 = '\\end{kframe}'
+    x = str_c(k1, x, k2)
+    ## table/figure cannot work inside kframe; this is gory...
+    x = gsub('\\begin{figure', str_c(k2, '\\begin{figure'), x, fixed = TRUE)
+    x = gsub('\\begin{table', str_c(k2, '\\begin{table'), x, fixed = TRUE)
+    x = gsub('\\begin{longtable', str_c(k2, '\\begin{longtable'), x, fixed = TRUE)
+    x = gsub('\\end{figure}', str_c('\\end{figure}', k1), x, fixed = TRUE)
+    x = gsub('\\end{table}', str_c('\\end{table}', k1), x, fixed = TRUE)
+    x = gsub('\\end{longtable}', str_c('\\end{longtable}', k1), x, fixed = TRUE)
+    x = gsub('\\\\begin\\{kframe\\}\\s*\\\\end\\{kframe\\}', '', x)  # rm empty kframe
     x = str_c('\\begin{knitrout}\n', x, '\n\\end{knitrout}')
     if (options$split) {
         name = fig_path('.tex', options)
@@ -135,7 +165,11 @@ hook_plot_md = function(x, options) {
 .inline.hook = function(x) {
     paste(as.character(x), collapse = ', ')
 }
-
+## inline hook for tex
+.inline.hook.tex = function(x) {
+    if (is.numeric(x)) x = format_sci(x, 'latex')
+    .inline.hook(x)
+}
 ## single param hook: a function of one argument
 .param.hook = function(before, options, envir) {
     if (before) {
@@ -146,6 +180,7 @@ hook_plot_md = function(x, options) {
 }
 
 .out.hook = function(x, options) x
+.verb.hook = function(x, options) str_c('\\begin{verbatim}\n', x, '\\end{verbatim}\n')
 
 ##' Hooks for R code chunks, inline R code and output
 ##'
@@ -153,9 +188,9 @@ hook_plot_md = function(x, options) {
 ##' values of arguments and returns desired output. The object
 ##' \code{knit_hooks} is used to access or set hooks in this package.
 ##' @export
-##' @references Usage: \url{http://yihui.github.com/knitr/objects}
+##' @references Usage: \url{http://yihui.name/knitr/objects}
 ##'
-##' Components in \code{knit_hooks}: \url{http://yihui.github.com/knitr/hooks}
+##' Components in \code{knit_hooks}: \url{http://yihui.name/knitr/hooks}
 ##' @examples knit_hooks$get('source'); knit_hooks$get('inline')
 knit_hooks =
     new_defaults(c(
@@ -186,42 +221,55 @@ run_hooks = function(before, options, envir) {
 
 ##' Set output hooks for different output formats
 ##'
-##' Currently there are built-in output hooks for LaTeX, HTML,
-##' Markdown, GFM (GitHub Flavored Markdown) and Jekyll (a blogging
-##' system on GitHub). The original Sweave style is supported via
-##' \code{render_sweave()}.
+##' These functions set built-in output hooks for LaTeX, HTML and
+##' Markdown.
+##'
+##' There are three variants of markdown documents: ordinary markdown
+##' (\code{render_markdown()}), GFM (GitHub Flavored Markdown;
+##' \code{render_gfm()}) and Jekyll (a blogging system on GitHub;
+##' \code{render_jekyll()}). For LaTeX output, there are three
+##' variants as well: \pkg{knitr}'s default style
+##' (\code{render_latex()}; use the LaTeX \pkg{framed} package),
+##' Sweave style (\code{render_sweave()}; use \file{Sweave.sty}) and
+##' listings style (\code{render_listings()}; use LaTeX \pkg{listings}
+##' package). Default HTML output hooks are set by
+##' \code{render_html()}.
+##'
+##' These functions can be used in the first chunk of the input
+##' document (ideally this chunk has options \code{include = FALSE}
+##' and \code{cache = FALSE}) so that all the following chunks will be
+##' formatted as expected.
+##'
+##' You can use \code{\link{knit_hooks}} to further customize output
+##' hooks; see references.
 ##' @rdname output_hooks
-##' @return \code{NULL}; corresponding hooks are set
+##' @return \code{NULL}; corresponding hooks are set as a side effect
 ##' @export
-##' @references See output hooks in \url{http://yihui.github.com/knitr/hooks}
+##' @references See output hooks in \url{http://yihui.name/knitr/hooks}
 render_latex = function() {
-    res = try(system("kpsewhich framed.sty", intern = TRUE), silent = TRUE)
-    if (inherits(res, 'try-error') || !length(res)) {
-        warning("unable to find LaTeX package 'framed'; will copy from the knitr package")
-        file.copy(system.file('misc', 'framed.sty', package = 'knitr'), '.')
-    }
-    optk = opts_knit$get('header')
-    if (!nzchar(optk['framed'])) set_header(framed = .header.framed)
-    if (!nzchar(optk['highlight'])) set_header(highlight = .header.hi.tex)
+    if (child_mode()) return()
+    test_latex_pkg('framed', system.file('misc', 'framed.sty', package = 'knitr'))
+    h = opts_knit$get('header')
+    if (!nzchar(h['framed'])) set_header(framed = .header.framed)
+    if (!nzchar(h['highlight'])) set_header(highlight = .header.hi.tex)
     knit_hooks$restore()
-    hook.v = function(x, options) str_c('\\begin{verbatim}\n', x, '\\end{verbatim}\n')
-    hook.o = function(x, options) if (output_asis(x, options)) x else hook.v(x, options)
+    hook.o = function(x, options) if (output_asis(x, options)) x else .verb.hook(x, options)
     knit_hooks$set(source = function(x, options) {
         if (options$highlight) {
             ## gsub() makes sure " will not produce an umlaut
             str_c('\\begin{flushleft}\n', gsub('"', '"{}', x, fixed = TRUE),
                   '\\end{flushleft}\n')
-        } else hook.v(x, options)}, output = hook.o,
-                   warning = hook.v, message = hook.v, error = hook.v,
-                   inline = function(x) {
-                       if (is.numeric(x)) x = format_sci(x, 'latex')
-                       .inline.hook(x)
-                   }, plot = hook_plot_tex,
-                   chunk = .chunk.hook.tex)
+        } else .verb.hook(x, options)
+    }, output = hook.o, warning = .verb.hook, message = .verb.hook, error = .verb.hook,
+                   inline = .inline.hook.tex, plot = hook_plot_tex, chunk = .chunk.hook.tex)
 }
 ##' @rdname output_hooks
 ##' @export
 render_sweave = function() {
+    if (child_mode()) return()
+    opts_chunk$set(highlight = FALSE, comment = NA, prompt = TRUE) # mimic Sweave settings
+    test_latex_pkg('Sweave', file.path(R.home("share"), "texmf", "tex", "latex", "Sweave.sty"))
+    set_header(framed = '', highlight = '\\usepackage{Sweave}')
     knit_hooks$restore()
     ## wrap source code in the Sinput environment, output in Soutput
     hook.i = function(x, options) str_c('\\begin{Sinput}\n', x, '\\end{Sinput}\n')
@@ -229,9 +277,17 @@ render_sweave = function() {
     hook.o = function(x, options) if (output_asis(x, options)) x else hook.s(x, options)
     hook.c = function(x, options) str_c('\\begin{Schunk}\n', x, '\\end{Schunk}\n')
     knit_hooks$set(source = hook.i, output = hook.o, warning = hook.s,
-                   message = hook.s, error = hook.s, inline = identity,
-                   plot = function(x, options) sprintf('\\includegraphics{%s}', x[1]),
-                   chunk = hook.c)
+                   message = hook.s, error = hook.s, inline = .inline.hook.tex,
+                   plot = hook_plot_tex, chunk = hook.c)
+}
+##' @rdname output_hooks
+##' @export
+render_listings = function() {
+    if (child_mode()) return()
+    render_sweave()
+    opts_chunk$set(prompt = FALSE)
+    test_latex_pkg('Sweavel', system.file('misc', 'Sweavel.sty', package = 'knitr'))
+    set_header(framed = '', highlight = '\\usepackage{Sweavel}')
 }
 ##' @rdname output_hooks
 ##' @export
@@ -319,7 +375,7 @@ render_jekyll = function() {
 ##' graphics output into the output document.
 ##' @rdname chunk_hook
 ##' @param before,options,envir see references
-##' @references \url{http://yihui.github.com/knitr/hooks#chunk_hooks}
+##' @references \url{http://yihui.name/knitr/hooks#chunk_hooks}
 ##' @seealso \code{\link[rgl]{rgl.snapshot}},
 ##' \code{\link[rgl]{rgl.postscript}}
 ##' @export

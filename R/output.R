@@ -46,9 +46,9 @@
 ##' about \pkg{knitr}, including the full documentation of chunk
 ##' options and demos, etc.
 ##' @param input path of the input file
-##' @param output path of the output file; if not set, this function
-##' will try to guess and it will be under the same directory as
-##' \code{input}
+##' @param output path of the output file; if \code{NULL}, this
+##' function will try to guess and it will be under the current
+##' working directory
 ##' @param tangle whether to tangle the R code from the input file
 ##' (like \code{\link[utils]{Stangle}})
 ##' @param text a character vector as an alternative way to provide
@@ -67,11 +67,9 @@
 ##' directory of the input document, so if the R code involves with
 ##' external files (like \code{read.table()}), it is better to put
 ##' these files under the same directory of the input document so that
-##' we can use relative paths. It is recommended to change the working
-##' directory to the input directory before calling \code{knit()},
-##' especially when the input document contains child documents.
+##' we can use relative paths.
 ##' @export
-##' @references Package homepage: \url{http://yihui.github.com/knitr/}
+##' @references Package homepage: \url{http://yihui.name/knitr/}
 ##'
 ##' The \pkg{knitr} main manual:
 ##' \url{https://github.com/downloads/yihui/knitr/knitr-manual.pdf}
@@ -86,13 +84,13 @@
 ##' ## or setwd(dirname(f)); knit(basename(f))
 ##'
 ##' purl(f)  # extract R code only
-knit = function(input, output, tangle = FALSE, text = NULL) {
+knit = function(input, output = NULL, tangle = FALSE, text = NULL) {
     if (is.character(text)) {
         input = tempfile(); writeLines(text, con = input)
     }
     opts_knit$set(tangle = tangle)
-    if (missing(output)) {
-        output = file.path(dirname(input), basename(auto_out_name(input, tangle)))
+    if (is.null(output)) {
+        output = basename(auto_out_name(input))
     }
     ext = tolower(file_ext(input))
     apat = opts_knit$get('all.patterns')
@@ -111,9 +109,13 @@ knit = function(input, output, tangle = FALSE, text = NULL) {
     }
 
     optk = opts_knit$get(); on.exit(opts_knit$set(optk), add = TRUE)
-    if (is.null(optk$input.dir)) {
-        opts_knit$set(input.dir = dirname(input))  # record current working dir
+    if (child_mode()) {
+        ## in child mode, input path needs to be adjusted
+        if (!is_abs_path(input))
+            input = file.path(input_dir(), opts_knit$get('child.path'), input)
     }
+    opts_knit$set(input.dir = dirname(input))  # record current working dir
+
     if (is.null(opts_knit$get('out.format'))) {
         fmt =
             switch(ext, rnw = 'latex', tex = 'latex', html = 'html', md = 'jekyll',
@@ -123,7 +125,7 @@ knit = function(input, output, tangle = FALSE, text = NULL) {
         opts_knit$set(out.format = fmt)
     }
     switch(opts_knit$get('out.format'), latex = render_latex(), html = render_html(),
-           sweave = {opts_chunk$set(highlight = FALSE); render_sweave()},
+           sweave = render_sweave(), listings = render_listings(),
            jekyll = render_jekyll(), markdown = render_markdown(),
            gfm = render_gfm())
 
@@ -135,12 +137,15 @@ knit = function(input, output, tangle = FALSE, text = NULL) {
                 digits = 4L, width = 75L, warn = 1L)
     on.exit(options(oopts), add = TRUE)
 
-    message('\n\nprocessing file: ', input)
-    res = process_file(input, tangle)
+    progress = opts_knit$get('progress')
+    message(ifelse(progress, '\n\n', ''), 'processing file: ', input)
+    res = process_file(input)
     unlink('NA')  # temp fix to issue 94
     cat(res, file = output)
     dep_list$restore()  # empty dependency list
-    message('output file: ', normalizePath(output), '\n')
+    if (is.character(output) && file.exists(output)) {
+        message('output file: ', normalizePath(output), ifelse(progress, '\n', ''))
+    }
     invisible(output)
 }
 ##' @rdname knit
@@ -150,11 +155,12 @@ purl = function(...) {
     knit(..., tangle = TRUE)
 }
 
-process_file = function(path, tangle) {
+process_file = function(path) {
     ocode = knit_code$get()
     on.exit({knit_code$restore(); knit_code$set(ocode)}, add = TRUE)
     groups = split_file(path)
     n = length(groups); res = character(n)
+    tangle = opts_knit$get('tangle')
 
     if (opts_knit$get('progress'))
         pb = txtProgressBar(0, n, char = '>', style = 3)
@@ -174,9 +180,9 @@ process_file = function(path, tangle) {
     str_c(c(res, ""), collapse = "\n")
 }
 
-auto_out_name = function(input, tangle = FALSE) {
+auto_out_name = function(input) {
     ext = file_ext(input)
-    if (tangle) return(str_replace(input, str_c(ext, '$'), 'R'))
+    if (opts_knit$get('tangle')) return(str_replace(input, str_c(ext, '$'), 'R'))
     if (tolower(ext) == 'rnw') return(str_replace(input, str_c(ext, '$'), 'tex'))
     if (tolower(ext) %in% c('brew', 'tex', 'html', 'md')) {
         if (str_detect(input, '_knit_')) {
@@ -200,27 +206,34 @@ auto_out_name = function(input, tangle = FALSE) {
 ##' \samp{input} or \samp{include}) is from the package option
 ##' \code{child.command} (\code{opts_knit$get('child.command')}).
 ##'
-##' When we call \code{knit_child(tangle = TRUE)} to extract R code,
-##' the code in the child document is extracted and saved into an R
-##' script.
+##' When we call \code{purl()} to extract R code, the code in the
+##' child document is extracted and saved into an R script.
+##'
+##' The path of the child document is relative to the parent document.
 ##' @param ... arguments passed to \code{\link{knit}}
 ##' @param eval logical: whether to evaluate the child document
 ##' @return A character string of the form
 ##' \samp{\command{child-doc.tex}} or \code{source("child-doc.R")},
 ##' depending on the argument \code{tangle} passed in.
-##' @references \url{http://yihui.github.com/knitr/demo/child/}
+##' @references \url{http://yihui.name/knitr/demo/child/}
+##' @note This function is not supposed be called directly like
+##' \code{\link{knit}()}; instead it must be placed in a parent
+##' document to let \code{\link{knit}()} call it indirectly.
 ##' @export
 ##' @examples ## you can write \Sexpr{knit_child('child-doc.Rnw')} in an Rnw file 'main.Rnw' to input child-doc.tex in main.tex
 ##'
-##' ## comment out the child doc by \Sexpr{knit_child('child-doc.Rnw', FALSE)}
+##' ## comment out the child doc by \Sexpr{knit_child('child-doc.Rnw', eval = FALSE)}
 ##'
 ##' ## use \include: opts_knit$set(child.command = 'include')
 knit_child = function(..., eval = TRUE) {
     if (!eval) return('')
-    path = knit(...)
+    child = child_mode()
+    opts_knit$set(child = TRUE) # yes, in child mode now
+    on.exit(opts_knit$set(child = child)) # restore child status
+    path = knit(..., tangle = opts_knit$get('tangle'))
     if (opts_knit$get('tangle')) {
-        str_c('source("', path, '")')
-    } else str_c('\\', opts_knit$get('child.command'), '{', path, '}')
+        str_c('\n', 'source("', path, '")')
+    } else str_c('\n\\', opts_knit$get('child.command'), '{', path, '}')
 }
 
 ##' Automatically create a report based on an R script and a template
@@ -237,6 +250,8 @@ knit_child = function(..., eval = TRUE) {
 ##' @param template path of the template to use (by default the Rnw
 ##' template in this package; there is also an HTML template in
 ##' \pkg{knitr})
+##' @param output the output filename (passed to \code{\link{knit}});
+##' by default it uses the base filename of the script
 ##' @return path of the output document
 ##' @export
 ##' @examples s = system.file('misc', 'stitch-test.R', package = 'knitr')
@@ -246,14 +261,16 @@ knit_child = function(..., eval = TRUE) {
 ##' out = stitch(s, system.file('misc', 'knitr-minimal_knit_.html', package = 'knitr'))
 ##' if (interactive()) browseURL(out)
 stitch = function(script, template = system.file('misc', 'knitr-template.Rnw',
-                          package = 'knitr')) {
+                          package = 'knitr'), output = NULL) {
     lines = readLines(script, warn = FALSE)
     ## extract title and author from first two lines
     if (comment_to_var(lines[1L], '.knitr.title', '^#+ *title:')) lines = lines[-1L]
     if (comment_to_var(lines[1L], '.knitr.author', '^#+ *author:')) lines = lines[-1L]
     knit_code$set(`auto-report` = lines)
-    file.copy(template, '.', overwrite = TRUE)
-    out = knit(basename(template))
+    input = basename(template)
+    input = str_c(file_path_sans_ext(basename(script)), '.', file_ext(input))
+    if (file.exists(input)) warning(input, ' already exists') else file.copy(template, input)
+    out = knit(input, output)
     if (str_detect(out, '\\.tex$')) {
         texi2pdf(out, clean = TRUE)
         system(paste(getOption('pdfviewer'), shQuote(str_replace(out, '\\.tex$', '.pdf'))))
