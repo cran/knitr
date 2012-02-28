@@ -1,5 +1,5 @@
-#LyX 2.1 created this file. For more info see http://www.lyx.org/
-\lyxformat 424
+#LyX 2.0 created this file. For more info see http://www.lyx.org/
+\lyxformat 413
 \begin_document
 \begin_header
 \textclass article
@@ -48,20 +48,15 @@ knitr
 \pdf_quoted_options "pdfstartview={XYZ null null 1}"
 \papersize default
 \use_geometry true
-\use_package amsmath 1
-\use_package esint 1
-\use_package mathdots 1
-\use_package mathtools 0
-\use_package mhchem 1
-\use_package undertilde 1
+\use_amsmath 1
+\use_esint 1
+\use_mhchem 1
+\use_mathdots 1
 \cite_engine basic
-\cite_engine_type numerical
-\biblio_style plainnat
 \use_bibtopic false
 \use_indices false
 \paperorientation portrait
 \suppress_date false
-\justification true
 \use_refstyle 1
 \index Index
 \shortcut idx
@@ -73,8 +68,8 @@ knitr
 \bottommargin 3cm
 \secnumdepth 2
 \tocdepth 2
-\paragraph_separation indent
-\paragraph_indentation default
+\paragraph_separation skip
+\defskip bigskip
 \quotes_language english
 \papercolumns 2
 \papersides 1
@@ -96,7 +91,7 @@ status open
 
 % 
 \backslash
-SweaveOpts{fig.path=figure/twocolumn-,fig.align=center,fig.show=hold}
+SweaveOpts{fig.path='figure/twocolumn-', fig.align='center', fig.show='hold'}
 \end_layout
 
 \end_inset
@@ -110,7 +105,7 @@ status open
 
 \begin_layout Plain Layout
 
-<<setup,echo=FALSE,results=hide,message=FALSE>>=
+<<setup, include=FALSE, cache=FALSE>>=
 \end_layout
 
 \begin_layout Plain Layout
@@ -143,22 +138,56 @@ Yihui Xie
 \end_layout
 
 \begin_layout Standard
-You can use the 
+We can use the 
 \family typewriter
 figure*
 \family default
- environment in LaTeX, and 
+ environment in LaTeX, and the 
 \family typewriter
-results=asis
+chunk
 \family default
- in 
+ hook in 
 \series bold
 knitr
 \series default
  so that figures can span over two columns.
- Note your chunk should not have other types of output like text output,
- or messages or warnings.
- Currently you will lose the background color for these chunks (
+ The reason to reset the chunk hook is that the 
+\series bold
+framed
+\series default
+ package does not work well with the 
+\family typewriter
+figure*
+\family default
+ environment.
+\end_layout
+
+\begin_layout Standard
+\begin_inset ERT
+status open
+
+\begin_layout Plain Layout
+
+<<chunk-hook>>=
+\end_layout
+
+\begin_layout Plain Layout
+
+knit_hooks$set(chunk = function(x, options) x)
+\end_layout
+
+\begin_layout Plain Layout
+
+@
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+You will lose the background color for these chunks (
 \begin_inset CommandInset href
 LatexCommand href
 name "issue #102"
@@ -179,11 +208,14 @@ use_parbox 0
 use_makebox 0
 width "100line%"
 special "none"
-height "2in"
+height "1in"
 height_special "none"
 status open
 
 \begin_layout Plain Layout
+\begin_inset space \hfill{}
+\end_inset
+
 
 \end_layout
 
@@ -202,11 +234,14 @@ use_parbox 0
 use_makebox 0
 width "100line%"
 special "none"
-height "2in"
+height "1in"
 height_special "none"
 status open
 
 \begin_layout Plain Layout
+\begin_inset space \hfill{}
+\end_inset
+
 
 \end_layout
 
@@ -225,11 +260,14 @@ use_parbox 0
 use_makebox 0
 width "100line%"
 special "none"
-height "2in"
+height "1in"
 height_special "none"
 status open
 
 \begin_layout Plain Layout
+\begin_inset space \hfill{}
+\end_inset
+
 
 \end_layout
 
@@ -248,11 +286,14 @@ use_parbox 0
 use_makebox 0
 width "100line%"
 special "none"
-height "2in"
+height "1in"
 height_special "none"
 status open
 
 \begin_layout Plain Layout
+\begin_inset space \hfill{}
+\end_inset
+
 
 \end_layout
 
@@ -271,11 +312,118 @@ use_parbox 0
 use_makebox 0
 width "100line%"
 special "none"
-height "2in"
+height "1in"
 height_special "none"
 status open
 
 \begin_layout Plain Layout
+\begin_inset space \hfill{}
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset Box Boxed
+position "t"
+hor_pos "c"
+has_inner_box 1
+inner_pos "t"
+use_parbox 0
+use_makebox 0
+width "100line%"
+special "none"
+height "1in"
+height_special "none"
+status open
+
+\begin_layout Plain Layout
+\begin_inset space \hfill{}
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset Box Boxed
+position "t"
+hor_pos "c"
+has_inner_box 1
+inner_pos "t"
+use_parbox 0
+use_makebox 0
+width "100line%"
+special "none"
+height "1in"
+height_special "none"
+status open
+
+\begin_layout Plain Layout
+\begin_inset space \hfill{}
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset Box Boxed
+position "t"
+hor_pos "c"
+has_inner_box 1
+inner_pos "t"
+use_parbox 0
+use_makebox 0
+width "100line%"
+special "none"
+height "1in"
+height_special "none"
+status open
+
+\begin_layout Plain Layout
+\begin_inset space \hfill{}
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset Box Boxed
+position "t"
+hor_pos "c"
+has_inner_box 1
+inner_pos "t"
+use_parbox 0
+use_makebox 0
+width "100line%"
+special "none"
+height "1in"
+height_special "none"
+status open
+
+\begin_layout Plain Layout
+\begin_inset space \hfill{}
+\end_inset
+
 
 \end_layout
 
@@ -296,9 +444,11 @@ status open
 
 \begin_layout Plain Layout
 
-<<boring-plots,dev=pdf,fig.width=5,fig.height=5,out.width=.45
+<<boring-plots, fig.width=5, fig.height=5, out.width='.45
 \backslash
-linewidth,par=TRUE,results=asis>>=
+
+\backslash
+linewidth', par=TRUE>>=
 \end_layout
 
 \begin_layout Plain Layout
@@ -344,8 +494,7 @@ Two plots spanning over two columns.
 \end_layout
 
 \begin_layout Standard
-You should be able to compile the LaTeX document to get a PDF file like:
- 
+The output PDF file will be like: 
 \begin_inset Flex URL
 status collapsed
 

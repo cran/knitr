@@ -1,5 +1,5 @@
-#LyX 2.1 created this file. For more info see http://www.lyx.org/
-\lyxformat 420
+#LyX 2.0 created this file. For more info see http://www.lyx.org/
+\lyxformat 413
 \begin_document
 \begin_header
 \textclass beamer
@@ -54,14 +54,11 @@ beamer-fragile
 \use_esint 1
 \use_mhchem 1
 \use_mathdots 1
-\use_undertilde 1
 \cite_engine basic
-\biblio_style plain
 \use_bibtopic false
 \use_indices false
 \paperorientation portrait
 \suppress_date false
-\justification true
 \use_refstyle 1
 \index Index
 \shortcut idx
@@ -92,8 +89,8 @@ status open
 
 % 
 \backslash
-SweaveOpts{fig.path=figure/beamer-,fig.align=center,fig.show=hold,size=footnotesize
-}
+SweaveOpts{fig.path='figure/beamer-',fig.align='center',fig.show='hold',size='footn
+otesize'}
 \end_layout
 
 \end_inset
@@ -226,7 +223,7 @@ status open
 
 \begin_layout Plain Layout
 
-<<echo=FALSE,results=hide>>=
+<<echo=FALSE,results='hide'>>=
 \end_layout
 
 \begin_layout Plain Layout
@@ -339,9 +336,11 @@ status open
 
 \begin_layout Plain Layout
 
-<<boring-plots,fig.width=4,fig.height=4,out.width=.45
+<<boring-plots,fig.width=4,fig.height=4,out.width='.45
 \backslash
-linewidth>>=
+
+\backslash
+linewidth'>>=
 \end_layout
 
 \begin_layout Plain Layout

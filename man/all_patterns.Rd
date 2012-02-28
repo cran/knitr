@@ -3,7 +3,7 @@
 \alias{all_patterns}
 \title{All built-in patterns}
 \format{List of 4
- $ rnw :List of 8
+ $ rnw :List of 9
  $ brew:List of 1
  $ tex :List of 8
  $ html:List of 6}
@@ -20,6 +20,6 @@ all_patterns$html
 str(all_patterns)
 }
 \references{
-  Usage: \url{http://yihui.github.com/knitr/patterns}
+  Usage: \url{http://yihui.name/knitr/patterns}
 }
 \keyword{datasets}

@@ -3,16 +3,16 @@
 \alias{purl}
 \title{Knit a document}
 \usage{
-knit(input, output, tangle = FALSE, text = NULL)
+knit(input, output = NULL, tangle = FALSE, text = NULL)
 
 purl(...)
 }
 \arguments{
   \item{input}{path of the input file}
 
-  \item{output}{path of the output file; if not set, this
-  function will try to guess and it will be under the same
-  directory as \code{input}}
+  \item{output}{path of the output file; if \code{NULL},
+  this function will try to guess and it will be under the
+  current working directory}
 
   \item{tangle}{whether to tangle the R code from the input
   file (like \code{\link[utils]{Stangle}})}
@@ -93,9 +93,6 @@ purl(...)
   involves with external files (like \code{read.table()}),
   it is better to put these files under the same directory
   of the input document so that we can use relative paths.
-  It is recommended to change the working directory to the
-  input directory before calling \code{knit()}, especially
-  when the input document contains child documents.
 }
 \examples{
 library(knitr)
@@ -108,7 +105,7 @@ knit(f)
 purl(f)  # extract R code only
 }
 \references{
-  Package homepage: \url{http://yihui.github.com/knitr/}
+  Package homepage: \url{http://yihui.name/knitr/}
 
   The \pkg{knitr} main manual:
   \url{https://github.com/downloads/yihui/knitr/knitr-manual.pdf}

@@ -1,8 +1,8 @@
 Package: knitr
 Type: Package
 Title: A general-purpose package for dynamic report generation in R
-Version: 0.2
-Date: 2012-01-29
+Version: 0.3
+Date: 2012-02-28
 Authors@R: c(person("Hadley", "Wickham", email = "hadley@rice.edu",
         role = "ctb"), person("Ramnath", "Vaidyanathan", role = "ctb"),
         person("Yihui", "Xie", email = "xie@yihui.name", role =
@@ -41,15 +41,15 @@ Description: This package provides a general-purpose tool for dynamic
         borrowed or inspired by Sweave, cacheSweave, pgfSweave, brew
         and decumar.
 Depends: R (>= 2.14.1)
-Imports: evaluate (>= 0.4), digest, formatR (>= 0.3-4), stringr, tools,
-        highlight, utils
-Suggests: testthat, rgl, tikzDevice (>= 0.6.2), XML
+Imports: evaluate (>= 0.4), digest, formatR (>= 0.3-4), stringr (>=
+        0.6), tools, highlight
+Suggests: testthat, rgl, tikzDevice (>= 0.6.2), XML, RCurl
 License: GPL
-URL: http://yihui.github.com/knitr/
+URL: http://yihui.name/knitr/
 BugReports: https://github.com/yihui/knitr/issues
 Collate: 'package.R' 'defaults.R' 'parser.R' 'cache.R' 'pattern.R'
         'output.R' 'block.R' 'hooks.R' 'utils.R' 'plot.R' 'zzz.R'
-        'header.R' 'themes.R' 'eclipse.R'
-Packaged: 2012-01-28 20:24:32 UTC; yihui
+        'header.R' 'themes.R' 'eclipse.R' 'upload.R'
+Packaged: 2012-02-28 06:24:15 UTC; yihui
 Repository: CRAN
-Date/Publication: 2012-01-28 22:06:26
+Date/Publication: 2012-02-28 08:37:09
