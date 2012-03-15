@@ -20,8 +20,8 @@ split_file = function(path, lines = readLines(path, warn = FALSE), set.preamble 
   tmp = logical(n); tmp[blks | txts] = TRUE; lines[txts] = ''
   
   groups = unname(split(lines, cumsum(tmp)))
-  groups = Filter(function(x) !identical(x, ''), groups) # rm empty groups
-  
+  concord_input(n = sapply(groups, length)) # input line numbers for concordance
+
   ## parse 'em all
   lapply(groups, function(g) {
     block = str_detect(g[1], chunk.begin)
@@ -85,13 +85,11 @@ parse_params = function(params, label = TRUE) {
     if ((n <- length(idx)) > 1L) {
       stop("all options must be of the form 'tag=value' except the chunk label")
     } else if (!label && n > 0L) stop('all global options must be of the form tag=value')
-    if (n == 1L) {
-      names(res)[idx] = 'label'
-      if (!is.character(res[[idx]]))
-        res[[idx]] = gsub(' ', '', as.character(as.expression(res[[idx]])))
-    } else if (label) {
+    if (n == 1L) names(res)[idx] = 'label' else if (label) {
       if (!('label' %in% names(res))) res$label = unnamed_chunk()
     }
+    if (label && !is.character(res$label))
+      res$label = gsub(' ', '', as.character(as.expression(res$label)))
     return(res)
   } else warning('I saw options ', params,
                  '\n are you using old Sweave syntax? go http://yihui.name/knitr/options')
@@ -127,10 +125,10 @@ valid_opts = function(options) {
   if (!length(nms)) return(TRUE)
   ## not a rigorous check; you should go to the new syntax finally!
   chk = c('results', 'fig.keep', 'fig.show', 'dev', 'out.width', 'out.height', 
-          'fig.align', 'fig.path', 'cache.path', 'ref.label', 'child')
+          'fig.align', 'fig.path', 'cache.path', 'ref.label', 'child', 'dependson')
   for (o in intersect(chk, nms)) {
     if (!is.null(options[[o]]) && !is.character(options[[o]])) {
-      warning('unexpected option ', o, '; forgot to quote it?')
+      warning('unexpected option ', sQuote(o), '; forgot to quote it?')
       str(options[[o]])
       return(FALSE)
     }
@@ -215,31 +213,29 @@ print.inline = function(x, ...) {
   cat('\n')
 }
 
-##' Read chunks from an external R script
-##'
-##' Chunks can be put in an external R script, and this function reads
-##' chunks into the current \pkg{knitr} session.
-##'
-##' The \code{ref.label} component in the pattern list
-##' (\code{knit_patterns$get('ref.label')}) defines the format of code
-##' chunks.
-##' @param path the path to the R script
-##' @return Code chunks are read into the current session so that
-##' future chunks can use the R code.
-##' @references \url{http://yihui.name/knitr/demo/reference/}
-##' @note This function can only be used in a chunk which is
-##' \emph{not} cached (chunk option \code{cache = FALSE}), and the
-##' code is read and stored in the current session \emph{without}
-##' being executed (to actually run the code, you have to use a chunk
-##' with a corresponding label).
-##' @export
-##' @examples ## the default format
-##'
-##' ## @@knitr my-label
-##' 1+1
-##' lm(y~x, data=data.frame(x=1:10,y=rnorm(10)))
-##'
-##' ## later you can use <<my-label>>= to reference this chunk
+#' Read chunks from an external R script
+#' 
+#' Chunks can be put in an external R script, and this function reads chunks
+#' into the current \pkg{knitr} session.
+#' 
+#' The \code{ref.label} component in the pattern list 
+#' (\code{knit_patterns$get('ref.label')}) defines the format of code chunks.
+#' @param path the path to the R script
+#' @return Code chunks are read into the current session so that future chunks
+#'   can use the R code.
+#' @references \url{http://yihui.name/knitr/demo/reference/}
+#' @note This function can only be used in a chunk which is \emph{not} cached
+#'   (chunk option \code{cache = FALSE}), and the code is read and stored in the
+#'   current session \emph{without} being executed (to actually run the code,
+#'   you have to use a chunk with a corresponding label).
+#' @export
+#' @examples ## the default format
+#'
+#' ## @@knitr my-label
+#' 1+1
+#' lm(y~x, data=data.frame(x=1:10,y=rnorm(10)))
+#'
+#' ## later you can use <<my-label>>= to reference this chunk
 read_chunk = function(path) {
   lines = readLines(path, warn = FALSE)
   lab = knit_patterns$get('ref.label')
