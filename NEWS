@@ -1,3 +1,146 @@
+			 CHANGES IN knitr VERSION 0.5
+
+NEW FEATURES
+
+  o white spaces are allowed before <<>> when using chunk references,
+  and this approach of references is supported in tex and html
+  documents as well
+
+  o added a new pattern list named 'md' so that R code blocks can be
+  written more naturally in extended markdown (e.g. GFM and pandoc):
+  use ``` {r label, opts} to begin a chunk and ``` (three or more
+  backticks) to begin normal text, and write inline R code in `r
+  code.here`; it is the default syntax for markdown input, or you can
+  call pat_md() before knit() so knitr can make use of this pattern
+  list to process the input document
+
+  o RStudio has added full support to knitr: we can knit HTML and
+  Markdown documents easily now, and markdown output will be
+  automatically converted to an HTML preview page just like TeX to PDF
+
+  o if the pattern list is not set in advance, knitr will try to
+  detect the syntax automatically by matching all built-in pattern
+  lists against the input document, e.g. if the input contains <<>>=,
+  the Rnw syntax will be used, and if ``` {r} is detected, the
+  markdown syntax will be used; this feature enables us to use
+  different sets of syntax freely, e.g. we can use Sweave syntax in
+  markdown files and knitr will be able to recognize it (#189)
+
+  o new filename extensions with a prefix 'R' or 'r' are introduced:
+  *.Rhtml, *.Rhtm, *.Rtex, *.Rmd and *.Rmarkdown will be recognized as
+  source documents like *.Rnw, and the output filename will be
+  automatically determined by removing the 'R' prefix, e.g. foo.Rmd
+  produces foo.md by default; the old clumsy naming convention
+  foo_knit_.md is still preserved but not recommended any more (#187)
+
+  o new function knit2html() to knit an Rmd file (R with markdown) and
+  convert to HTML in one step using the markdown package
+
+  o new functions pat_rst() and render_rst() to support
+  reStructuredText; use .. {r label, options} and .. .. to write R
+  code chunks; see
+  https://github.com/yihui/knitr/tree/master/inst/examples/knitr-minimal.Rrst
+  (thanks, Jeffrey Arnold and Ramnath Vaidyanathan)
+
+  o new package option 'self.contained' which decides whether to write
+  style definitions (highlighting) in external files or put them in
+  the output document; the highlighting definitions in LaTeX output is
+  often too long, so opts_knit$set(self.contained = FALSE) can help in
+  this case (#176) (thanks, Ramnath Vaidyanathan)
+
+  o new package option 'filter.chunk.end' which decides if the
+  'chunk.end' pattern really means 'chunk.end'; see
+  http://yihui.name/knitr/options (thanks, Joe Cheng)
+
+  o syntax highlighting themes are also available to HTML output now;
+  the usage is the same as in LaTeX (#179) (thanks, Ramnath
+  Vaidyanathan)
+
+  o the chunk option fig.cap is also used in markdown output now
+
+  o the random seed .Random.seed is also cached for the sake of
+  reprodubibility in random simulations
+
+  o the function call read_chunk() will be evaluated when tangling R
+  code via purl() (#175) (thanks, Carl Boettiger)
+
+  o the default LaTeX output will use the upquote package if it exists
+  so that single quotes are straight in the output (thanks,
+  Mathematical Coffee http://bit.ly/IKjluw)
+
+  o the chunk option 'engine' is back but it is used to run code from
+  other languages instead of just ignoring the code in chunks which
+  have engine != 'R'; currently this option is still in rough edges
+  and only supports python and awk; other languages may be added in
+  future versions, but users can also do it by themselves by
+  knit_engines$set(language = function(options) {...}); see an example
+  at system.file('examples', 'knitr-lang.Rmd') (#201)
+
+  o new function write_bib() to write Bibtex citations for R packages;
+  see the main manual for a sample usage (#13)
+
+  o hook_pdfcrop() also supports cropping other image formats like PNG
+  or JPEG through ImageMagick (convert -trim) (#203) (thanks, @r2d3)
+
+MAJOR CHANGES
+
+  o knitr will completely stop when duplicated labels are found and
+  the corresponding chunks are non-empty; in previous version, only a
+  warning is given and R code in later chunks will override previous
+  chunks (#185) (thanks, Randall Pruim)
+
+  o the default graphical device for HTML and markdown output is png()
+  now to avoid the possible unexpected consequence that PDF plots are
+  included in an HTML page which will not work normally in browsers
+
+  o markdown output will use the extended markdown hooks by default
+  now: render_markdown(strict = FALSE); in the past the default was
+  render_jekyll(); the major difference is that the code blocks are
+  put in ```r and ```; if you want the strict markdown syntax, you can
+  all render_markdown(strict = TRUE) which will indent code blocks by
+  4 spaces
+
+  o render_gfm() has been removed because the name can be misleading;
+  the main purpose of this function was to put code blocks in ```, and
+  now we can replace it by render_markdown(FALSE); other markdown
+  flavors also support such fenced code blocks (e.g. pandoc) -- it is
+  not limited to Github only
+
+  o the default value for the 'fig.path' option is 'figure/' now so
+  that plots will be put under this directory by default; the default
+  was './' in the past which makes the current directory messy when
+  there are many plots
+
+  o knitr will fully stop when an error is encountered in knit(); in
+  the past only a message was issued in this case in an interactive R
+  session
+
+  o the package option 'all.patterns' has been dropped; please use the
+  objects 'all_patterns' or 'knit_patterns' directly if you want to
+  tweak the syntax
+
+BUG FIXES
+
+  o the compilation of tikz graphics can hang up when there are TeX
+  errors in the tikz file; now we use \nonstopmode to avoid hiccup
+  (#188)
+
+  o multiple devices per chunk was buggy (#181)
+
+  o S4 objects will be printed by show() instead of print(); this is a
+  bug of the evaluate package, which has been fixed (please update it
+  to be > 0.4.2)
+
+MISC
+
+  o it is recommended to use opts_chunk$set() to set global chunk
+  options now instead of \SweaveOpts{}; all documentation has been
+  updated (#216)
+
+  o number of downloads (https://github.com/yihui/knitr/downloads) of
+  knitr documentation before I removed and updated them on GitHub:
+  c(main = ?, graphics = 275+)
+
 			 CHANGES IN knitr VERSION 0.4
 
 NEW FEATURES
@@ -102,7 +245,7 @@ MISC
 
   o number of downloads (https://github.com/yihui/knitr/downloads) of
   knitr documentation before I removed and updated them on GitHub:
-  c(main = 355, graphics = 155)
+  c(main = 400, graphics = 177)
 
 			 CHANGES IN knitr VERSION 0.3
 

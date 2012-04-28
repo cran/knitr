@@ -18,15 +18,15 @@ purl(...)
   file (like \code{\link[utils]{Stangle}})}
 
   \item{text}{a character vector as an alternative way to
-  provide the input file (\code{text} is written into a
-  temporary file as \code{input}); this argument is mainly
-  for test purposes only}
+  provide the input file}
 
   \item{...}{arguments passed to \code{\link{knit}}}
 }
 \value{
   The compiled document is written into the output file,
-  and the path of the output file is returned.
+  and the path of the output file is returned, but if the
+  \code{output} path is \code{NULL}, the output is returned
+  as a character vector.
 }
 \description{
   This function takes an input file, extracts the R code in
@@ -47,25 +47,33 @@ purl(...)
 
   First the filename of the output document is determined
   in this way: \file{foo.Rnw} generates \file{foo.tex}, and
-  for other types of files, the file extension is reserved;
-  if the filename contains \samp{_knit_}, this part will be
-  removed in the output file, e.g., \file{foo_knit_.html}
-  creates the output \file{foo.html}, so you can use files
-  named in this way as templates; if \samp{_knit_} is not
-  found in the filename, \file{foo.ext} will produce
+  other filename extensions like \file{.Rtex},
+  \file{.Rhtml} (\file{.Rhtm}) and \file{.Rmd}
+  (\file{.Rmarkdown}) will generate \file{.tex},
+  \file{.html} and \file{.md} respectively. For other types
+  of files, the file extension is reserved; if the filename
+  contains \samp{_knit_}, this part will be removed in the
+  output file, e.g., \file{foo_knit_.html} creates the
+  output \file{foo.html}; if \samp{_knit_} is not found in
+  the filename, \file{foo.ext} will produce
   \file{foo-out.ext}. If \code{tangle = TRUE},
   \file{foo.ext} generates an R script \file{foo.R}.
 
-  Based on the file extension of the input document, a list
-  of patterns will be used to extract R code in the
-  document. All built-in pattern lists can be found in
-  \code{opts_knit$get('all.patterns')} (call it
-  \code{apat}). \samp{Rnw} files use the list
+  We need a set of syntax to identify special markups for R
+  code chunks and R options, etc. The syntax is defined in
+  a pattern list. All built-in pattern lists can be found
+  in \code{all_patterns} (call it \code{apat}). First the
+  content of the input document is matched against all
+  pattern lists to automatically which pattern list is
+  being used. If automatic detection failed, the pattern
+  list will be decided based on the filename extension of
+  the input document. \samp{Rnw} files use the list
   \code{apat$rnw}, \samp{tex} uses the list
   \code{apat$tex}, \samp{brew} uses \code{apat$brew} and
   HTML-like files use \code{apat$html} (e.g. \samp{html}
   and \samp{md} files). You can manually set the pattern
-  list using the \code{\link{knit_patterns}} object, and
+  list using the \code{\link{knit_patterns}} object or the
+  \code{\link{pat_rnw}} series functions in advance and
   \pkg{knitr} will respect the setting.
 
   According to the output format
@@ -100,13 +108,14 @@ purl(...)
   connections, but the pattern list to read the input has
   to be set in advance (see \code{\link{pat_rnw}}), and the
   output hooks should also be set (see
-  \code{\link{render_latex}}).
+  \code{\link{render_latex}}), otherwise \pkg{knitr} will
+  try to guess the patterns and output format.
 }
 \examples{
 library(knitr)
 (f = tempfile(fileext = ".Rnw"))
-file.copy(system.file("examples", "knitr-minimal.Rnw", 
-    package = "knitr"), f, overwrite = TRUE)
+file.copy(system.file("examples", "knitr-minimal.Rnw", package = "knitr"), 
+    f, overwrite = TRUE)
 knit(f)
 ## or setwd(dirname(f)); knit(basename(f))
 
