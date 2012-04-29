@@ -16,6 +16,7 @@ split_file = function(path, lines = readLines(path, warn = FALSE), set.preamble 
   
   blks = str_detect(lines, chunk.begin)
   txts = str_detect(lines, chunk.end)
+  if (opts_knit$get('filter.chunk.end')) txts = filter_chunk_end(blks, txts)
   
   tmp = logical(n); tmp[blks | txts] = TRUE; lines[txts] = ''
   
@@ -56,7 +57,7 @@ parse_block = function(input) {
   label = params$label
   code = block[-1L]
   if (length(code)) {
-    if (label %in% names(knit_code$get())) warning("duplicated label '", label, "'")
+    if (label %in% names(knit_code$get())) stop("duplicated label '", label, "'")
     knit_code$set(structure(list(code), .Names = label))
   }
   
@@ -78,7 +79,7 @@ parse_params = function(params, label = TRUE) {
     return(if (!label) list() else list(label = unnamed_chunk()))
   }
   res = try(eval(parse(text = str_c("alist(", params, ")"))))
-  if (!inherits(res, 'try-error') && valid_opts(res)) {
+  if (!inherits(res, 'try-error') && valid_opts(params)) {
     ## good, you seem to be using valid R code
     idx = which(names(res) == '')  # which option is not named?
     if (is.null(names(res))) idx = 1L  # empty name, must be label
@@ -91,8 +92,10 @@ parse_params = function(params, label = TRUE) {
     if (label && !is.character(res$label))
       res$label = gsub(' ', '', as.character(as.expression(res$label)))
     return(res)
-  } else warning('I saw options ', params,
-                 '\n are you using old Sweave syntax? go http://yihui.name/knitr/options')
+  }
+  warning('(*) NOTE: I saw options "', params,
+          '"\n are you using the old Sweave syntax? go http://yihui.name/knitr/options')
+  Sys.sleep(10)  # force you to pay attention!
 
   ## split by , (literal comma has to be escaped as \,) and then by =
   pieces = str_split(params, perl('(?<=[^\\\\]),'))[[1]]
@@ -119,21 +122,15 @@ parse_params = function(params, label = TRUE) {
   lapply(values, type.convert, as.is = TRUE)
 }
 
-## is the options list from eval() valid?
-valid_opts = function(options) {
-  nms = setdiff(names(options), c('', 'label'))
-  if (!length(nms)) return(TRUE)
+## is the options list valid with knitr's new syntax?
+.wrong.opts = c('results\\s*=\\s*(verbatim|tex|hide|asis|markup)',
+                'fig.keep\\s*=\\s*(none|all|high|last|first)',
+                'fig.show\\s*=\\s*(hold|asis|animate)',
+                sprintf('dev\\s*=\\s*(%s)', paste(names(auto_exts), collapse = '|')),
+                'fig.align\\s*=\\s*(default|left|center|right)')
+valid_opts = function(x) {
   ## not a rigorous check; you should go to the new syntax finally!
-  chk = c('results', 'fig.keep', 'fig.show', 'dev', 'out.width', 'out.height', 
-          'fig.align', 'fig.path', 'cache.path', 'ref.label', 'child', 'dependson')
-  for (o in intersect(chk, nms)) {
-    if (!is.null(options[[o]]) && !is.character(options[[o]])) {
-      warning('unexpected option ', sQuote(o), '; forgot to quote it?')
-      str(options[[o]])
-      return(FALSE)
-    }
-  }
-  TRUE
+  !any(str_detect(x, .wrong.opts))
 }
 
 print.block = function(x, ...) {
@@ -270,4 +267,18 @@ parse_chunk = function(x) {
     str_c(parse_chunk(z), collapse = '\n')
   }), use.names = FALSE)
   x
+}
+
+## filter chunk.end lines that don't actually end a chunk
+filter_chunk_end = function(chunk.begin, chunk.end) {
+  in.chunk = FALSE
+  fun = function(is.begin, is.end) {
+    if (in.chunk && is.end) {
+      in.chunk <<- FALSE
+      return(TRUE)
+    }
+    if (!in.chunk && is.begin) in.chunk <<- TRUE
+    FALSE
+  }
+  mapply(fun, chunk.begin, chunk.end)
 }

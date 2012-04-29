@@ -91,29 +91,30 @@ status open
 
 \begin_layout Plain Layout
 
-% 
-\backslash
-SweaveOpts{fig.path='figure/manual-', cache.path='cache/manual-', fig.align='center
-', external=TRUE, fig.show='hold', par=TRUE}
-\end_layout
-
-\end_inset
-
-
-\end_layout
-
-\begin_layout Standard
-\begin_inset ERT
-status open
-
-\begin_layout Plain Layout
-
 <<setup, include=FALSE, cache=FALSE>>=
 \end_layout
 
 \begin_layout Plain Layout
 
-options(replace.assign=TRUE,width=90)
+## this is equivalent to 
+\backslash
+SweaveOpts{}
+\end_layout
+
+\begin_layout Plain Layout
+
+opts_chunk$set(fig.path='figure/manual-', cache.path='cache/manual-', fig.align='ce
+nter', fig.show='hold', par=TRUE)
+\end_layout
+
+\begin_layout Plain Layout
+
+## I use = but I can replace it with <-; set code/output width to be 68
+\end_layout
+
+\begin_layout Plain Layout
+
+options(replace.assign=TRUE, width=68)
 \end_layout
 
 \begin_layout Plain Layout
@@ -192,7 +193,7 @@ knitr
  package 
 \begin_inset CommandInset citation
 LatexCommand citep
-key "knitr-manual"
+key "R-knitr"
 
 \end_inset
 
@@ -497,7 +498,7 @@ evaluate
  package 
 \begin_inset CommandInset citation
 LatexCommand citep
-key "evaluate-manual"
+key "R-evaluate"
 
 \end_inset
 
@@ -766,7 +767,7 @@ pgfSweave
  
 \begin_inset CommandInset citation
 LatexCommand citep
-key "pgfSweave-manual"
+key "R-pgfSweave"
 
 \end_inset
 
@@ -777,7 +778,7 @@ cacheSweave
  
 \begin_inset CommandInset citation
 LatexCommand citep
-key "cacheSweave-manual"
+key "R-cacheSweave"
 
 \end_inset
 
@@ -837,7 +838,7 @@ highlight
  package 
 \begin_inset CommandInset citation
 LatexCommand citep
-key "highlight-manual"
+key "R-highlight"
 
 \end_inset
 
@@ -848,7 +849,7 @@ formatR
  
 \begin_inset CommandInset citation
 LatexCommand citep
-key "formatR-manual"
+key "R-formatR"
 
 \end_inset
 
@@ -862,7 +863,7 @@ keep.source=FALSE
 framed
 \series default
  package is used to decorate code chunks with a light gray background.
- It this LaTeX package is not found in the system, a version will be copied
+ If this LaTeX package is not found in the system, a version will be copied
  directly from 
 \series bold
 knitr
@@ -1390,8 +1391,7 @@ status open
 
 \begin_layout Plain Layout
 
-<<fig-hold, fig=TRUE, fig.show='asis', dev='pdf', fig.width=6, fig.height=4,
- out.width='.35
+<<fig-hold, fig.show='asis', dev='pdf', fig.width=6, fig.height=4, out.width='.35
 \backslash
 
 \backslash
@@ -1479,7 +1479,7 @@ animation
  package 
 \begin_inset CommandInset citation
 LatexCommand citep
-key "animation-manual"
+key "R-animation"
 
 \end_inset
 
@@ -1577,7 +1577,7 @@ tikzDevice
  package 
 \begin_inset CommandInset citation
 LatexCommand citep
-key "tikzDevice-manual"
+key "R-tikzDevice"
 
 \end_inset
 
@@ -2591,7 +2591,7 @@ rgl
  plots 
 \begin_inset CommandInset citation
 LatexCommand citep
-key "rgl-manual"
+key "R-rgl"
 
 \end_inset
 
@@ -2909,6 +2909,42 @@ https://groups.google.com/group/knitr
 \end_inset
 
 .
+\end_layout
+
+\begin_layout Standard
+\begin_inset ERT
+status open
+
+\begin_layout Plain Layout
+
+% when knitr is updated, this chunk will be updated; why?
+\end_layout
+
+\begin_layout Plain Layout
+
+<<auto-bib, version=packageVersion('knitr'), echo=FALSE, cache=TRUE, message=FAL
+SE>>=
+\end_layout
+
+\begin_layout Plain Layout
+
+# write all packages in the current session to a bib file
+\end_layout
+
+\begin_layout Plain Layout
+
+write_bib(c(.packages(), 'cacheSweave', 'evaluate', 'formatR', 'highlight',
+ 'pgfSweave'), file = 'knitr-packages.bib')
+\end_layout
+
+\begin_layout Plain Layout
+
+@
+\end_layout
+
+\end_inset
+
+
 \end_layout
 
 \begin_layout Standard
