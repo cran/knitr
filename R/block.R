@@ -1,6 +1,6 @@
 ## S3 method to deal with chunks and inline text respectively
-##' @S3method process_group block
-##' @S3method process_group inline
+#' @S3method process_group block
+#' @S3method process_group inline
 process_group = function(x) {
   UseMethod('process_group', x)
 }
@@ -39,13 +39,15 @@ call_block = function(block) {
   ## Check cache
   content = list(params[setdiff(names(params), 'include')], getOption('width'))
   content[[3L]] = opts_knit$get('cache.extra')
-  hash = str_c(valid_prefix(params$cache.path), params$label, '_', digest(content))
+  hash = str_c(valid_path(params$cache.path, params$label), '_', digest(content))
   params$hash = hash
   if (params$cache && cache$exists(hash)) {
     if (!params$include) return('')
     cache$load(hash)
     return(cache$output(hash))
   }
+  if (params$cache) cache$library(params$cache.path, save = FALSE) # load packages
+
   block_exec(params)
 }
 
@@ -68,8 +70,10 @@ block_exec = function(params) {
   }
   ## no eval chunks
   if (!options$eval) {
-    return(knit_hooks$get('chunk')(wrap.source(list(src = str_c(code, collapse = '\n')),
-                                               options), options))
+    output = knit_hooks$get('chunk')(wrap.source(list(src = str_c(code, collapse = '\n')),
+                                                 options), options)
+    if (options$cache) block_cache(options, output, character(0))
+    return(if (options$include) output else '')
   }
   
   ## eval chunks (in an empty envir if cache)
@@ -79,7 +83,7 @@ block_exec = function(params) {
   ## open a graphical device to record graphics
   dargs = formals(getOption('device'))  # is NULL in RStudio's GD
   if (is.null(dargs) || !interactive()) {
-    pdf(file = NULL)
+    pdf(file = NULL, width = options$fig.width, height = options$fig.height)
   } else dev.new()
   dv = dev.cur(); on.exit(dev.off(dv))
   
@@ -91,6 +95,7 @@ block_exec = function(params) {
     options$fig.ext = dev2ext(options$dev)
   }
   
+  obj.before = ls(globalenv(), all.names = TRUE)  # global objects before chunk
   res.before = run_hooks(before = TRUE, options, env) # run 'before' hooks
   owd = setwd(input_dir())
   res = evaluate(code, envir = env) # run code
@@ -168,18 +173,25 @@ block_exec = function(params) {
   plot_counter(reset = TRUE)  # restore plot number
   
   if (options$cache) {
-    hash = options$hash
-    outname = str_c('.', hash)
-    assign(outname, output, envir = globalenv())
-    ## purge my old cache and cache of chunks dependent on me
-    cache$purge(str_c(valid_prefix(options$cache.path),
-                      c(options$label, dep_list$get(options$label)), '_*'))
-    cache$save(c(ls(env, all.names = TRUE), outname), hash)
+    obj.after = ls(globalenv(), all.names = TRUE)  # figure out new global objs
+    objs = c(ls(env, all.names = TRUE), setdiff(obj.after, obj.before))
+    block_cache(options, output, objs)
+    if (options$autodep) cache$objects(objs, code, options$label, options$cache.path)
   }
   
-  if (!options$include) '' else output
+  if (options$include) output else ''
 }
 
+block_cache = function(options, output, objects) {
+  hash = options$hash
+  outname = str_c('.', hash)
+  assign(outname, output, envir = globalenv())
+  ## purge my old cache and cache of chunks dependent on me
+  cache$purge(str_c(valid_path(options$cache.path,
+                               c(options$label, dep_list$get(options$label))), '_*'))
+  cache$library(options$cache.path, save = TRUE)
+  cache$save(c(objects, outname), hash)
+}
 
 call_inline = function(block) {
   
@@ -214,8 +226,8 @@ inline_exec = function(block) {
   input
 }
 
-##' @S3method process_tangle block
-##' @S3method process_tangle inline
+#' @S3method process_tangle block
+#' @S3method process_tangle inline
 process_tangle = function(x) {
   UseMethod('process_tangle', x)
 }

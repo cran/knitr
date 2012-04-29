@@ -13,6 +13,7 @@ new_defaults = function(value = list()) {
     if (length(dots) == 1 && is.list(dots[[1]]))
       dots = dots[[1]]
     defaults <<- merge(dots)
+    invisible(NULL)
   }
   merge = function(values) {
     defaults[names(values)] = values
@@ -23,22 +24,22 @@ new_defaults = function(value = list()) {
   list(get = get, set = set, merge = merge, restore = restore)
 }
 
-##' Default and current chunk options
-##'
-##' Options for R code chunks. When running R code, the object
-##' \code{opts_chunk} (default options) is not modified by chunks
-##' (local chunk options are merged with default options), whereas
-##' \code{opts_current} (current options) changes with different
-##' chunks.
-##' @references Usage: \url{http://yihui.name/knitr/objects}
-##'
-##' A list of available options: \url{http://yihui.name/knitr/options#chunk_options}
-##' @export
-##' @examples opts_chunk$get('prompt'); opts_chunk$get('fig.keep')
+#' Default and current chunk options
+#' 
+#' Options for R code chunks. When running R code, the object \code{opts_chunk}
+#' (default options) is not modified by chunks (local chunk options are merged
+#' with default options), whereas \code{opts_current} (current options) changes
+#' with different chunks.
+#' @references Usage: \url{http://yihui.name/knitr/objects}
+#'   
+#' A list of available options:
+#' \url{http://yihui.name/knitr/options#chunk_options}
+#' @export
+#' @examples opts_chunk$get('prompt'); opts_chunk$get('fig.keep')
 opts_chunk = 
   new_defaults(list(eval = TRUE, echo = TRUE, results = 'markup', tidy = TRUE,
                     cache = FALSE, dependson = NULL, cache.path = 'cache/',
-                    ref.label = NULL, child = NULL, concordance = FALSE,
+                    ref.label = NULL, child = NULL,
                     prompt = FALSE, comment = '##', autodep = FALSE,
                     fig.keep = 'high', fig.show = 'asis', fig.align = 'default',
                     fig.path = '', fig.ext = NULL, dev = 'pdf', dpi = 72,
@@ -52,18 +53,18 @@ opts_chunk =
                     background = '#F7F7F7', split = FALSE, include = TRUE,
                     interval = 1, aniopts = 'controls;loop'))
 
-##' @rdname opts_chunk
-##' @export
+#' @rdname opts_chunk
+#' @export
 opts_current = new_defaults()
 
-##' All built-in patterns
-##'
-##' This object is a named list of all built-in patterns.
-##' @references Usage: \url{http://yihui.name/knitr/patterns}
-##' @export
-##' @examples all_patterns$rnw; all_patterns$html
-##'
-##' str(all_patterns)
+#' All built-in patterns
+#'
+#' This object is a named list of all built-in patterns.
+#' @references Usage: \url{http://yihui.name/knitr/patterns}
+#' @export
+#' @examples all_patterns$rnw; all_patterns$html
+#'
+#' str(all_patterns)
 all_patterns =
   
   list(`rnw` = list(chunk.begin = '^<<(.*)>>=', chunk.end = '^@\\s*%*',
@@ -92,21 +93,22 @@ all_patterns =
                      header.begin = '\n*\\s*<head>',
                      ref.label = '^## @knitr (.*)$'))
 
-##' Options for the knitr package
-##'
-##' Options including whether to use a progress bar when knitting a
-##' document, and the base directory of images, etc.
-##' @references Usage: \url{http://yihui.name/knitr/objects}
-##'
-##' A list of available options: \url{http://yihui.name/knitr/options#package_options}
-##' @export
-##' @examples opts_knit$get('verbose'); opts_knit$set(verbose = TRUE)  # change it
+#' Options for the knitr package
+#' 
+#' Options including whether to use a progress bar when knitting a document, and
+#' the base directory of images, etc.
+#' @references Usage: \url{http://yihui.name/knitr/objects}
+#'   
+#' A list of available options:
+#' \url{http://yihui.name/knitr/options#package_options}
+#' @export
+#' @examples opts_knit$get('verbose'); opts_knit$set(verbose = TRUE)  # change it
 opts_knit =
   new_defaults(list(progress = TRUE, verbose = FALSE,
                     out.format = NULL, child.command = 'input',
                     base.dir = NULL, base.url = NULL, child.path = '',
-                    imgur.key = '60e9e47cff8483c6dc289a1cd674b40f', upload = FALSE,
-                    eval.after = NULL,
+                    upload.fun = identity,
+                    eval.after = NULL, concordance = FALSE,
                     all.patterns = all_patterns, tangle = FALSE,
                     child = FALSE, parent = FALSE,
                     cache.extra = NULL, aliases = NULL,
