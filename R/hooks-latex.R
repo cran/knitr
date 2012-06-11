@@ -114,7 +114,8 @@ hook_plot_tex = function(x, options) {
   ## rm empty kframe and verbatim environments
   x = gsub('\\\\begin\\{(kframe)\\}\\s*\\\\end\\{\\1\\}', '', x)
   x = gsub('\\\\end\\{(verbatim)\\}\\s*\\\\begin\\{\\1\\}[\n]?', '', x)
-  if (!ai) x = str_c('\\begin{knitrout}\n', x, '\n\\end{knitrout}')
+  size = if (options$size == 'normalsize') '' else str_c('\\', options$size)
+  if (!ai) x = str_c('\\begin{knitrout}', size, '\n', x, '\n\\end{knitrout}')
   if (options$split) {
     name = fig_path('.tex', options)
     if (!file.exists(dirname(name)))
@@ -170,6 +171,7 @@ hook_plot_tex = function(x, options) {
 render_latex = function() {
   if (child_mode()) return()
   test_latex_pkg('framed', system.file('misc', 'framed.sty', package = 'knitr'))
+  opts_chunk$set(out.width = '\\maxwidth')
   h = opts_knit$get('header')
   if (!nzchar(h['framed'])) set_header(framed = .header.framed)
   if (!nzchar(h['highlight'])) set_header(highlight = .header.hi.tex)

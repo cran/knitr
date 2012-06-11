@@ -15,9 +15,28 @@ for (i in list.files(pattern = '\\.lyx$')) {
   flush.console()
 }
 
+call_knit = function(cmd) {
+  stopifnot(identical(system(cmd), 0L))
+}
 for (i in list.files(pattern = '\\.R(tex|md|html|rst)')) {
   message(i)
-  stopifnot(identical(system(sprintf('knit %s', i)), 0L))
+  cmd = if (i == 'knitr-minimal.Rmd') {
+    sprintf("Rscript -e 'library(knitr);opts_knit$set(base.url=\"https://github.com/yihui/knitr/raw/master/inst/examples/\");opts_chunk$set(fig.path=\"\");knit(\"%s\")'", i)
+  } else {
+    sprintf('knit %s', i)
+  }
+  call_knit(cmd)
   flush.console()
 }
+
+call_knit(sprintf("Rscript -e 'library(knitr);knit(\"knitr-minimal.brew\", \"\")'"))
+call_knit(sprintf("Rscript -e 'library(knitr);spin(\"knitr-spin.R\")'"))
+
+setwd('child')
+for (i in c('knitr-main.Rnw', 'knitr-parent.Rnw')) {
+  call_knit(sprintf('knit %s --pdf', i))
+}
+unlink('*.tex')
+call_knit(sprintf('knit %s', 'knitr-main.Rmd'))
+setwd('..')
 

@@ -24,13 +24,25 @@ call_block = function(block) {
   if (opts_knit$get('progress')) print(block)
 
   if (params$eval && !is.null(params$child)) {
+    if (concord_mode()) {
+      concord_gen()  # generate a partial concordance before knit children
+      i = knit_concord$get('i'); olines = knit_concord$get('outlines')
+      knit_concord$set(parent.line = current_lines(i)[1L])
+    }
     cmds = lapply(sc_split(params$child), knit_child)
-    return(str_c(unlist(cmds), collapse = '\n'))
+    out = str_c(unlist(cmds), collapse = '\n')
+    if (concord_mode()) {
+      knit_concord$set(out.next = sum(olines) + line_count(out) - 1L,
+                       in.next = i + 1L)
+    }
+    return(out)
   }
 
   if ((!params$eval && isFALSE(params$echo)) || length(params$code) == 0 ||
-    all(is_blank(params$code)))
+    all(is_blank(params$code))) {
+    message('chunk "', label, '" is empty or set not to be evaluated')
     return('') # a trivial chunk; do nothing
+  }
 
   if (is_tikz_dev(params)) set_header(tikz = '\\usepackage{tikz}')
 
@@ -43,6 +55,7 @@ call_block = function(block) {
   params$hash = hash
   if (params$cache && cache$exists(hash)) {
     if (!params$include) return('')
+    if (opts_knit$get('verbose')) message('  loading cache from ', hash)
     cache$load(hash)
     return(cache$output(hash))
   }
@@ -58,7 +71,7 @@ block_exec = function(params) {
   options = params
 
   ## eval chunks (in an empty envir if cache)
-  env = if (options$cache) new.env(parent = globalenv()) else globalenv()
+  env = if (options$cache) new.env(parent = knit_global()) else knit_global()
   .knitEnv$knit_env = env # make a copy of the envir
   obj.before = ls(globalenv(), all.names = TRUE)  # global objects before chunk
 
@@ -133,7 +146,7 @@ block_exec = function(params) {
       if (options$fig.show == 'hold') res = c(res[!figs], res[figs]) # move to the end
       res = Filter(function(x) {
         ## filter out plot objects purely for layout (raised by par(), layout())
-        !is.recordedplot(x) || !all(plot_calls(x) %in% c('par', 'layout'))
+        !is.recordedplot(x) || !all(plot_calls(x) %in% c('par', 'layout', '.External2'))
       }, res)
       figs = sapply(res, is.recordedplot)
       if (sum(figs) > 1) {
@@ -169,7 +182,7 @@ block_exec = function(params) {
   output = str_c(unlist(wrap(res, options)), collapse = '') # wrap all results together
 
   res.after = run_hooks(before = FALSE, options, env) # run 'after' hooks
-  if (options$cache) copy_env(env, globalenv())
+  if (options$cache) copy_env(env, knit_global())
 
   output = str_c(c(res.before, output, res.after), collapse = '')  # insert hook results
   output = if (length(output) == 0L) '' else knit_hooks$get('chunk')(output, options)
@@ -177,7 +190,8 @@ block_exec = function(params) {
 
   if (options$cache) {
     obj.after = ls(globalenv(), all.names = TRUE)  # figure out new global objs
-    objs = c(ls(env, all.names = TRUE), setdiff(obj.after, obj.before))
+    copy_env(globalenv(), knit_global(), setdiff(obj.after, obj.before))
+    objs = ls(env, all.names = TRUE)
     block_cache(options, output, objs)
     if (options$autodep) cache$objects(objs, code, options$label, options$cache.path)
   }
@@ -188,12 +202,12 @@ block_exec = function(params) {
 block_cache = function(options, output, objects) {
   hash = options$hash
   outname = str_c('.', hash)
-  assign(outname, output, envir = globalenv())
+  assign(outname, output, envir = knit_global())
   ## purge my old cache and cache of chunks dependent on me
   cache$purge(str_c(valid_path(options$cache.path,
                                c(options$label, dep_list$get(options$label))), '_*'))
   cache$library(options$cache.path, save = TRUE)
-  cache$save(c(objects, outname), hash)
+  cache$save(objects, outname, hash)
 }
 
 call_inline = function(block) {
@@ -215,7 +229,7 @@ inline_exec = function(block) {
   owd = setwd(input_dir()); on.exit(setwd(owd))
   loc = block$location
   for (i in 1:n) {
-    res = try(eval(parse(text = code[i]), envir = globalenv()))
+    res = try(eval(parse(text = code[i]), envir = knit_global()))
     d = nchar(input)
     ## replace with evaluated results
     str_sub(input, loc[i, 1], loc[i, 2]) = if (length(res)) {

@@ -1,3 +1,126 @@
+			 CHANGES IN knitr VERSION 0.6
+
+NEW FEATURES
+
+  o for LaTeX output, the chunk option 'out.width' defaults to
+  '\\maxwidth' now; see http://yihui.name/knitr/demo/framed/ for its
+  definition; this makes sure the figures do not overflow the page
+  margins (#221)
+
+  o the chunk option 'size' now defines the font size of the whole
+  chunk instead of only some special characters in it, so that the old
+  trick of redefining the 'knitrout' environment for different font
+  sizes is no longer necessary; see updates in the beamer examples:
+  http://yihui.name/knitr/demo/beamer/ (thanks, Baptiste Auguie)
+
+  o added a new chunk option 'dev.args' which can be used to pass more
+  arguments to the graphical device (#254) (thanks, knokknok)
+
+  o warnings, messages and errors will be wrapped according to
+  options('width'); this will make long messages stay within the page
+  margin when the width option is appropriately small (#259) (thanks,
+  @muelleki)
+
+  o added a new function spin() to turn a specially formatted R script
+  to a report; see http://yihui.name/knitr/demo/stitch/ (#223)
+  (thanks, Rich FitzJohn)
+
+  o knit() gained a new argument 'envir' to specify the environment in
+  which to evaluate code chunks (by default in the parent frame); this
+  will allow users to run code in a specified environment so that the
+  global environment will not be cluttered by objects in chunks, which
+  can hopefully make the documents more reproducible (#228)
+
+  o added a new component 'inline.comment' in knit_patterns to strip
+  off tokens of inline R code from inline comments, e.g. a comment
+  line like '% x is \Sexpr{x}' will become '% x is x' (#110); this
+  will only happen to LaTeX documents because HTML does not have
+  inline comments (it only has block comments <!-- -->)
+
+  o concordance works for child documents as well now (try RStudio),
+  although it is not very precise (#225); note when concordance is
+  enabled, the results from child documents will be written into the
+  parent output instead of individual tex files; also note you have to
+  set opts_knit$set(self.contained = FALSE) for concordance to work
+  better
+
+  o added an OpenCPU app so that we can run knitr in the cloud now;
+  see system.file('opencpu', 'apps', 'index.html', package = 'knitr')
+  or http://public.opencpu.org/apps/knitr (thanks, Jeroen Ooms)
+
+  o all messages, errors and warnings during evaluation are recorded
+  in an internal object knit_log (use knitr:::knit_log$get() to get
+  all messages) and they are printed if the package option 'verbose'
+  is TRUE (i.e. opts_knit$get('verbose')) (#224)
+
+  o child documents are also supported in other document formats
+  besides LaTeX, e.g. Markdown and HTML, etc; please use the chunk
+  option 'child' to specify the child documents; see
+  system.file('examples', 'child', 'knitr-main.Rmd', package =
+  'knitr') for an example in markdown (#268) (thanks, @martinaryee)
+
+BUG FIXES
+
+  o the templates for stitch() used results=hide which should really
+  be results='hide' (#219) (thanks, @r2d3)
+
+  o format numbers with the reST syntax instead of HTML (#218)
+  (thanks, Jeffrey Arnold)
+
+  o hook_pdfcrop() should work better under Windows now (#209) (thanks
+  @DCCKC and @r2d3)
+
+  o tikz compilation fails on Windows network drives
+
+  o FFmpeg does not really work for HTML/Markdown output because the
+  dot in figure filenames was omitted (thanks, Ming Kuo)
+
+  o child documents can fail when they are in different sub
+  directories (thanks, Christoph J)
+
+  o set_parent() failed to work in the last version due to a bug when
+  inserting the parent preamble into the child document (#240)
+
+  o better preserve plot sizes in interactive sessions (#258)
+
+MAJOR CHANGES
+
+  o .Random.seed is not cached any more because of weird problems due
+  to lazy loading (#248 and #253); users should use set.seed() to make
+  sure reproducibility of random simulations; the chunk output is
+  cached in a .RData database instead of a lazy load database to avoid
+  problems in #253
+
+  o the default graphics device is set to the null PDF device before
+  evaluating code chunks, i.e. pdf(file = NULL), so that neither
+  Rplots.pdf nor plot windows will be opened during knitting
+  
+MINOR CHANGES
+
+  o knitr will show a message when a chunk is empty; this helps users
+  who do not actually want a chunk to be empty realize the problem
+  like #229; in the past, knitr just silently returns an empty string
+  from such chunks
+
+  o knitr will show a message when the cache is loaded and the option
+  opts_knit$get('verbose') is TRUE (#249) (thanks, Carl Boettiger)
+
+  o the filename extensions Snw and Stex are also supported
+  (foo.Snw/foo.Stex produces foo.tex)
+
+  o the HTML output hooks are changed according to the suggestion of
+  Barry Rowlingson (#250) and the default CSS is also slightly
+  modified
+
+  o knit() will no longer try to remove the file NA generated by
+  pdf(file = NULL) before R 2.14.2 (which was a bug and fixed later);
+  you should update R if you see this file
+
+DOCUMENTATION
+
+  o added a minimal brew example under system.file('examples', package
+  = 'knitr')
+  
 			 CHANGES IN knitr VERSION 0.5
 
 NEW FEATURES

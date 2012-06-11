@@ -17,7 +17,8 @@ hook_plot_rst = function(x, options) {
   # http://docutils.sourceforge.net/docs/ref/rst/directives.html#figure
   make_directive('figure', str_c(base, .upload.url(x)),
                  c(align = if (options$fig.align == 'default') NULL else options$fig.align,
-                   alt = cap, width = options$out.width, height = options$out.height))
+                   alt = cap, width = options$out.width, height = options$out.height),
+                 cap)
 }
 
 #' @rdname output_hooks
@@ -36,8 +37,7 @@ render_rst = function(strict = FALSE) {
     hook.s(x, options)
   }
   hook.i = function(x) {
-    sprintf(if (inherits(x, "AsIs")) "%s" else "``%s``",
-            .inline.hook(format_sci(x, "html")))
+    .inline.hook(format_sci(x, "rst"))
   }
   knit_hooks$set(source = if (strict) hook.s else hook.t,
                  warning = hook.s, error = hook.s, message = hook.s,

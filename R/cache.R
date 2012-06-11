@@ -11,13 +11,16 @@ new_cache = function() {
   }
   
   cache_purge = function(hash) {
-    for (h in hash) unlink(str_c(cache_path(h), c('.rdb', '.rdx')))
+    for (h in hash) unlink(str_c(cache_path(h), c('.rdb', '.rdx', '.RData')))
   }
   
-  cache_save = function(keys, hash) {
-    ## cache the random seed as well for reproducibility
-    if (exists('.Random.seed', envir = globalenv())) keys = c(keys, '.Random.seed')
-    tools:::makeLazyLoadDB(globalenv(), cache_path(hash), variables = keys)
+  cache_save = function(keys, outname, hash) {
+    # keys are new variables created; outname is the text output of a chunk
+    path = cache_path(hash)
+    save(list = outname, file = str_c(path, '.RData'), envir = knit_global())
+    # FIXME: after R 2.15.0, this line can be removed
+    keys = setdiff(keys, '.Random.seed')
+    tools:::makeLazyLoadDB(knit_global(), path, variables = keys)
   }
 
   save_objects = function(objs, label, path) {
@@ -39,11 +42,11 @@ new_cache = function() {
   }
 
   cache_load = function(hash) {
-    lazyLoad(cache_path(hash), envir = globalenv())
-    ## .Random.seed cannot be promise; must evaluate
-    if (exists('.Random.seed', envir = globalenv())) {
-      assign('.Random.seed', get('.Random.seed', envir = globalenv()),
-             envir = globalenv())
+    path = cache_path(hash)
+    lazyLoad(path, envir = knit_global())
+    # load output from last run if exists
+    if (file.exists(path2 <- str_c(path, '.RData'))) {
+      load(path2, envir = knit_global())
     }
   }
 
@@ -66,8 +69,8 @@ new_cache = function() {
   
   ## code output is stored in .[hash], so cache=TRUE won't lose output as cacheSweave does
   cache_output = function(hash) {
-    if (exists(str_c('.', hash), envir = globalenv(), mode = 'character')) {
-      get(str_c('.', hash), envir = globalenv(), mode = 'character')
+    if (exists(str_c('.', hash), envir = knit_global(), mode = 'character')) {
+      get(str_c('.', hash), envir = knit_global(), mode = 'character')
     } else ''
   }
   

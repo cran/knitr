@@ -21,7 +21,7 @@ split_file = function(path, lines = readLines(path, warn = FALSE), set.preamble 
   tmp = logical(n); tmp[blks | txts] = TRUE; lines[txts] = ''
   
   groups = unname(split(lines, cumsum(tmp)))
-  concord_input(n = sapply(groups, length)) # input line numbers for concordance
+  knit_concord$set(inlines = sapply(groups, length)) # input line numbers for concordance
 
   ## parse 'em all
   lapply(groups, function(g) {
@@ -153,6 +153,12 @@ print.block = function(x, ...) {
 
 ## extract inline R code fragments (as well as global options)
 parse_inline = function(input) {
+  inline.comment = knit_patterns$get('inline.comment')
+  if (!is.null(inline.comment)) {
+    idx = str_detect(input, inline.comment)
+    # strip off inline code
+    input[idx] = str_replace_all(input[idx], knit_patterns$get('inline.code'), '\\1')
+  }
   input = str_c(input, collapse = '\n') # merge into one line
   
   locate_inline = function(input, pattern) {
@@ -245,8 +251,10 @@ read_chunk = function(path) {
   knit_code$set(code)
 }
 
-strip_chunk = function(x) {
-  x = x[-1]; if (!length(x)) return(x)
+strip_chunk = function(x) strip_white(x[-1])
+# strip lines that are pure white spaces
+strip_white = function(x) {
+  if (!length(x)) return(x)
   while(is_blank(x[1])) {
     x = x[-1]; if (!length(x)) return(x)
   }
