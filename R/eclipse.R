@@ -13,6 +13,7 @@
 #' @export
 #' @examples ## http://www.eclipsecolorthemes.org/?view=theme&id=1
 #' \dontrun{
+#' opts_knit$set(out.format = 'latex')
 #' (css = eclipse_theme(1))
 #' thm = knit_theme$get(css)
 #' knit_theme$set(thm)
@@ -51,9 +52,7 @@ xml_to_css = function(xml_file){
   style      = xml_list$docname
   css_file   = file.path(tempdir(), sprintf("%s.css", style))
   template   = system.file('themes', 'eclipse.brew', package = 'knitr')
-  assign('.doccolors', doccolors, envir = globalenv())
-  knit(template, css_file)
-  rm(list = '.doccolors', envir = globalenv())
+  with(doccolors, knit(template, css_file))
   message('Theme ', style, ' saved to ', css_file)
   css_file
 }

@@ -1,9 +1,6 @@
 ## copy objects in one environment to the other
-copy_env = function(from, to) {
-  x = ls(envir = from, all.names = TRUE)
-  for (i in x) {
-    assign(i, get(i, envir = from, inherits = FALSE), envir = to)
-  }
+copy_env = function(from, to, keys = ls(envir = from, all.names = TRUE)) {
+  for (i in keys) assign(i, get(i, envir = from, inherits = FALSE), envir = to)
 }
 
 
@@ -33,7 +30,7 @@ comment_out = function(x, options) {
 ## assign string in comments to a global variable
 comment_to_var = function(x, varname, pattern) {
   if (str_detect(x, pattern)) {
-    assign(varname, str_replace(x, pattern, ''), envir = globalenv())
+    assign(varname, str_replace(x, pattern, ''), envir = knit_global())
     return(TRUE)
   }
   FALSE
@@ -78,10 +75,10 @@ color_def = function(col, variable = 'shadecolor') {
   sprintf('\\definecolor{%s}{rgb}{%s, %s, %s}', variable, x[1], x[2], x[3])
 }
 
-## split by semicolon
+## split by semicolon or colon
 sc_split = function(string) {
   if (length(string) > 1L) return(string)
-  str_trim(str_split(string, fixed(';'))[[1]])
+  str_trim(str_split(string, ';|,')[[1]])
 }
 
 ## extract LaTeX packages for tikzDevice
@@ -161,24 +158,33 @@ input_dir = function() {
 }
 
 ## scientific notation in TeX
-format_sci = function(x, format = 'latex') {
+format_sci = function(x, format = "latex") {
   if (!is.numeric(x)) return(x)
-  scipen = getOption('scipen') + 4L
-  if (any(abs(lx <- floor(log(abs(x), 10))) >= scipen)) {
-    b = round(x/10^lx, getOption('digits'))
-    b[b %in% c(1, -1)] = ''  # base is 1 or -1, do not use it
-    if (format == 'latex') {
-      res = sprintf('%s%s10^{%s}', b, ifelse(b == '', '', '\\times '), floor(lx))
-      res[x == 0] = 0
-      return(if (inherits(x, 'AsIs')) res else sprintf('$%s$', res))
+  scipen = getOption("scipen") + 4L
+  if (all(abs(lx <- floor(log(abs(x), 10))) < scipen))
+    return(round(x, getOption("digits"))) # no need sci notation
+  b = round(x/10^lx, getOption("digits"))
+  b[b %in% c(1, -1)] = ""
+  res = switch(format, latex = {
+    s = sci_notation("%s%s10^{%s}", b, "\\times ", lx)
+    if (inherits(x, "AsIs")) s else sprintf("$%s$", s)
+  }, html = sci_notation("%s%s10<sup>%s</sup>", b, " &times; ", lx), rst = {
+    # if AsIs, use the :math: directive
+    if (inherits(x, "AsIs")) {
+      s = sci_notation("%s%s10^{%s}", b, "\\times ", lx)
+      sprintf(":math:`%s`", s)
+    } else {
+      # This needs the following line at the top of the file to define |times|
+      # .. include <isonum.txt>
+      sci_notation("%s%s10 :sup:`%s`", b, " |times| ", lx)
     }
-    if (format == 'html') {
-      res = sprintf('%s%s10<sup>%s</sup>', b, ifelse(b == '', '', ' &times; '), floor(lx))
-      res[x == 0] = 0
-      return(res)
-    }
-  }
-  round(x, getOption('digits'))
+  }, x)
+  res[x == 0] = 0
+  res
+}
+
+sci_notation = function(format, base, times, power) {
+  sprintf(format, base, ifelse(base == "", "", times), power)
 }
 
 ## absolute path?
@@ -216,28 +222,28 @@ fix_options = function(options) {
   ## compatibility with old version of knitr
   fig = options$fig
   if (identical(fig, FALSE)) {
-    warning("option 'fig' deprecated; use fig.keep=none please")
+    warning("option 'fig' deprecated; use fig.keep='none' please")
     options$fig.keep = 'none'
   } else if (identical(fig, TRUE)) {
     if (isTRUE(options$fig.last)) {
-      warning("option 'fig.last' deprecated; use fig.keep=last please")
+      warning("option 'fig.last' deprecated; use fig.keep='last' please")
       options$fig.keep = 'last'
     }
     if (isTRUE(options$fig.low)) {
-      warning("option 'fig.low' deprecated; use fig.keep=all please")
+      warning("option 'fig.low' deprecated; use fig.keep='all' please")
       options$fig.keep = 'all'
     }
   }
   hold = options$fig.hold
   if (identical(hold, FALSE)) {
-    warning("option 'fig.hold' deprecated; use fig.show=asis please")
+    warning("option 'fig.hold' deprecated; use fig.show='asis' please")
     options$fig.show = 'asis'
   } else if (identical(hold, TRUE)) {
-    warning("option 'fig.hold' deprecated; use fig.show=hold please")
+    warning("option 'fig.hold' deprecated; use fig.show='hold' please")
     options$fig.show = 'hold'
   }
   if (isTRUE(options$animate)) {
-    warning("option 'animate' deprecated; use fig.show=animate please")
+    warning("option 'animate' deprecated; use fig.show='animate' please")
     options$fig.show = 'animate'
   }
 
@@ -281,11 +287,11 @@ fix_options = function(options) {
 ## try eval an option (character) to its value
 eval_opt = function(x) {
   if (!is.character(x)) return(x)
-  eval(parse(text = x), envir = globalenv())
+  eval(parse(text = x), envir = knit_global())
 }
 
 ## eval options as symbol/language objects
-eval_lang = function(x, envir = globalenv()) {
+eval_lang = function(x, envir = knit_global()) {
   if (!is.symbol(x) && !is.language(x)) return(x)
   eval(x, envir = envir)
 }
@@ -337,6 +343,10 @@ fig_path = function(suffix = '', options = opts_current$get()) {
 knit_env = function() {
   .knitEnv$knit_env
 }
+# 'global' environment for knitr
+knit_global = function() {
+  .knitEnv$knit_global
+}
 
 #' Convert Rnw to PDF using knit() and texi2pdf()
 #'
@@ -355,8 +365,8 @@ knit_env = function() {
 #' @examples ## compile with xelatex
 #'
 #' ## knit2pdf(..., compiler = 'xelatex')
-knit2pdf = function(input, output = NULL, compiler = NULL, ...){
-  out = knit(input, output)
+knit2pdf = function(input, output = NULL, compiler = NULL, ..., envir = parent.frame()){
+  out = knit(input, output, envir = envir)
   owd = setwd(dirname(out)); on.exit(setwd(owd))
   if (!is.null(compiler)) {
     oc = Sys.getenv('PDFLATEX')
@@ -378,8 +388,8 @@ knit2pdf = function(input, output = NULL, compiler = NULL, ...){
 #' writeLines(c('# hello markdown', '``` {r hello-random, echo=TRUE}', 'rnorm(5)', '```'), 'test.Rmd')
 #' knit2html('test.Rmd')
 #' if (interactive()) browseURL('test.html')
-knit2html = function(input, ...){
-  out = knit(input, ...)
+knit2html = function(input, ..., envir = parent.frame()){
+  out = knit(input, ..., envir = envir)
   markdown::markdownToHTML(out, str_c(file_path_sans_ext(out), '.html'))
 }
 
@@ -414,6 +424,18 @@ run_chunk = function(label, envir = parent.frame()) {
 #          library(ggplot2)
 #          qplot(wt, mpg, data  = mtcars)
 indent_block = function(block, spaces = '    ') {
-  if (!nzchar(block)) return(spaces)
+  if (is.null(block) || !nzchar(block)) return(spaces)
   line_prompt(block, spaces, spaces)
 }
+
+# print knitr logs
+print_knitlog = function() {
+  if (!opts_knit$get('verbose') || child_mode() || !length(klog <- knit_log$get()))
+    return()
+  for (i in unlist(klog, use.names = FALSE)) cat(i, '\n')
+  cat('\nNumber of messages:\n')
+  print(sapply(klog, length))
+}
+
+# count the number of lines
+line_count = function(x) str_count(x, fixed('\n')) + 1L

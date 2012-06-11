@@ -53,6 +53,8 @@
 #'   \code{\link[utils]{Stangle}})
 #' @param text a character vector as an alternative way to provide the input
 #'   file
+#' @param envir the environment in which the code chunks are to be evaluated
+#'   (can use \code{\link{new.env}()} to guarantee an empty new environment)
 #' @return The compiled document is written into the output file, and the path
 #'   of the output file is returned, but if the \code{output} path is
 #'   \code{NULL}, the output is returned as a character vector.
@@ -90,16 +92,25 @@
 #' ## or setwd(dirname(f)); knit(basename(f))
 #'
 #' purl(f)  # extract R code only
-knit = function(input, output = NULL, tangle = FALSE, text = NULL) {
+knit = function(input, output = NULL, tangle = FALSE, text = NULL, envir = parent.frame()) {
 
   in.file = !missing(input) && is.character(input)  # is a file input
+  optk = opts_knit$get(); on.exit(opts_knit$set(optk), add = TRUE)
+  oconc = knit_concord$get(); on.exit(knit_concord$set(oconc), add = TRUE)
   opts_knit$set(tangle = tangle)
+  if (in.file) input2 = input # make a copy of the input path
   if (child_mode()) {
     setwd(opts_knit$get('output.dir')) # always restore original working dir
-    ## in child mode, input path needs to be adjusted
-    if (in.file && !is_abs_path(input))
-      input = file.path(input_dir(), opts_knit$get('child.path'), input)
-  } else opts_knit$set(output.dir = getwd()) # record working directory in 1st run
+    # in child mode, input path needs to be adjusted
+    if (in.file && !is_abs_path(input)) {
+      input2 = str_c(opts_knit$get('child.path'), input)
+      input = file.path(input_dir(), input2)
+    }
+  } else {
+    .knitEnv$knit_global = envir  # the envir to eval code
+    opts_knit$set(output.dir = getwd()) # record working directory in 1st run
+    knit_log$restore()
+  }
 
   ext = 'unknown'
   if (in.file) {
@@ -107,6 +118,12 @@ knit = function(input, output = NULL, tangle = FALSE, text = NULL) {
     if (is.null(output)) output = basename(auto_out_name(input))
     ext = tolower(file_ext(input))
     options(tikzMetricsDictionary = tikz_dict(input)) # cache tikz dictionary
+    knit_concord$set(infile = input2)
+  }
+  if (concord_mode()) {
+    # 'outfile' from last parent call is my parent
+    if (child_mode()) knit_concord$set(parent = knit_concord$get('outfile'))
+    knit_concord$set(outfile = output)
   }
 
   text = if (is.null(text)) readLines(input, warn = FALSE) else {
@@ -133,10 +150,9 @@ knit = function(input, output = NULL, tangle = FALSE, text = NULL) {
     knit_patterns$restore()
     knit_patterns$set(apat[[pattern]])
     opts_knit$set(out.format = switch(pattern, rnw = 'latex', tex = 'latex',
-                                      html = 'html', md = 'markdown', rst = 'rst'))
+                                      html = 'html', md = 'markdown', rst = 'rst',
+                                      brew = 'brew'))
   }
-
-  optk = opts_knit$get(); on.exit(opts_knit$set(optk), add = TRUE)
 
   if (is.null(opts_knit$get('out.format'))) {
     fmt = switch(ext, rnw = 'latex', tex = 'latex', htm = 'html', html = 'html',
@@ -156,22 +172,30 @@ knit = function(input, output = NULL, tangle = FALSE, text = NULL) {
 
   on.exit(chunk_counter(reset = TRUE), add = TRUE) # restore counter
   ## turn off fancy quotes, use smaller digits/width, warn immediately
-  oopts = options(useFancyQuotes = FALSE, digits = 4L, width = 75L, warn = 1L)
+  oopts = options(useFancyQuotes = FALSE, digits = 4L, width = 75L, warn = 1L,
+                  device = function(file = NULL, width = 7, height = 7, ...) {
+                    pdf(file, width, height, ...)
+                  })
   on.exit(options(oopts), add = TRUE)
 
   progress = opts_knit$get('progress')
   if (in.file) message(ifelse(progress, '\n\n', ''), 'processing file: ', input)
-  res = process_file(text)
-  unlink('NA')  # temp fix to issue 94
+  res = process_file(text, output)
   cat(res, file = if (is.null(output)) '' else output)
   dep_list$restore()  # empty dependency list
+  print_knitlog()
 
   if (in.file && is.character(output) && file.exists(output)) {
-    concord_gen(input, output)  # concordance file
+    concord_gen(input2, output)  # concordance file
+    if (!child_mode() && concord_mode()) {
+      confile = str_c(file_path_sans_ext(output), '-concordance.tex')
+      cat(.knitEnv$concordance, file = confile)
+      .knitEnv$concordance = NULL # empty concord string
+    }
     message('output file: ', normalizePath(output), ifelse(progress, '\n', ''))
   }
 
-  invisible(if (is.null(output)) res else output)
+  if (is.null(output)) res else output
 }
 #' @rdname knit
 #' @param ... arguments passed to \code{\link{knit}}
@@ -180,11 +204,11 @@ purl = function(...) {
   knit(..., tangle = TRUE)
 }
 
-process_file = function(text) {
+process_file = function(text, output) {
   ocode = knit_code$get()
   on.exit({knit_code$restore(); knit_code$set(ocode)}, add = TRUE)
   groups = split_file(lines = text)
-  n = length(groups); res = character(n)
+  n = length(groups); res = character(n); olines = integer(n)
   tangle = opts_knit$get('tangle')
 
   if (opts_knit$get('progress')) {
@@ -192,6 +216,7 @@ process_file = function(text) {
     on.exit(close(pb), add = TRUE)
   }
   for (i in 1:n) {
+    knit_concord$set(i = i)
     if (opts_knit$get('progress')) {
       setTxtProgressBar(pb, i)
       if (!tangle) cat('\n')  # under tangle mode, only show one progress bar
@@ -201,13 +226,20 @@ process_file = function(text) {
     txt = try((if (tangle) process_tangle else process_group)(group), silent = TRUE)
     if (inherits(txt, 'try-error')) {
       print(group)
-      stop(sprintf('Quitting from lines %s: %s', current_lines(i), txt))
+      cat(res, sep = '\n', file = if (is.null(output)) '' else output)
+      stop(sprintf('Quitting from lines %s: (%s) %s',
+                   str_c(current_lines(i), collapse = '-'),
+                   paste('', knit_concord$get('infile'), sep = ''), txt))
     }
     res[i] = txt
+    # output line numbers
+    if (concord_mode()) {
+      olines[i] = line_count(txt)
+      knit_concord$set(outlines = olines)
+    }
   }
 
   if (!tangle) res = insert_header(res)  # insert header
-  concord_output(n = str_count(res, fixed('\n')) + 1L)  # output line numbers
 
   str_c(c(res, ""), collapse = "\n")
 }
@@ -216,8 +248,8 @@ auto_out_name = function(input) {
   base = file_path_sans_ext(input)
   if (opts_knit$get('tangle')) return(str_c(base, '.R'))
   ext = tolower(file_ext(input))
-  if (ext == 'rnw') return(str_c(base, '.tex'))
-  if (ext %in% c('rmd', 'rmarkdown', 'rhtml', 'rhtm', 'rtex', 'rrst'))
+  if (ext %in% c('rnw', 'snw')) return(str_c(base, '.tex'))
+  if (ext %in% c('rmd', 'rmarkdown', 'rhtml', 'rhtm', 'rtex', 'stex', 'rrst'))
     return(str_c(base, '.', substring(ext, 2L)))
   if (ext %in% c('brew', 'tex', 'html', 'md')) {
     if (str_detect(input, '_knit_')) {
@@ -229,15 +261,15 @@ auto_out_name = function(input) {
 
 #' Knit a child document
 #'
-#' This function is for LaTeX only except when it is used to extract R code from
-#' the document; by default it knits a child document and returns the command to
-#' input the result into the main document. It is designed to be used in the
-#' inline R code and serves as the alternative to the \command{SweaveInput}
-#' command in Sweave.
+#' This function knits a child document and returns a character string to input
+#' the result into the main document. It is designed to be used in the chunk
+#' option \code{child} and serves as the alternative to the
+#' \command{SweaveInput} command in Sweave.
 #'
-#' The LaTeX command used to input the child document (usually \samp{input} or
-#' \samp{include}) is from the package option \code{child.command}
-#' (\code{opts_knit$get('child.command')}).
+#' For LaTeX output, the command used to input the child document (usually
+#' \samp{input} or \samp{include}) is from the package option
+#' \code{child.command} (\code{opts_knit$get('child.command')}). For other types
+#' of output, the content of the compiled child document is returned.
 #'
 #' When we call \code{purl()} to extract R code, the code in the child document
 #' is extracted and saved into an R script.
@@ -247,7 +279,9 @@ auto_out_name = function(input) {
 #' @param eval logical: whether to evaluate the child document
 #' @return A character string of the form \samp{\command{child-doc.tex}} or
 #'   \code{source("child-doc.R")}, depending on the argument \code{tangle}
-#'   passed in.
+#'   passed in. When concordance is turned on or the output format is not LaTeX,
+#'   the content of the compiled child document is returned as a character
+#'   string so it can be written back to the main document directly.
 #' @references \url{http://yihui.name/knitr/demo/child/}
 #' @note This function is not supposed be called directly like
 #'   \code{\link{knit}()}; instead it must be placed in a parent document to let
@@ -266,7 +300,12 @@ knit_child = function(..., eval = TRUE) {
   path = knit(..., tangle = opts_knit$get('tangle'))
   if (opts_knit$get('tangle')) {
     str_c('\n', 'source("', path, '")')
-  } else str_c('\n\\', opts_knit$get('child.command'), '{', path, '}')
+  } else if (concord_mode() || opts_knit$get('out.format') != 'latex') {
+    on.exit(unlink(path)) # child output file is temporary
+    str_c(readLines(path), collapse = '\n')
+  } else {
+    str_c('\n\\', opts_knit$get('child.command'), '{', path, '}')
+  }
 }
 
 #' Automatically create a report based on an R script and a template
@@ -285,12 +324,15 @@ knit_child = function(..., eval = TRUE) {
 #'   it uses the base filename of the script
 #' @return path of the output document
 #' @export
+#' @seealso \code{\link{spin}} (turn a specially formatted R script to a report)
 #' @examples s = system.file('misc', 'stitch-test.R', package = 'knitr')
 #' \dontrun{stitch(s)}
 #'
-#' ## HTML report
-#' out = stitch(s, system.file('misc', 'knitr-template.Rhtml', package = 'knitr'))
-#' if (interactive()) browseURL(out)
+#' # HTML report
+#' stitch(s, system.file('misc', 'knitr-template.Rhtml', package = 'knitr'))
+#'
+#' # or convert markdown to HTML
+#' stitch(s, system.file('misc', 'knitr-template.Rmd', package = 'knitr'))
 stitch = function(script,
                   template = system.file('misc', 'knitr-template.Rnw', package = 'knitr'),
                   output = NULL) {
@@ -303,13 +345,19 @@ stitch = function(script,
   input = str_c(file_path_sans_ext(basename(script)), '.', file_ext(input))
   if (file.exists(input)) warning(input, ' already exists') else file.copy(template, input)
   out = knit(input, output)
-  if (str_detect(out, '\\.tex$')) {
+  switch(file_ext(out), tex = {
     texi2pdf(out, clean = TRUE)
     system(paste(getOption('pdfviewer'), shQuote(str_replace(out, '\\.tex$', '.pdf'))))
-  }
+  }, md = {
+    out.html = str_c(file_path_sans_ext(out), '.html')
+    markdown::markdownToHTML(out, out.html)
+    browseURL(out.html)
+  }, html = browseURL(out))
   knit_code$restore()
   out
 }
+
+knit_log = new_defaults()  # knitr log for errors, warnings and messages
 
 #' Wrap evaluated results for output
 #'
@@ -347,18 +395,25 @@ wrap.source = function(x, options) {
   knit_hooks$get('source')(src, options)
 }
 
+msg_wrap = function(message, type, options) {
+  message = str_wrap(message, width = getOption('width'))
+  knit_log$set(
+    structure(list(c(knit_log$get(type), str_c('Chunk ', options$label, ':\n  ', message))),
+    .Names = type)
+  )
+  knit_hooks$get(type)(comment_out(message, options), options)
+}
+
 wrap.warning = function(x, options) {
-  knit_hooks$get('warning')(comment_out(str_c("Warning message: ", x$message, "\n"),
-                                        options), options)
+  msg_wrap(str_c("Warning: ", x$message), 'warning', options)
 }
 
 wrap.message = function(x, options) {
-  msg = str_replace(x$message, "\n$", "") # because message() comes with \n by default
-  knit_hooks$get('message')(comment_out(str_c(msg, "\n"), options), options)
+  msg_wrap(x$message, 'message', options)
 }
 
 wrap.error = function(x, options) {
-  knit_hooks$get('error')(comment_out(str_c("Error: ", x$message, "\n"), options), options)
+  msg_wrap(str_c("Error: ", x$message), 'error', options)
 }
 
 wrap.recordedplot = function(x, options) {

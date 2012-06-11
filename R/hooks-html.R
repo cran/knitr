@@ -6,11 +6,12 @@ hook_plot_html = function(x, options) {
     .ani.plot.hook.html(x, options)
   } else {
     ## TODO: output size not implemented for HTML yet
-    a = options$fig.align
-    sprintf('<img src="%s" class="plot" %s/>\n', .upload.url(x),
-            switch(a, default = '', left = 'style="float: left"',
-                   right = 'style="float: right"',
-                   center = 'style="margin: auto; display: block"'))
+    fig.cur = options$fig.cur; fig.num = options$fig.num
+    ai = options$fig.show == 'asis'
+    plot1 = ai || fig.cur <= 1L; plot2 = ai || fig.cur == 0L || fig.cur == fig.num
+    d1 = if (plot1) sprintf('</div><div class="rimage %s">', options$fig.align) else ''
+    d2 = if (plot2) '</div><div class="rcode">' else ''
+    sprintf('%s<img src="%s" class="plot" />%s\n', d1, .upload.url(x), d2)
   }
 }
 
@@ -22,7 +23,8 @@ hook_plot_html = function(x, options) {
 
 .chunk.hook.html = function(x, options) {
   if (output_asis(x, options)) return(x)
-  x = sprintf('<pre class="knitr">%s</pre>', x)
+  x = sprintf('<div class="chunk"><div class="rcode">%s</div></div>', x)
+  x = gsub('<div class="rcode">\\s*</div>', '', x) # rm empty rcode layers
   if (options$split) {
     name = fig_path('.html', options)
     if (!file.exists(dirname(name)))
@@ -42,7 +44,7 @@ hook_plot_html = function(x, options) {
   
   # set up the ffmpeg run
   ffmpeg.opts = options$aniopts
-  fig.fname = str_c(sub(str_c(fig.num, '$'), '%d', x[1]), x[2])
+  fig.fname = str_c(sub(str_c(fig.num, '$'), '%d', x[1]), '.', x[2])
   mov.fname = str_c(sub(paste(fig.num, '$',sep = ''), '', x[1]), ".mp4")
   if(is.na(ffmpeg.opts)) ffmpeg.opts = NULL
   
@@ -68,16 +70,18 @@ render_html = function() {
   ## use div with different classes
   html.hook = function(name) {
     force(name)
-    function (x, options) sprintf('<div class="%s">%s</div>', name, x)
+    function (x, options) sprintf('<div class="%s"><pre class="knitr">%s</pre></div>', name, x)
   }
   h = opts_knit$get('header')
   if (!nzchar(h['highlight'])) set_header(highlight = .header.hi.html)
   z = list()
-  for (i in c('source', 'output', 'warning', 'message', 'error'))
+  for (i in c('source', 'warning', 'message', 'error'))
     z[[i]] = html.hook(i)
   knit_hooks$set(z)
   knit_hooks$set(inline = function(x) {
     sprintf(if (inherits(x, 'AsIs')) '%s' else '<code class="knitr inline">%s</code>',
             .inline.hook(format_sci(x, 'html')))
+  }, output = function(x, options) {
+    if (output_asis(x, options)) x else html.hook('output')(x)
   }, plot = hook_plot_html, chunk = .chunk.hook.html)
 }
