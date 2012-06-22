@@ -1,3 +1,41 @@
+			 CHANGES IN knitr VERSION 0.6.3
+
+MAJOR CHANGES
+
+  o this is a urgent patch version for CRAN: the dependencies on
+  highlight and parser were removed because these two package were
+  orphaned on CRAN; now knitr uses a naive syntax highlighter for
+  LateX and HTML output if highlight is not available, which has a
+  similar appearance with highlight; when the parser package is not
+  available, users should be careful with the chunk option tidy=TRUE:
+  replace.assign may not work as expected; see the NEWS of formatR for
+  details: https://github.com/yihui/formatR/blob/master/NEWS; you are
+  welcome to improve the naive highlighter:
+  https://github.com/yihui/knitr/tree/master/R/highlight.R
+
+NEW FEATURES
+
+  o spin() gained a new argument 'report' for Rnw/Rtex/Rmd documents
+  to be compiled to PDF/HTML respectively (#287) (thanks, kohske
+  takahashi)
+
+BUG FIXES
+
+  o stitch() and spin() should use parent.frame() to evaluate code by
+  default; in 0.6, the default parent frame for the inner knit() was
+  a wrong environment to use (thanks, Michael Nelson)
+
+  o use unnamed-chunk-i as the label when chunk label == '' (#280)
+  (thanks, Josh Paulson)
+
+  o fixed #279 and #281, both of which are about concordance
+
+  o '\\maxwidth' does not apply to LaTeX/PDF animations, so the
+  default value of 'out.width' for animations in LaTeX is still NULL;
+  you will have to set 'out.width' manually for a reasonable width
+  (#282) (thanks, Ramnath Vaidyanathan)
+
+
 			 CHANGES IN knitr VERSION 0.6
 
 NEW FEATURES

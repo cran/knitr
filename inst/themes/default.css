@@ -3,7 +3,7 @@
 }
 
 .number {
-  color: #00000;
+  color: #000000;
 }
 
 .functioncall {
@@ -42,7 +42,7 @@
 
 .assignement {
   font-weight: bolder;
-  color: #00000;
+  color: #000000;
 }
 
 .package {
@@ -54,10 +54,10 @@
 }
 
 .symbol {
-  color: #00000;
+  color: #000000;
 }
 
 .prompt {
-  color: #444444;
+  color: #333333;
 }
 

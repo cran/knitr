@@ -21,7 +21,8 @@ split_file = function(path, lines = readLines(path, warn = FALSE), set.preamble 
   tmp = logical(n); tmp[blks | txts] = TRUE; lines[txts] = ''
   
   groups = unname(split(lines, cumsum(tmp)))
-  knit_concord$set(inlines = sapply(groups, length)) # input line numbers for concordance
+  if (set.preamble)
+    knit_concord$set(inlines = sapply(groups, length)) # input line numbers for concordance
 
   ## parse 'em all
   lapply(groups, function(g) {
@@ -91,6 +92,7 @@ parse_params = function(params, label = TRUE) {
     }
     if (label && !is.character(res$label))
       res$label = gsub(' ', '', as.character(as.expression(res$label)))
+    if (identical(res$label, '')) res$label = unnamed_chunk()
     return(res)
   }
   warning('(*) NOTE: I saw options "', params,

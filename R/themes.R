@@ -58,7 +58,6 @@ theme_to_header = function(theme, format = opts_knit$get('out.format')){
 }
 
 #' Generates latex header based on a theme
-#' @importFrom highlight css.parser styler_assistant_latex
 #' @author Ramnath Vaidyanathan
 #' @noRd
 theme_to_header_latex = function(theme) {
@@ -73,7 +72,8 @@ theme_to_header_latex = function(theme) {
 
   ## write latex highlight header
   fgheader = color_def(foreground, "fgcolor")
-  highlight = c(fgheader, styler_assistant_latex(css_out[-1]), boxes_latex())
+  highlight = c(fgheader, styler_assistant_latex(css_out[-1]),
+                if (has_package('highlight')) boxes_latex() else '\\usepackage{alltt}')
   list(highlight = highlight, background = background, foreground = foreground)
 }
 

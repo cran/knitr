@@ -9,12 +9,15 @@
 #' literate programming document (ready to be knitted).
 #' @param hair the path to the R script
 #' @param knit logical: whether to compile the document after conversion
+#' @param report logical: whether to generate report for \file{Rmd}, \file{Rnw}
+#'   and \file{Rtex} output (ignored if \code{knit = FALSE})
 #' @param format character: the output format (it takes five possible values);
 #'   the default is R Markdown
 #' @param doc a regular expression to identify the documentation lines; by
 #'   default it follows the roxygen convention, but it can be customized, e.g.
 #'   if you want to use \code{##} to denote documentation, you can use
 #'   \code{'^##\\\\s*'}
+#' @inheritParams knit
 #' @author Yihui Xie, with the original idea from Richard FitzJohn (who named it
 #'   as \code{sowsear()} which meant to make a silk purse out of a sow's ear)
 #' @return The path of the literate programming document.
@@ -35,8 +38,8 @@
 #' spin(s, FALSE, format='Rhtml')
 #' spin(s, FALSE, format='Rtex')
 #' spin(s, FALSE, format='Rrst')
-spin = function(hair, knit = TRUE, format = c('Rmd', 'Rnw', 'Rhtml', 'Rtex', 'Rrst'),
-                doc = "^#+'[ ]?") {
+spin = function(hair, knit = TRUE, report = TRUE, format = c('Rmd', 'Rnw', 'Rhtml', 'Rtex', 'Rrst'),
+                doc = "^#+'[ ]?", envir = parent.frame()) {
 
   format = match.arg(format)
   x = readLines(hair, warn = FALSE); r = rle(str_detect(x, doc))
@@ -65,7 +68,12 @@ spin = function(hair, knit = TRUE, format = c('Rmd', 'Rnw', 'Rhtml', 'Rtex', 'Rr
 
   outsrc = str_c(file_path_sans_ext(hair), '.', format)
   cat(unlist(txt), file = outsrc, sep = '\n')
-  if (knit) knit(outsrc)
+  if (knit) {
+    if (report) {
+      if (format == 'Rmd') knit2html(outsrc, envir = envir) else
+        if (format %in% c('Rnw', 'Rtex')) knit2pdf(outsrc, envir = envir)
+    } else knit(outsrc, envir = envir)
+  }
 
   invisible(outsrc)
 }
