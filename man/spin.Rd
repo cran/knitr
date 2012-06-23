@@ -2,14 +2,18 @@
 \alias{spin}
 \title{Spin goat's hair into wool}
 \usage{
-spin(hair, knit = TRUE, format = c("Rmd", "Rnw", "Rhtml", "Rtex", "Rrst"), 
-    doc = "^#+'[ ]?")
+spin(hair, knit = TRUE, report = TRUE, format = c("Rmd", "Rnw", "Rhtml", 
+    "Rtex", "Rrst"), doc = "^#+'[ ]?", envir = parent.frame())
 }
 \arguments{
   \item{hair}{the path to the R script}
 
   \item{knit}{logical: whether to compile the document
   after conversion}
+
+  \item{report}{logical: whether to generate report for
+  \file{Rmd}, \file{Rnw} and \file{Rtex} output (ignored if
+  \code{knit = FALSE})}
 
   \item{format}{character: the output format (it takes five
   possible values); the default is R Markdown}
@@ -19,6 +23,10 @@ spin(hair, knit = TRUE, format = c("Rmd", "Rnw", "Rhtml", "Rtex", "Rrst"),
   convention, but it can be customized, e.g.  if you want
   to use \code{##} to denote documentation, you can use
   \code{'^##\\\\s*'}}
+
+  \item{envir}{the environment in which the code chunks are
+  to be evaluated (can use \code{\link{new.env}()} to
+  guarantee an empty new environment)}
 }
 \value{
   The path of the literate programming document.

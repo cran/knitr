@@ -140,7 +140,12 @@ knit = function(input, output = NULL, tangle = FALSE, text = NULL, envir = paren
     if (is.null(pattern <- detect_pattern(text)))
       pattern = if (ext %in% c('htm', 'rhtm', 'rhtml')) 'html' else {
         if (ext %in% c('rmd', 'rmarkdown', 'markdown')) 'md' else {
-          if (ext == 'rrst') 'rst' else ext
+          if (ext == 'rrst') 'rst' else {
+            # nothing to be executed; just return original input
+            if (is.null(output)) return(text) else {
+              cat(text, file = output); return(output)
+            }
+          }
         }
       }
     if (!(pattern %in% names(apat)))
@@ -234,7 +239,8 @@ process_file = function(text, output) {
     res[i] = txt
     # output line numbers
     if (concord_mode()) {
-      olines[i] = line_count(txt)
+      # look back and see who is 0, then fill them up
+      idx = which(olines[1:i] == 0L); olines[idx] = line_count(res[idx])
       knit_concord$set(outlines = olines)
     }
   }
@@ -322,6 +328,7 @@ knit_child = function(..., eval = TRUE) {
 #'   this package; there is also an HTML template in \pkg{knitr})
 #' @param output the output filename (passed to \code{\link{knit}}); by default
 #'   it uses the base filename of the script
+#' @inheritParams knit
 #' @return path of the output document
 #' @export
 #' @seealso \code{\link{spin}} (turn a specially formatted R script to a report)
@@ -335,16 +342,16 @@ knit_child = function(..., eval = TRUE) {
 #' stitch(s, system.file('misc', 'knitr-template.Rmd', package = 'knitr'))
 stitch = function(script,
                   template = system.file('misc', 'knitr-template.Rnw', package = 'knitr'),
-                  output = NULL) {
+                  output = NULL, envir = parent.frame()) {
   lines = readLines(script, warn = FALSE)
   ## extract title and author from first two lines
-  if (comment_to_var(lines[1L], '.knitr.title', '^#+ *title:')) lines = lines[-1L]
-  if (comment_to_var(lines[1L], '.knitr.author', '^#+ *author:')) lines = lines[-1L]
+  if (comment_to_var(lines[1L], '.knitr.title', '^#+ *title:', envir)) lines = lines[-1L]
+  if (comment_to_var(lines[1L], '.knitr.author', '^#+ *author:', envir)) lines = lines[-1L]
   knit_code$set(`auto-report` = lines)
   input = basename(template)
   input = str_c(file_path_sans_ext(basename(script)), '.', file_ext(input))
   if (file.exists(input)) warning(input, ' already exists') else file.copy(template, input)
-  out = knit(input, output)
+  out = knit(input, output, envir = envir)
   switch(file_ext(out), tex = {
     texi2pdf(out, clean = TRUE)
     system(paste(getOption('pdfviewer'), shQuote(str_replace(out, '\\.tex$', '.pdf'))))
@@ -388,7 +395,7 @@ wrap.source = function(x, options) {
   src = x$src
   if (options$highlight) {
     fmt = opts_knit$get('out.format')
-    src = hilight_source(str_c(src, collapse = ''), fmt, options)
+    src = hilight_source(src, fmt, options)
   } else if (options$prompt) src = sapply(src, line_prompt, USE.NAMES = FALSE)
   src = str_c(src, collapse = '')
   src = str_replace(src, '([^\n]+)$', '\\1\n')

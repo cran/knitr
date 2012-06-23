@@ -28,27 +28,12 @@ comment_out = function(x, options) {
 }
 
 ## assign string in comments to a global variable
-comment_to_var = function(x, varname, pattern) {
+comment_to_var = function(x, varname, pattern, envir) {
   if (str_detect(x, pattern)) {
-    assign(varname, str_replace(x, pattern, ''), envir = knit_global())
+    assign(varname, str_replace(x, pattern, ''), envir = envir)
     return(TRUE)
   }
   FALSE
-}
-
-hiren_latex = renderer_latex(document = FALSE)
-hiren_html = renderer_html(document = FALSE, header = function() '', footer = function() '')
-
-hilight_source = function(x, format, options) {
-  if (!(format %in% c('latex', 'html'))) return(x)
-  con = textConnection(x)
-  on.exit(close(con))
-  r = if (format == 'latex') hiren_latex else hiren_html
-  enc = getOption('encoding')
-  options(encoding = 'native.enc')  # make sure parser() writes with correct enc
-  on.exit(options(encoding = enc), add = TRUE)
-  out = capture.output(highlight(con, renderer = r, showPrompts = options$prompt, size = options$size))
-  str_c(out, collapse = '\n')
 }
 
 is_blank = function(x) {
@@ -385,7 +370,7 @@ knit2pdf = function(input, output = NULL, compiler = NULL, ..., envir = parent.f
 #' @export
 #' @seealso \code{\link{knit}}, \code{\link[markdown]{markdownToHTML}}
 #' @examples # a minimal example
-#' writeLines(c('# hello markdown', '``` {r hello-random, echo=TRUE}', 'rnorm(5)', '```'), 'test.Rmd')
+#' writeLines(c("# hello markdown", '``` {r hello-random, echo=TRUE}', 'rnorm(5)', '```'), 'test.Rmd')
 #' knit2html('test.Rmd')
 #' if (interactive()) browseURL('test.html')
 knit2html = function(input, ..., envir = parent.frame()){
@@ -439,3 +424,6 @@ print_knitlog = function() {
 
 # count the number of lines
 line_count = function(x) str_count(x, fixed('\n')) + 1L
+
+# faster than require() but less rigorous
+has_package = function(pkg) pkg %in% .packages(TRUE)
