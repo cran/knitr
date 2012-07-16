@@ -2,8 +2,8 @@
 \alias{spin}
 \title{Spin goat's hair into wool}
 \usage{
-spin(hair, knit = TRUE, report = TRUE, format = c("Rmd", "Rnw", "Rhtml", 
-    "Rtex", "Rrst"), doc = "^#+'[ ]?", envir = parent.frame())
+spin(hair, knit = TRUE, report = TRUE, format = c("Rmd", "Rnw", "Rhtml", "Rtex", 
+    "Rrst"), doc = "^#+'[ ]?", envir = parent.frame())
 }
 \arguments{
   \item{hair}{the path to the R script}
@@ -42,6 +42,14 @@ spin(hair, knit = TRUE, report = TRUE, format = c("Rmd", "Rnw", "Rhtml",
   Obviously the goat's hair is the original R script, and
   the wool is the literate programming document (ready to
   be knitted).
+}
+\note{
+  If the output format is Rnw and no document class is
+  specified in roxygen comments, this function will
+  automatically add the \code{article} class to the LaTeX
+  document so that it is complete and can be compiled. You
+  can always specify the document class and other LaTeX
+  settings in roxygen comments manually.
 }
 \examples{
 #' write normal text like this and chunk options like below

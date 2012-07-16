@@ -2,10 +2,9 @@
 #' @noRd
 #' @author Ramnath Vaidyanathan
 set_theme = function(theme) {
-	fmt = opts_knit$get('out.format')
   header = if (is.list(theme)) theme else theme_to_header(theme)
   highlight = paste(header$highlight, collapse = "\n")
-  if(fmt == 'latex') {
+  if(out_format('latex')) {
   	opts_chunk$set(background = header$background)
   }
   set_header(highlight = highlight)
@@ -51,7 +50,7 @@ knit_theme = list(set = set_theme, get = get_theme)
 #' Generates header based on a theme and output format of document
 #' @author Ramnath Vaidyanathan
 #' @noRd
-theme_to_header = function(theme, format = opts_knit$get('out.format')){
+theme_to_header = function(theme, format = out_format()){
   if (format == 'latex') {
     theme_to_header_latex(theme)
   } else theme_to_header_html(theme)
@@ -72,8 +71,7 @@ theme_to_header_latex = function(theme) {
 
   ## write latex highlight header
   fgheader = color_def(foreground, "fgcolor")
-  highlight = c(fgheader, styler_assistant_latex(css_out[-1]),
-                if (has_package('highlight')) boxes_latex() else '\\usepackage{alltt}')
+  highlight = c(fgheader, styler_assistant_latex(css_out[-1]))
   list(highlight = highlight, background = background, foreground = foreground)
 }
 

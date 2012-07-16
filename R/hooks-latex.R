@@ -41,15 +41,14 @@ hook_plot_tex = function(x, options) {
   rw = options$resize.width; rh = options$resize.height
   resize1 = resize2 = ''
   if (!is.null(rw) || !is.null(rh)) {
-    resize1 = sprintf('\\resizebox{%s}{%s}{', ifelse(is.null(rw), '!', rw),
-                      ifelse(is.null(rh), '!', rh))
+    resize1 = sprintf('\\resizebox{%s}{%s}{', rw %n% '!', rh %n% '!')
     resize2 = '} '
   }
 
   tikz = is_tikz_dev(options)
 
-  a = options$fig.align; fig.cur = options$fig.cur; fig.num = options$fig.num
-  if (is.null(fig.cur)) fig.cur = 0L; if (is.null(fig.num)) fig.num = 1L
+  a = options$fig.align
+  fig.cur = options$fig.cur %n% 0L; fig.num = options$fig.num %n% 1L
   animate = options$fig.show == 'animate'
   if (!tikz && animate && fig.cur < fig.num) return('')
 
@@ -85,7 +84,8 @@ hook_plot_tex = function(x, options) {
   # maxwidth does not work with animations
   if (animate && identical(options$out.width, '\\maxwidth')) options$out.width = NULL
   size = paste(c(sprintf('width=%s', options$out.width),
-                 sprintf('height=%s', options$out.height)), collapse = ',')
+                 sprintf('height=%s', options$out.height),
+                 options$out.extra), collapse = ',')
 
   paste(fig1, align1, resize1,
 
@@ -132,7 +132,7 @@ hook_plot_tex = function(x, options) {
   if (is.numeric(x)) x = format_sci(x, 'latex')
   .inline.hook(x)
 }
-## single param hook: a function of one argument
+# an example of a chunk hook
 .param.hook = function(before, options, envir) {
   if (before) {
     'do something before the code chunk'
@@ -142,6 +142,13 @@ hook_plot_tex = function(x, options) {
 }
 
 .verb.hook = function(x, options) str_c('\\begin{verbatim}\n', x, '\\end{verbatim}\n')
+.color.block = function(color1 = '', color2 = '') {
+  function(x, options) {
+    x = gsub('\n*$', '', x)
+    sprintf('\\begin{flushleft}\\ttfamily\\noindent%s%s%s\\end{flushleft}',
+            color1, escape_latex(x, newlines = TRUE), color2)
+  }
+}
 
 #' Set output hooks for different output formats
 #'
@@ -171,36 +178,40 @@ hook_plot_tex = function(x, options) {
 #' @export
 #' @references See output hooks in \url{http://yihui.name/knitr/hooks}
 render_latex = function() {
-  if (child_mode()) return()
   test_latex_pkg('framed', system.file('misc', 'framed.sty', package = 'knitr'))
   opts_chunk$set(out.width = '\\maxwidth')
   h = opts_knit$get('header')
   if (!nzchar(h['framed'])) set_header(framed = .header.framed)
   if (!nzchar(h['highlight'])) set_header(highlight = .header.hi.tex)
   knit_hooks$restore()
-  knit_hooks$set(source = function(x, options) {
-    if (options$highlight) {
-      if (!has_package('highlight')) return(x)
+  knit_hooks$set(
+    source = function(x, options) {
+      if (options$engine != 'R' || !options$highlight)
+        return(.verb.hook(x, options))
+      if (!opts_knit$get('use.highlight')) return(x)
       ## gsub() makes sure " will not produce an umlaut
-      str_c('\\begin{flushleft}\n', gsub('"', '"{}', x, fixed = TRUE),
-            '\\end{flushleft}\n')
-    } else .verb.hook(x, options)
-  }, output = function(x, options) {
-    if (output_asis(x, options)) {
-      str_c('\\end{kframe}\n', x, '\n\\begin{kframe}')
-    } else .verb.hook(x, options)
-  }, warning = .verb.hook, message = .verb.hook, error = .verb.hook,
-                 inline = .inline.hook.tex, chunk = .chunk.hook.tex,
-                 plot = function(x, options) {
-                   ## escape plot environments from kframe
-                   str_c('\\end{kframe}', hook_plot_tex(x, options), '\\begin{kframe}')
-                 })
+      str_c('\\begin{flushleft}\n', gsub('"', '"{}', x), '\\end{flushleft}\n')
+    },
+    output = function(x, options) {
+      if (output_asis(x, options)) {
+        str_c('\\end{kframe}\n', x, '\n\\begin{kframe}')
+      } else .verb.hook(x, options)
+    },
+    warning = .color.block('\\textcolor{warningcolor}{', '}'),
+    message = .color.block('\\itshape\\textcolor{messagecolor}{', '}'),
+    error = .color.block('\\bfseries\\textcolor{errorcolor}{', '}'),
+    inline = .inline.hook.tex, chunk = .chunk.hook.tex,
+    plot = function(x, options) {
+      ## escape plot environments from kframe
+      str_c('\\end{kframe}', hook_plot_tex(x, options), '\\begin{kframe}')
+    }
+  )
 }
 #' @rdname output_hooks
 #' @export
 render_sweave = function() {
-  if (child_mode()) return()
   opts_chunk$set(highlight = FALSE, comment = NA, prompt = TRUE) # mimic Sweave settings
+  opts_knit$set(out.format = 'sweave')
   test_latex_pkg('Sweave', file.path(R.home("share"), "texmf", "tex", "latex", "Sweave.sty"))
   set_header(framed = '', highlight = '\\usepackage{Sweave}')
   knit_hooks$restore()
@@ -208,7 +219,10 @@ render_sweave = function() {
   hook.i = function(x, options) str_c('\\begin{Sinput}\n', x, '\\end{Sinput}\n')
   hook.s = function(x, options) str_c('\\begin{Soutput}\n', x, '\\end{Soutput}\n')
   hook.o = function(x, options) if (output_asis(x, options)) x else hook.s(x, options)
-  hook.c = function(x, options) str_c('\\begin{Schunk}\n', x, '\\end{Schunk}\n')
+  hook.c = function(x, options) {
+    if (output_asis(x, options)) return(x)
+    str_c('\\begin{Schunk}\n', x, '\\end{Schunk}\n')
+  }
   knit_hooks$set(source = hook.i, output = hook.o, warning = hook.s,
                  message = hook.s, error = hook.s, inline = .inline.hook.tex,
                  plot = hook_plot_tex, chunk = hook.c)
@@ -216,9 +230,9 @@ render_sweave = function() {
 #' @rdname output_hooks
 #' @export
 render_listings = function() {
-  if (child_mode()) return()
   render_sweave()
   opts_chunk$set(prompt = FALSE)
+  opts_knit$set(out.format = 'listings')
   test_latex_pkg('Sweavel', system.file('misc', 'Sweavel.sty', package = 'knitr'))
   set_header(framed = '', highlight = '\\usepackage{Sweavel}')
   invisible(NULL)

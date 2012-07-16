@@ -1,20 +1,14 @@
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
 "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<!-- saved from url=(0014)about:internet -->
 <html>
 <head>
-  <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-  <title>R Notebook: A knitr app on OpenCPU</title>
-  <script src="http://code.jquery.com/jquery-latest.js"></script>
-  <link href="http://twitter.github.com/bootstrap/assets/css/bootstrap.css" rel="stylesheet">
-  <link href="http://twitter.github.com/bootstrap/assets/css/bootstrap-responsive.css" rel="stylesheet">
-  <style type="text/css">
-    textarea {
-      font-size: 12px;
-      font-family: 'DejaVu Sans Mono', 'Droid Sans Mono', 'Lucida Console', Consolas, Monaco, monospace;
-      width: 96%;
-      height: 200px;
-    }
-  </style>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+
+<title></title>
+
+<base target="_blank"/>
+
 <style type="text/css">
 body, td {
    font-family: sans-serif;
@@ -139,7 +133,6 @@ hr {
       page-break-after: avoid; 
    }
 }
-
 </style>
 
 <!-- Styles for R syntax highlighter -->
@@ -180,46 +173,71 @@ var hljs=new function(){function m(p){return p.replace(/&/gm,"&amp;").replace(/<
 hljs.initHighlightingOnLoad();
 </script>
 
-</head>
-<body>
-<div class="container">
-<form action="http://public.opencpu.org/R/pub/base/identity/ascii" method="POST" id="knitForm">
-<textarea name="x"></textarea>
-<div><a class="btn" id="knit"><i class="icon-circle-arrow-right"></i> Convert</a></div>
-<!-- the knitting result will be rendered inside this div -->
-<div id="result"></div>
-</form>
-</div>
-<script>
-$('textarea[name="x"]').attr('value', 'Start typing here...\n\n```{r test, fig.width=4, fig.height=4}\n# write R code here\npar(mar = c(4, 4, .1, .1))\nsmoothScatter(rnorm(500), rnorm(500))\n```\n\nThe value of pi is `r pi`.');
-
-$('#knit').click(function() {
-  $(this).attr('class', 'btn disabled');
-  $('#knitForm').submit();
-});
-/* attach a submit handler to the form */
-$('#knitForm').submit(function(event) {
-
-  /* stop form from submitting normally */
-  event.preventDefault(); 
-      
-  /* get some values from elements on the page: */
-  var $form = $( this ),
-      term = $form.find('textarea[name="x"]').val().replace(/\\/g, '\\\\').replace(/"/g, '\\"'),
-      url = $form.attr('action'),
-      rcode = '{library(knitr); library(markdown);' +
-              'sub(".*<body>(.*)</body>.*", "\\\\1", ' +
-              'markdownToHTML(text = knit(text = "' + term + '")))}';
-  /* Send the data using post and put the results in a div */
-  $.post(url, { x: rcode },
-    function( data ) {
-        $("#result").html(eval(data));
-        $('pre code').each(function(i, e) {hljs.highlightBlock(e)});
-    })
-    .complete(function() {$('#knit').attr('class', 'btn');})
-    .error(function() { alert("An error occurred!"); });
-});
+<!-- MathJax scripts -->
+<script type="text/javascript" src="https://c328740.ssl.cf1.rackcdn.com/mathjax/2.0-latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML">
 </script>
 
+
+</head>
+
+<body>
+<p>This is a special R script which can be used to generate a report. You can<br/>
+write normal text in roxygen comments.</p>
+
+<p>First we set up some options (you do not have to do this):</p>
+
+<p>The report begins here.</p>
+
+<pre><code class="r"># boring examples as usual
+set.seed(123)
+x = rnorm(5)
+mean(x)
+</code></pre>
+
+<pre><code>## [1] 0.1936
+</code></pre>
+
+<p>Now we continue writing the report. We can draw plots as well.</p>
+
+<pre><code class="r">par(mar = c(4, 4, 0.1, 0.1))
+plot(x)
+</code></pre>
+
+<p><img src="data:image/png;base64,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" alt="plot of chunk test-b"/> </p>
+
+<p>Actually you do not have to write chunk options, in which case knitr will use<br/>
+default options. For example, the code below has no options attached:</p>
+
+<pre><code class="r">var(x)
+</code></pre>
+
+<pre><code>## [1] 0.6578
+</code></pre>
+
+<pre><code class="r">quantile(x)
+</code></pre>
+
+<pre><code>##       0%      25%      50%      75%     100% 
+## -0.56048 -0.23018  0.07051  0.12929  1.55871 
+</code></pre>
+
+<p>And you can also write two chunks successively like this:</p>
+
+<pre><code class="r">sum(x^2)  # chi-square distribution with df 5
+</code></pre>
+
+<pre><code>## [1] 2.818
+</code></pre>
+
+<pre><code class="r">sum((x - mean(x))^2)  # df is 4 now
+</code></pre>
+
+<pre><code>## [1] 2.631
+</code></pre>
+
+<p>Done. Call spin(&#39;knitr-spin.R&#39;) to make silk from sow&#39;s ear now and knit a<br/>
+lovely purse.</p>
+
 </body>
+
 </html>

@@ -57,8 +57,10 @@ write_bib = function(x = .packages(), file = '', tweak = TRUE) {
   if (tweak) {
     for (i in intersect(names(.tweak.bib), x)) {
       message('tweaking ', i)
-      items = .tweak.bib[[i]]
-      bib[[i]][names(items)] = items
+      b = bib[[i]]; items = .tweak.bib[[i]]
+      b[names(items)] = items
+      idx = which(names(b) == '')
+      bib[[i]] = c(b[idx[1L]], b[-idx], b[idx[2L]])
     }
   }
   bib = bib[sort(x)]
@@ -66,14 +68,17 @@ write_bib = function(x = .packages(), file = '', tweak = TRUE) {
   invisible(bib)
 }
 
+.this.year = sprintf('  year = {%s},', format(Sys.Date(), '%Y'))
 # hack non-standard entries; to be updated...
 .tweak.bib = list(
   cacheSweave = c(author = '  author = {Roger D. Peng},'),
   cluster = c(author = '  author = {Martin Maechler},'),
+  evaluate = c(year = .this.year),
   gWidgets = c(author = '  author = {John Verzani},'),
   maps = c(author = '  author = {Ray Brownrigg},'),
   Rcmdr = c(author = '  author = {John Fox},'),
   RGtk2 = c(author = '  author = {Michael Lawrence and Duncan {Temple Lang}},'),
+  roxygen2 = c(year = .this.year),
   rpart = c(author = '  author = {Terry M Therneau and Beth Atkinson},'),
   sm = c(author = '  author = {Adrian Bowman and Adelchi Azzalini},'),
   survival = c(author = '  author = {Terry Therneau},'),

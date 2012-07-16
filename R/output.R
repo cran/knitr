@@ -66,9 +66,12 @@
 #'   recursively. See \code{\link{knit_child}}.
 #'
 #'   The working directory when evaluating R code chunks is the directory of the
-#'   input document, so if the R code involves with external files (like
-#'   \code{read.table()}), it is better to put these files under the same
-#'   directory of the input document so that we can use relative paths.
+#'   input document by default, so if the R code involves with external files
+#'   (like \code{read.table()}), it is better to put these files under the same
+#'   directory of the input document so that we can use relative paths. However,
+#'   it is possible to change this directory with the package option
+#'   \code{\link{opts_knit}$set(root.dir = ...)} so all paths in code chunks are
+#'   relative to this \code{root.dir}.
 #'
 #'   The arguments \code{input} and \code{output} do not have to be restricted
 #'   to files; they can be \code{stdin()}/\code{stdout()} or other types of
@@ -95,9 +98,7 @@
 knit = function(input, output = NULL, tangle = FALSE, text = NULL, envir = parent.frame()) {
 
   in.file = !missing(input) && is.character(input)  # is a file input
-  optk = opts_knit$get(); on.exit(opts_knit$set(optk), add = TRUE)
   oconc = knit_concord$get(); on.exit(knit_concord$set(oconc), add = TRUE)
-  opts_knit$set(tangle = tangle)
   if (in.file) input2 = input # make a copy of the input path
   if (child_mode()) {
     setwd(opts_knit$get('output.dir')) # always restore original working dir
@@ -110,11 +111,27 @@ knit = function(input, output = NULL, tangle = FALSE, text = NULL, envir = paren
     .knitEnv$knit_global = envir  # the envir to eval code
     opts_knit$set(output.dir = getwd()) # record working directory in 1st run
     knit_log$restore()
+    on.exit(chunk_counter(reset = TRUE), add = TRUE) # restore counter
+    ## turn off fancy quotes, use smaller digits/width, warn immediately
+    oopts = options(useFancyQuotes = FALSE, digits = 4L, width = 75L, warn = 1L,
+                  device = function(file = NULL, width = 7, height = 7, ...) {
+                    pdf(file, width, height, ...)
+                  })
+    on.exit(options(oopts), add = TRUE)
+    # restore chunk options after parent exits
+    optc = opts_chunk$get()
+    on.exit({opts_chunk$restore(); opts_chunk$set(optc)}, add = TRUE)
+    ocode = knit_code$get()
+    if (tangle) knit_code$restore() # clean up code before tangling
+    on.exit({knit_code$restore(); knit_code$set(ocode)}, add = TRUE)
+    optk = opts_knit$get(); on.exit(opts_knit$set(optk), add = TRUE)
+    opts_knit$set(tangle = tangle)
   }
 
   ext = 'unknown'
   if (in.file) {
-    opts_knit$set(input.dir = dirname(input)) # record input dir
+    input.dir = .knitEnv$input.dir; on.exit({.knitEnv$input.dir = input.dir}, add = TRUE)
+    .knitEnv$input.dir = dirname(input) # record input dir
     if (is.null(output)) output = basename(auto_out_name(input))
     ext = tolower(file_ext(input))
     options(tikzMetricsDictionary = tikz_dict(input)) # cache tikz dictionary
@@ -127,27 +144,20 @@ knit = function(input, output = NULL, tangle = FALSE, text = NULL, envir = paren
   }
 
   text = if (is.null(text)) readLines(input, warn = FALSE) else {
-    unlist(strsplit(text, '\n', fixed = TRUE)) # make sure each element is one line
+    unlist(strsplit(text, '\n')) # make sure each element is one line
   }
   if (!length(text)) return() # a trivial case: simply and exit
 
-  optc = opts_chunk$get()
-  on.exit({opts_chunk$restore(); opts_chunk$set(optc)}, add = TRUE)
   apat = all_patterns; opat = knit_patterns$get()
   on.exit({knit_patterns$restore(); knit_patterns$set(opat)}, add = TRUE)
   if (length(opat) == 0 || all(sapply(opat, is.null))) {
     # use ext if cannot auto detect pattern
-    if (is.null(pattern <- detect_pattern(text)))
-      pattern = if (ext %in% c('htm', 'rhtm', 'rhtml')) 'html' else {
-        if (ext %in% c('rmd', 'rmarkdown', 'markdown')) 'md' else {
-          if (ext == 'rrst') 'rst' else {
-            # nothing to be executed; just return original input
-            if (is.null(output)) return(text) else {
-              cat(text, file = output); return(output)
-            }
-          }
-        }
+    if (is.null(pattern <- detect_pattern(text, ext))) {
+      # nothing to be executed; just return original input
+      if (is.null(output)) return(paste(text, collapse = '\n')) else {
+        cat(text, file = output); return(output)
       }
+    }
     if (!(pattern %in% names(apat)))
       stop("a pattern list cannot be automatically found for the file extension '",
            ext, "' in built-in pattern lists; ",
@@ -159,7 +169,7 @@ knit = function(input, output = NULL, tangle = FALSE, text = NULL, envir = paren
                                       brew = 'brew'))
   }
 
-  if (is.null(opts_knit$get('out.format'))) {
+  if (is.null(out_format())) {
     fmt = switch(ext, rnw = 'latex', tex = 'latex', htm = 'html', html = 'html',
                  md = 'markdown', markdown = 'markdown', brew = 'brew', rst = 'rst',
                  {warning('cannot automatically decide the output format'); 'unknown'})
@@ -167,28 +177,20 @@ knit = function(input, output = NULL, tangle = FALSE, text = NULL, envir = paren
     opts_knit$set(out.format = fmt)
   }
   ## change output hooks only if they are not set beforehand
-  if (identical(knit_hooks$get(names(.default.hooks)), .default.hooks)) {
-    switch(opts_knit$get('out.format'), latex = render_latex(),
+  if (identical(knit_hooks$get(names(.default.hooks)), .default.hooks) && !child_mode()) {
+    switch(out_format(), latex = render_latex(),
            sweave = render_sweave(), listings = render_listings(),
            html = render_html(), jekyll = render_jekyll(),
            markdown = render_markdown(), rst = render_rst())
     on.exit(knit_hooks$restore(), add = TRUE)
   }
 
-  on.exit(chunk_counter(reset = TRUE), add = TRUE) # restore counter
-  ## turn off fancy quotes, use smaller digits/width, warn immediately
-  oopts = options(useFancyQuotes = FALSE, digits = 4L, width = 75L, warn = 1L,
-                  device = function(file = NULL, width = 7, height = 7, ...) {
-                    pdf(file, width, height, ...)
-                  })
-  on.exit(options(oopts), add = TRUE)
-
   progress = opts_knit$get('progress')
   if (in.file) message(ifelse(progress, '\n\n', ''), 'processing file: ', input)
   res = process_file(text, output)
-  cat(res, file = if (is.null(output)) '' else output)
+  res = knit_hooks$get('document')(res)
+  cat(res, file = output %n% '')
   dep_list$restore()  # empty dependency list
-  print_knitlog()
 
   if (in.file && is.character(output) && file.exists(output)) {
     concord_gen(input2, output)  # concordance file
@@ -200,7 +202,7 @@ knit = function(input, output = NULL, tangle = FALSE, text = NULL, envir = paren
     message('output file: ', normalizePath(output), ifelse(progress, '\n', ''))
   }
 
-  if (is.null(output)) res else output
+  output %n% res
 }
 #' @rdname knit
 #' @param ... arguments passed to \code{\link{knit}}
@@ -210,8 +212,6 @@ purl = function(...) {
 }
 
 process_file = function(text, output) {
-  ocode = knit_code$get()
-  on.exit({knit_code$restore(); knit_code$set(ocode)}, add = TRUE)
   groups = split_file(lines = text)
   n = length(groups); res = character(n); olines = integer(n)
   tangle = opts_knit$get('tangle')
@@ -231,7 +231,7 @@ process_file = function(text, output) {
     txt = try((if (tangle) process_tangle else process_group)(group), silent = TRUE)
     if (inherits(txt, 'try-error')) {
       print(group)
-      cat(res, sep = '\n', file = if (is.null(output)) '' else output)
+      cat(res, sep = '\n', file = output %n% '')
       stop(sprintf('Quitting from lines %s: (%s) %s',
                    str_c(current_lines(i), collapse = '-'),
                    paste('', knit_concord$get('infile'), sep = ''), txt))
@@ -246,6 +246,7 @@ process_file = function(text, output) {
   }
 
   if (!tangle) res = insert_header(res)  # insert header
+  print_knitlog()
 
   str_c(c(res, ""), collapse = "\n")
 }
@@ -306,7 +307,7 @@ knit_child = function(..., eval = TRUE) {
   path = knit(..., tangle = opts_knit$get('tangle'))
   if (opts_knit$get('tangle')) {
     str_c('\n', 'source("', path, '")')
-  } else if (concord_mode() || opts_knit$get('out.format') != 'latex') {
+  } else if (concord_mode() || !out_format('latex')) {
     on.exit(unlink(path)) # child output file is temporary
     str_c(readLines(path), collapse = '\n')
   } else {
@@ -394,8 +395,7 @@ wrap.character = function(x, options) {
 wrap.source = function(x, options) {
   src = x$src
   if (options$highlight) {
-    fmt = opts_knit$get('out.format')
-    src = hilight_source(src, fmt, options)
+    src = hilight_source(src, out_format(), options)
   } else if (options$prompt) src = sapply(src, line_prompt, USE.NAMES = FALSE)
   src = str_c(src, collapse = '')
   src = str_replace(src, '([^\n]+)$', '\\1\n')
@@ -408,7 +408,7 @@ msg_wrap = function(message, type, options) {
     structure(list(c(knit_log$get(type), str_c('Chunk ', options$label, ':\n  ', message))),
     .Names = type)
   )
-  knit_hooks$get(type)(comment_out(message, options), options)
+  knit_hooks$get(type)(comment_out(str_c(message, '\n'), options), options)
 }
 
 wrap.warning = function(x, options) {
@@ -432,8 +432,7 @@ wrap.recordedplot = function(x, options) {
     fig.cur = plot_counter()
   }
   options$fig.cur = fig.cur # put fig num in options
-  prefix = valid_path(options$fig.path, options$label)
-  name = str_c(prefix, ifelse(fig.cur == 0L, '', fig.cur))
+  name = fig_path(if(fig.cur == 0L) '' else fig.cur, options)
   if (!file.exists(dirname(name)))
     dir.create(dirname(name), recursive = TRUE) # automatically creates dir for plots
   ## vectorize over dev, ext and dpi: save multiple versions of the plot

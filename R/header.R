@@ -2,18 +2,21 @@
 insert_header = function(doc) {
   if (is.null(b <- knit_patterns$get('header.begin'))) return(doc)
 
-  fmt = opts_knit$get('out.format')
-  if (fmt == 'html')
+  if (out_format('html'))
     return(insert_header_html(doc, b))
-  if (fmt %in% c('latex', 'listings', 'sweave'))
+  if (out_format(c('latex', 'listings', 'sweave')))
     return(insert_header_latex(doc, b))
   doc
 }
 
 ## Makes latex header with macros required for highlighting, tikz and framed
 make_header_latex = function() {
-  h = "\\usepackage{graphicx, color}"
-  h = paste(c(h, .header.maxwidth, opts_knit$get('header')), collapse = "\n")
+  h = paste(c(
+    '\\usepackage{graphicx, color}', .header.maxwidth, opts_knit$get('header'),
+    if (out_format('latex')) {
+      if (opts_knit$get('use.highlight')) highlight_fun('boxes_latex')() else '\\usepackage{alltt}'
+    }
+  ), collapse = '\n')
   if (opts_knit$get('self.contained')) h else {
     writeLines(h, 'knitr.sty')
     '\\usepackage{knitr}'
@@ -22,11 +25,11 @@ make_header_latex = function() {
 
 insert_header_latex = function(doc, b) {
   i = which(str_detect(doc, b))
-  if (length(i) == 1L) {
-    l = str_locate(doc[i], b)
+  if (length(i) >= 1L) {
+    i = i[1L]; l = str_locate(doc[i], b)
     tmp = str_sub(doc[i], l[, 1], l[, 2])
     str_sub(doc[i], l[,1], l[,2]) = str_c(tmp, make_header_latex())
-  } else if (length(i) == 0L && parent_mode()) {
+  } else if (parent_mode()) {
     # in parent mode, we fill doc to be a complete document
     doc = str_c(c(getOption('tikzDocumentDeclaration'), make_header_latex(),
                 .knitEnv$tikzPackages, "\\begin{document}", doc, "\\end{document}"),
@@ -100,7 +103,6 @@ set_header = function(...) {
 .default.sty = .default.sty[file.exists(.default.sty)][1L]
 # header for Latex Syntax Highlighting
 .header.hi.tex = paste(c('\\IfFileExists{upquote.sty}{\\usepackage{upquote}}{}',
-                         if (!has_package('highlight')) '\\usepackage{alltt}',
                          theme_to_header_latex(.default.sty)$highlight),
                        collapse = '\n')
 .knitr.sty = file.path(.inst.dir, 'misc', 'knitr.sty')

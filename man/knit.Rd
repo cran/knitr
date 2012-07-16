@@ -101,10 +101,14 @@ purl(...)
   be compiled recursively. See \code{\link{knit_child}}.
 
   The working directory when evaluating R code chunks is
-  the directory of the input document, so if the R code
-  involves with external files (like \code{read.table()}),
-  it is better to put these files under the same directory
-  of the input document so that we can use relative paths.
+  the directory of the input document by default, so if the
+  R code involves with external files (like
+  \code{read.table()}), it is better to put these files
+  under the same directory of the input document so that we
+  can use relative paths. However, it is possible to change
+  this directory with the package option
+  \code{\link{opts_knit}$set(root.dir = ...)} so all paths
+  in code chunks are relative to this \code{root.dir}.
 
   The arguments \code{input} and \code{output} do not have
   to be restricted to files; they can be
@@ -118,8 +122,7 @@ purl(...)
 \examples{
 library(knitr)
 (f = tempfile(fileext = ".Rnw"))
-file.copy(system.file("examples", "knitr-minimal.Rnw", package = "knitr"), 
-    f, overwrite = TRUE)
+file.copy(system.file("examples", "knitr-minimal.Rnw", package = "knitr"), f, overwrite = TRUE)
 knit(f)
 ## or setwd(dirname(f)); knit(basename(f))
 

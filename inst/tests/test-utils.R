@@ -20,3 +20,24 @@ test_that('scientific notation with format_sci()',{
   expect_identical(format_sci(9.87654e6, 'rst'), "9.8765 |times| 10 :sup:`6`")
   expect_identical(format_sci(letters), letters)
 })
+
+test_that('fig_path() sanitizes paths', {
+  expect_identical(fig_path('.png', list(fig.path = 'fig/', label = 'foo')), 'fig/foo.png')
+  opts = list(fig.path = 'figure/', label = 'a b')
+  expect_warning(fig_path(, opts))
+  expect_identical(suppressWarnings(fig_path(, opts)), 'figure/a_b')
+  expect_identical(
+    suppressWarnings(fig_path(, list(fig.path = 'fig space/', label = 'a.b'))),
+    'fig_space/a_b'
+  )
+})
+
+test_that('base64_encode() gets the same result as markdown:::.b64EncodeFile', {
+  f = file.path(R.home('doc'), "html", "logo.jpg")
+  expect_identical(markdown:::.b64EncodeFile(f), image_uri(f))
+})
+
+test_that('escape special LaTeX characters', {
+  expect_identical(escape_latex('# $ % & ~ _ ^ \\ { }'),
+                   '\\# \\$ \\% \\& \\textasciitilde{} \\_ \\textasciicircum{} \\textbackslash{} \\{ \\}')
+})
