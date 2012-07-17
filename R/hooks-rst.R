@@ -3,10 +3,9 @@
 #' @rdname hook_plot
 #' @export
 hook_plot_rst = function(x, options) {
-  if (options$fig.show == "animate") return(.ani.plot.hook.html(x, options))
+  if (options$fig.show == "animate") return(opts_knit$get('animation.fun')(x, options))
 
-  base = opts_knit$get("base.url")
-  if (is.null(base)) base = ""
+  base = opts_knit$get("base.url") %n% ""
   cap = if (is.null(fig.cap <- options$fig.cap)) {
     sprintf("plot of chunk %s", options$label)
   } else {
@@ -30,7 +29,7 @@ render_rst = function(strict = FALSE) {
     str_c("\n\n::\n\n", indent_block(x), "\n")
   }
   hook.t = function(x, options) {
-    make_directive('sourcecode', "r", "", content = x)
+    make_directive('sourcecode', tolower(options$engine), "", content = x)
   }
   hook.o = function(x, options) {
     if (output_asis(x, options)) return(x)

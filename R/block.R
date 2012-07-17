@@ -17,6 +17,10 @@ call_block = function(block) {
 
   params = opts_chunk$merge(block$params)
   params = fix_options(params)  # for compatibility
+  
+  # expand parameters defined via template
+  if(!is.null(params$opts.label)) params = merge_list(params, opts_template$get(params$opts.label))
+    
   opts_current$restore(); opts_current$set(params)  # save current options
   label = ref.label = params$label
   if (!is.null(params$ref.label)) ref.label = sc_split(params$ref.label)
@@ -49,17 +53,19 @@ call_block = function(block) {
   params$code = parse_chunk(params$code) # parse sub-chunk references
 
   ## Check cache
-  content = list(params[setdiff(names(params), 'include')], getOption('width'))
-  content[[3L]] = opts_knit$get('cache.extra')
-  hash = str_c(valid_path(params$cache.path, params$label), '_', digest(content))
-  params$hash = hash
-  if (params$cache && cache$exists(hash)) {
-    if (!params$include) return('')
-    if (opts_knit$get('verbose')) message('  loading cache from ', hash)
-    cache$load(hash)
-    return(cache$output(hash))
+  if (params$cache) {
+    content = list(params[setdiff(names(params), 'include')], getOption('width'))
+    content[[3L]] = eval_lang(opts_knit$get('cache.extra'))
+    hash = str_c(valid_path(params$cache.path, params$label), '_', digest(content))
+    params$hash = hash
+    if (cache$exists(hash)) {
+      if (!params$include) return('')
+      if (opts_knit$get('verbose')) message('  loading cache from ', hash)
+      cache$load(hash)
+      return(cache$output(hash))
+    }
+    cache$library(params$cache.path, save = FALSE) # load packages
   }
-  if (params$cache) cache$library(params$cache.path, save = FALSE) # load packages
 
   block_exec(params)
 }
@@ -99,8 +105,8 @@ block_exec = function(params) {
   }
   ## no eval chunks
   if (!options$eval) {
-    output = knit_hooks$get('chunk')(wrap.source(list(src = str_c(code, collapse = '\n')),
-                                                 options), options)
+    code = str_c(code, collapse = '\n')
+    output = knit_hooks$get('chunk')(wrap.source(list(src = code), options), options)
     if (options$cache) block_cache(options, output, character(0))
     return(if (options$include) output else '')
   }
@@ -113,7 +119,7 @@ block_exec = function(params) {
     options$fig.ext = dev2ext(options$dev)
   }
 
-  owd = setwd(input_dir())
+  owd = setwd(opts_knit$get('root.dir') %n% input_dir())
   res = evaluate(code, envir = env) # run code
   setwd(owd)
 
@@ -144,10 +150,7 @@ block_exec = function(params) {
       res = res[!figs] # remove all
     } else {
       if (options$fig.show == 'hold') res = c(res[!figs], res[figs]) # move to the end
-      res = Filter(function(x) {
-        ## filter out plot objects purely for layout (raised by par(), layout())
-        !is.recordedplot(x) || !all(plot_calls(x) %in% c('par', 'layout', '.External2'))
-      }, res)
+      res = rm_blank_plot(res)
       figs = sapply(res, is.recordedplot)
       if (sum(figs) > 1) {
         if (keep %in% c('first', 'last')) {
@@ -170,9 +173,8 @@ block_exec = function(params) {
     k1 = iss[1]; k2 = NULL
     for (i in 1:(n - 1)) {
       if (iss[i + 1] - iss[i] == 1) {
-        res[[k1]] =
-          structure(list(src = c(res[[k1]]$src, res[[iss[i + 1]]]$src)),
-                    class = 'source')  # CAUTION: now node src is a vector!!
+        res[[k1]] = structure(list(src = c(res[[k1]]$src, res[[iss[i + 1]]]$src)),
+                              class = 'source')  # CAUTION: now node src is a vector!!
         k2 = c(k2, iss[i + 1])
       } else k1 = iss[i + 1]
     }

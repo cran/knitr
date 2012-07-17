@@ -2,7 +2,7 @@
 
 ## split input document into groups containing chunks and other texts
 ## (may contain inline R code)
-split_file = function(path, lines = readLines(path, warn = FALSE), set.preamble = TRUE) {
+split_file = function(lines, set.preamble = TRUE) {
   n = length(lines)
   chunk.begin = knit_patterns$get('chunk.begin')
   chunk.end = knit_patterns$get('chunk.end')
@@ -96,8 +96,9 @@ parse_params = function(params, label = TRUE) {
     return(res)
   }
   warning('(*) NOTE: I saw options "', params,
-          '"\n are you using the old Sweave syntax? go http://yihui.name/knitr/options')
-  Sys.sleep(10)  # force you to pay attention!
+          '"\n are you using the old Sweave syntax? go http://yihui.name/knitr/options',
+          '\n (it is likely that you forgot to quote "character" options)')
+  Sys.sleep(opts_knit$get('sweave.penalty'))  # force you to pay attention!
 
   ## split by , (literal comma has to be escaped as \,) and then by =
   pieces = str_split(params, perl('(?<=[^\\\\]),'))[[1]]

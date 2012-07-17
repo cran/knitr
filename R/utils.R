@@ -57,6 +57,7 @@ color_def = function(col, variable = 'shadecolor') {
   }
   if (length(x) != 3L) stop('invalid color:', col)
   if (is.numeric(x)) x = round(x, 3L)
+  outdec = options(OutDec = '.'); on.exit(options(outdec))
   sprintf('\\definecolor{%s}{rgb}{%s, %s, %s}', variable, x[1], x[2], x[3])
 }
 
@@ -68,7 +69,7 @@ sc_split = function(string) {
 
 ## extract LaTeX packages for tikzDevice
 set_preamble = function(input) {
-  if (opts_knit$get('out.format') != 'latex') return()
+  if (!out_format('latex')) return()
   db = knit_patterns$get('document.begin')
   if (length(db) != 1L) return()  # no \begin{document} pattern
   hb = knit_patterns$get('header.begin')
@@ -136,15 +137,11 @@ output_asis = function(x, options) {
 }
 
 ## path relative to dir of the input file
-input_dir = function() {
-  id = opts_knit$get('input.dir')
-  if (is.null(id)) return('.')
-  id
-}
+input_dir = function() .knitEnv$input.dir %n% '.'
 
 ## scientific notation in TeX
 format_sci = function(x, format = "latex") {
-  if (!is.numeric(x)) return(x)
+  if (!is.double(x)) return(x)
   scipen = getOption("scipen") + 4L
   if (all(abs(lx <- floor(log(abs(x), 10))) < scipen))
     return(round(x, getOption("digits"))) # no need sci notation
@@ -297,6 +294,12 @@ test_latex_pkg = function(name, path) {
 child_mode = function() opts_knit$get('child')
 parent_mode = function() opts_knit$get('parent')
 
+# return the output format, or if current format is in specified formats
+out_format = function(x) {
+  fmt = opts_knit$get('out.format')
+  if (missing(x)) fmt else fmt %in% x
+}
+
 #' Path for figure files
 #'
 #' The filename of figure files is the combination of options \code{fig.path}
@@ -309,11 +312,22 @@ parent_mode = function() opts_knit$get('parent')
 #'   a prefix of the filenames by default, and the actual filenames are of the
 #'   form \file{prefix1}, \file{prefix2}, ... where \file{prefix} is the string
 #'   returned by this function.
+#'
+#'   When there are special characters (not alphanumeric or \samp{-} or
+#'   \samp{_}) in the path, they will be automatically replaced with \samp{_}.
+#'   For example, \file{a b/c.d-} will be sanitized to \file{a_b/c_d-}. This
+#'   makes the filenames safe to LaTeX.
 #' @export
 #' @examples fig_path('.pdf', list(fig.path='figure/abc-', label='first-plot'))
 #' fig_path(1:10, list(fig.path='foo-', label='bar'))
 fig_path = function(suffix = '', options = opts_current$get()) {
-  str_c(valid_path(options$fig.path, options$label), suffix)
+  path = valid_path(options$fig.path, options$label)
+  # sanitize filename for LaTeX
+  if (str_detect(path, '[^-_/\\\\[:alnum:]]')) {
+    warning('replaced special characters in figure filename "', path, '" -> "',
+            path <- str_replace_all(path, '[^-_/\\\\[:alnum:]]', '_'), '"')
+  }
+  str_c(path, suffix)
 }
 
 #' The environment in which a code chunk is evaluated
@@ -333,30 +347,62 @@ knit_global = function() {
   .knitEnv$knit_global
 }
 
-#' Convert Rnw to PDF using knit() and texi2pdf()
+#' A wrapper for rst2pdf
 #'
-#' Knit the input Rnw document to a tex document, and compile it using
-#' \code{texi2pdf}.
+#' Convert reST to PDF using \command{rst2pdf} (which converts from rst to PDF
+#' using the ReportLab open-source library).
+#' @param input the input rst file
+#' @param command a character string which gives the path of the
+#'   \command{rst2pdf} program (if it is not in PATH, the full path has to be
+#'   given)
+#' @param options extra command line options, e.g. \code{'-o foo.pdf -v'}
+#' @author Alex Zvoleff
+#' @export
+#' @seealso \code{\link{knit2pdf}}
+#' @references \url{http://rst2pdf.ralsina.com.ar/}
+rst2pdf = function(input, command = "rst2pdf", options = "") {
+  system2(command, paste(input, options))
+}
+
+#' Convert Rnw or Rrst files to PDF using knit() and texi2pdf() or rst2pdf()
+#'
+#' Knit the input Rnw or Rrst document, and compile to PDF using \code{texi2pdf}
+#' or \code{rst2pdf}.
 #' @inheritParams knit
 #' @param compiler a character string which gives the LaTeX program used to
 #'   compile the tex document to PDF (by default it uses the default setting of
 #'   \code{\link[tools]{texi2pdf}}, which is often PDFLaTeX); this argument will
-#'   be used to temporarily set the environmental variable \samp{PDFLATEX}
-#' @param ... options to be passed to \code{\link[tools]{texi2pdf}}
-#' @author Ramnath Vaidyanathan and Yihui Xie
+#'   be used to temporarily set the environmental variable \samp{PDFLATEX}. For
+#'   an Rrst file, setting compiler to \code{'rst2pdf'} will use
+#'   \code{\link{rst2pdf}} to compiles the rst file to PDF using the ReportLab
+#'   open-source library.
+#' @param ... options to be passed to \code{\link[tools]{texi2pdf}} or
+#'   \code{\link{rst2pdf}}
+#' @author Ramnath Vaidyanathan, Alex Zvoleff and Yihui Xie
 #' @export
 #' @importFrom tools texi2pdf
-#' @seealso \code{\link{knit}}, \code{\link[tools]{texi2pdf}}
+#' @seealso \code{\link{knit}}, \code{\link[tools]{texi2pdf}},
+#'   \code{\link{rst2pdf}}
 #' @examples ## compile with xelatex
 #'
 #' ## knit2pdf(..., compiler = 'xelatex')
-knit2pdf = function(input, output = NULL, compiler = NULL, ..., envir = parent.frame()){
+#'
+#' ## compile a reST file with rst2pdf
+#'
+#' ## knit2pdf(..., compiler = 'rst2pdf')
+knit2pdf = function(input, output = NULL, compiler = NULL, ..., envir = parent.frame()) {
   out = knit(input, output, envir = envir)
   owd = setwd(dirname(out)); on.exit(setwd(owd))
   if (!is.null(compiler)) {
-    oc = Sys.getenv('PDFLATEX')
-    on.exit(Sys.setenv(PDFLATEX = oc), add = TRUE)
-    Sys.setenv(PDFLATEX = compiler)
+    if (compiler == "rst2pdf") {
+      if (tolower(file_ext(out)) != "rst") stop("for rst2pdf compiler input must be a .rst file")
+      return(rst2pdf(basename(out), ...))
+    } else {
+      # use the specified PDFLATEX command
+      oc = Sys.getenv('PDFLATEX')
+      on.exit(Sys.setenv(PDFLATEX = oc), add = TRUE)
+      Sys.setenv(PDFLATEX = compiler)
+    }
   }
   texi2pdf(basename(out), ...)
 }
@@ -366,16 +412,24 @@ knit2pdf = function(input, output = NULL, compiler = NULL, ..., envir = parent.f
 #' This is a convenience function to knit the input markdown source and call
 #' \code{markdownToHTML()} to convert the result to HTML.
 #' @inheritParams knit
-#' @param ... options passed to \code{\link{knit}}
+#' @param ... options passed to \code{\link[markdown]{markdownToHTML}}
 #' @export
 #' @seealso \code{\link{knit}}, \code{\link[markdown]{markdownToHTML}}
+#' @return If the argument \code{text} is NULL, a character string (HTML code)
+#'   is returned; otherwise the result is written into a file and \code{NULL} is
+#'   returned.
 #' @examples # a minimal example
 #' writeLines(c("# hello markdown", '``` {r hello-random, echo=TRUE}', 'rnorm(5)', '```'), 'test.Rmd')
 #' knit2html('test.Rmd')
 #' if (interactive()) browseURL('test.html')
-knit2html = function(input, ..., envir = parent.frame()){
-  out = knit(input, ..., envir = envir)
-  markdown::markdownToHTML(out, str_c(file_path_sans_ext(out), '.html'))
+knit2html = function(input, ..., text = NULL, envir = parent.frame()){
+  if (is.null(text)) {
+    out = knit(input, envir = envir)
+    markdown::markdownToHTML(out, str_c(file_path_sans_ext(out), '.html'), ...)
+  } else {
+    out = knit(text = text, envir = envir)
+    markdown::markdownToHTML(text = out, ...)
+  }
 }
 
 
@@ -417,13 +471,43 @@ indent_block = function(block, spaces = '    ') {
 print_knitlog = function() {
   if (!opts_knit$get('verbose') || child_mode() || !length(klog <- knit_log$get()))
     return()
-  for (i in unlist(klog, use.names = FALSE)) cat(i, '\n')
+  for (i in unlist(klog, use.names = FALSE)) {
+    cat(i, '\n\n')
+    cat(knit_code$get(sub('^Chunk ([^:]+):\n.*', '\\1', i)), sep = '\n')
+    cat('\n')
+  }
   cat('\nNumber of messages:\n')
   print(sapply(klog, length))
 }
 
 # count the number of lines
-line_count = function(x) str_count(x, fixed('\n')) + 1L
+line_count = function(x) str_count(x, '\n') + 1L
 
 # faster than require() but less rigorous
 has_package = function(pkg) pkg %in% .packages(TRUE)
+
+# if LHS is NULL, return the RHS
+`%n%` = function(x, y) if (is.null(x)) y else x
+
+# merge elements of y into x with the same names
+merge_list = function(x, y) {
+  x[names(y)] = y
+  x
+}
+
+# paths of all figures
+all_figs = function(options, ext = options$fig.ext, num = options$fig.num) {
+  fig_path(paste(if (num == 1L) '' else seq_len(num),
+                 ".", ext, sep = ""), options)
+}
+
+# escape special LaTeX characters
+escape_latex = function(x, newlines = FALSE) {
+  x = gsub('\\\\', '\\\\textbackslash', x)
+  x = gsub('([#$%&_{}])', '\\\\\\1', x)
+  x = gsub('\\\\textbackslash([^{]|$)', '\\\\textbackslash{}\\1', x)
+  x = gsub('~', '\\\\textasciitilde{}', x)
+  x = gsub('\\^', '\\\\textasciicircum{}', x)
+  if (newlines) x = gsub('\n', ' \\\\\\\\ \n', x)
+  x
+}

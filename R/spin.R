@@ -21,6 +21,11 @@
 #' @author Yihui Xie, with the original idea from Richard FitzJohn (who named it
 #'   as \code{sowsear()} which meant to make a silk purse out of a sow's ear)
 #' @return The path of the literate programming document.
+#' @note If the output format is Rnw and no document class is specified in
+#'   roxygen comments, this function will automatically add the \code{article}
+#'   class to the LaTeX document so that it is complete and can be compiled. You
+#'   can always specify the document class and other LaTeX settings in roxygen
+#'   comments manually.
 #' @export
 #' @seealso \code{\link{stitch}} (feed a template with an R script)
 #' @references \url{http://yihui.name/knitr/demo/stitch/}
@@ -67,7 +72,12 @@ spin = function(hair, knit = TRUE, report = TRUE, format = c('Rmd', 'Rnw', 'Rhtm
   }
 
   outsrc = str_c(file_path_sans_ext(hair), '.', format)
-  cat(unlist(txt), file = outsrc, sep = '\n')
+  txt = unlist(txt)
+  # make it a complete TeX document if document class not specified
+  if (format %in% c('Rnw', 'Rtex') && !str_detect(txt, '^\\s*\\\\documentclass')) {
+    txt = c('\\documentclass{article}', '\\begin{document}', txt, '\\end{document}')
+  }
+  cat(txt, file = outsrc, sep = '\n')
   if (knit) {
     if (report) {
       if (format == 'Rmd') knit2html(outsrc, envir = envir) else

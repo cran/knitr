@@ -842,7 +842,8 @@ key "R-highlight"
 
 \end_inset
 
- is used by default to highlight R code, and 
+ will be used to highlight R code if it is installed (otherwise an internal
+ naive syntax highlighter is used), and 
 \series bold
 formatR
 \series default
@@ -2071,7 +2072,7 @@ autodep
 \family default
  and the function 
 \emph on
-build_dep()
+dep_auto()
 \emph default
 .
  This is an experimental feature borrowed from 
@@ -2132,7 +2133,7 @@ __globals
 \family default
  respectively; later we can use the function 
 \emph on
-build_dep()
+dep_auto()
 \emph default
  to analyze the object names to figure out the dependencies automatically.
  See 
@@ -2147,6 +2148,17 @@ http://yihui.name/knitr/demo/cache/
 \end_inset
 
  for examples.
+\end_layout
+
+\begin_layout Standard
+Yet another way to specify dependencies is 
+\emph on
+dep_prev()
+\emph default
+: this is a conservative approach which sets the dependencies so that a
+ cached chunk will depend on all its previous chunks, i.e.
+ whenever a previous chunk is updated, all later chunks will be updated
+ accordingly.
 \end_layout
 
 \begin_layout Subsection
@@ -2940,7 +2952,7 @@ status open
 \begin_layout Plain Layout
 
 <<auto-bib, version=packageVersion('knitr'), echo=FALSE, cache=TRUE, message=FAL
-SE>>=
+SE, warning=FALSE>>=
 \end_layout
 
 \begin_layout Plain Layout
