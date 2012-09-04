@@ -28,12 +28,22 @@ check: build
 	cd ..;\
 	R CMD check $(PKGNAME)_$(PKGVERS).tar.gz --as-cran
 
+examples:
+	cd inst/examples;\
+	Rscript knit-all.R
+
+vignettes:
+	cd inst/doc;\
+	lyx -e knitr knitr-intro.lyx;\
+	lyx -e pdflatex knitr-refcard.lyx;\
+	mv knitr-refcard.tex knitr-refcard.Rnw
+
 # the svn mirror created by
-# git svn clone svn+ssh://yihui@svn.r-forge.r-project.org/svnroot/isu/pkg/knitr-svn
-# commit everything to R-Forge
+# git svn clone svn://svn.rforge.net/knitr/trunk knitr-svn
+# commit everything to RForge
 svn:
 	cd ../knitr-svn;\
-	git pull git://github.com/yihui/knitr.git
+	git pull -X theirs git://github.com/yihui/knitr.git;\
 	git svn dcommit
 
 clean:
