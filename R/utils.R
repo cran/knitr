@@ -16,13 +16,17 @@ knit_counter = function(init = 0L) {
 plot_counter = knit_counter(1L)
 chunk_counter = knit_counter(1L)
 
-line_prompt = evaluate:::line_prompt
+line_prompt = function(x, ...) {
+  x[x == ''] = '\n'
+  evaluate:::line_prompt(x, ...)
+}
 
 ## add a prefix to output
 comment_out = function(x, options) {
   prefix = options$comment
   if (!is.null(prefix) && nzchar(prefix) && !is.na(prefix)) {
     prefix = str_c(prefix, ' ')
+    x = gsub('\\s*$', '', x)
     line_prompt(x, prompt = prefix, continue = prefix)
   } else x
 }
@@ -63,6 +67,7 @@ color_def = function(col, variable = 'shadecolor') {
 
 ## split by semicolon or colon
 sc_split = function(string) {
+  if (is.call(string)) string = eval(string)
   if (length(string) > 1L) return(string)
   str_trim(str_split(string, ';|,')[[1]])
 }
@@ -323,9 +328,17 @@ out_format = function(x) {
 fig_path = function(suffix = '', options = opts_current$get()) {
   path = valid_path(options$fig.path, options$label)
   # sanitize filename for LaTeX
-  if (str_detect(path, '[^-_/\\\\[:alnum:]]')) {
+  if (str_detect(path, '[^-_./\\[:alnum:]]')) {
     warning('replaced special characters in figure filename "', path, '" -> "',
-            path <- str_replace_all(path, '[^-_/\\\\[:alnum:]]', '_'), '"')
+            path <- str_replace_all(path, '[^-_./\\[:alnum:]]', '_'), '"')
+  }
+  # replace . with _ except ../ and ./
+  s = str_split(path, '[/\\]')[[1L]]
+  i = (s != '.') & (s != '..') & str_detect(s, '\\.')
+  if (any(i)) {
+    s[i] = str_replace_all(s[i], '\\.', '_')
+    path = str_c(s, collapse = '/')
+    warning('dots in figure paths replaced with _ ("', path, '")')
   }
   str_c(path, suffix)
 }
@@ -508,6 +521,6 @@ escape_latex = function(x, newlines = FALSE) {
   x = gsub('\\\\textbackslash([^{]|$)', '\\\\textbackslash{}\\1', x)
   x = gsub('~', '\\\\textasciitilde{}', x)
   x = gsub('\\^', '\\\\textasciicircum{}', x)
-  if (newlines) x = gsub('\n', ' \\\\\\\\ \n', x)
+  if (newlines) x = gsub('\n', '\\\\\\\\', x)
   x
 }

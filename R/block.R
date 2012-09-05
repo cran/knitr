@@ -1,4 +1,4 @@
-## S3 method to deal with chunks and inline text respectively
+# S3 method to deal with chunks and inline text respectively
 #' @S3method process_group block
 #' @S3method process_group inline
 process_group = function(x) {
@@ -9,7 +9,7 @@ process_group.inline = function(x) call_inline(x)
 
 
 call_block = function(block) {
-  ## now try eval all options except those in eval.after and their aliases
+  # now try eval all options except those in eval.after and their aliases
   af = opts_knit$get('eval.after'); al = opts_knit$get('aliases')
   if (!is.null(al) && !is.null(af)) af = c(af, names(al[af %in% al]))
   for (o in setdiff(names(block$params), af))
@@ -17,10 +17,10 @@ call_block = function(block) {
 
   params = opts_chunk$merge(block$params)
   params = fix_options(params)  # for compatibility
-  
+
   # expand parameters defined via template
   if(!is.null(params$opts.label)) params = merge_list(params, opts_template$get(params$opts.label))
-    
+
   opts_current$restore(); opts_current$set(params)  # save current options
   label = ref.label = params$label
   if (!is.null(params$ref.label)) ref.label = sc_split(params$ref.label)
@@ -48,20 +48,18 @@ call_block = function(block) {
     return('') # a trivial chunk; do nothing
   }
 
-  if (is_tikz_dev(params)) set_header(tikz = '\\usepackage{tikz}')
-
   params$code = parse_chunk(params$code) # parse sub-chunk references
 
-  ## Check cache
+  # Check cache
   if (params$cache) {
     content = list(params[setdiff(names(params), 'include')], getOption('width'))
     content[[3L]] = eval_lang(opts_knit$get('cache.extra'))
     hash = str_c(valid_path(params$cache.path, params$label), '_', digest(content))
     params$hash = hash
     if (cache$exists(hash)) {
-      if (!params$include) return('')
       if (opts_knit$get('verbose')) message('  loading cache from ', hash)
       cache$load(hash)
+      if (!params$include) return('')
       return(cache$output(hash))
     }
     cache$library(params$cache.path, save = FALSE) # load packages
@@ -71,50 +69,48 @@ call_block = function(block) {
 }
 
 block_exec = function(params) {
-  # when code is not R language
-  if (params$engine != 'R') return(knit_engines$get(params$engine)(params))
-  code = params$code
   options = params
+  # when code is not R language
+  if (options$engine != 'R') {
+    output = knit_engines$get(options$engine)(options)
+    if (options$cache) block_cache(options, output, character(0))
+    return(output)
+  }
 
-  ## eval chunks (in an empty envir if cache)
+  # eval chunks (in an empty envir if cache)
   env = if (options$cache) new.env(parent = knit_global()) else knit_global()
   .knitEnv$knit_env = env # make a copy of the envir
   obj.before = ls(globalenv(), all.names = TRUE)  # global objects before chunk
 
-  ## open a graphical device to record graphics
-  dargs = formals(getOption('device'))  # is NULL in RStudio's GD
-  (if (is.null(dargs) || !interactive()) {
-    function(...) pdf(file = NULL, ...)
-  } else dev.new)(width = options$fig.width, height = options$fig.height)
-  dv = dev.cur(); on.exit(dev.off(dv))
+  keep = options$fig.keep
+  # open a device to record plots
+  if (chunk_device(options$fig.width, options$fig.height, keep != 'none')) {
+    dv = dev.cur(); on.exit(dev.off(dv))
+  }
 
   res.before = run_hooks(before = TRUE, options, env) # run 'before' hooks
 
-  ## tidy code if echo
-  echo = options$echo
+  code = options$code
+  echo = options$echo  # tidy code if echo
   if (!isFALSE(echo) && options$tidy) {
     res = try(tidy.source(text = code, output = FALSE), silent = TRUE)
     if (!inherits(res, 'try-error')) {
       code = res$text.tidy
       enc = Encoding(code)
       idx = enc != 'unknown'
-      ## convert non-native enc
+      # convert non-native enc
       if (any(idx)) code[idx] = iconv(code[idx], enc[idx][1L])
     } else warning('failed to tidy R code in chunk <', options$label, '>\n',
                    'reason: ', res)
   }
-  ## no eval chunks
+  # no eval chunks
   if (!options$eval) {
-    code = str_c(code, collapse = '\n')
     output = knit_hooks$get('chunk')(wrap.source(list(src = code), options), options)
     if (options$cache) block_cache(options, output, character(0))
     return(if (options$include) output else '')
   }
 
-  keep = options$fig.keep
-  dev.control(displaylist = if (keep != 'none') 'enable' else 'inhibit')  # enable recording
-
-  ## guess plot file type if it is NULL
+  # guess plot file type if it is NULL
   if (keep != 'none' && is.null(options$fig.ext)) {
     options$fig.ext = dev2ext(options$dev)
   }
@@ -123,14 +119,14 @@ block_exec = function(params) {
   res = evaluate(code, envir = env) # run code
   setwd(owd)
 
-  ## eval other options after the chunk
+  # eval other options after the chunk
   for (o in opts_knit$get('eval.after')) options[[o]] = eval_lang(options[[o]], env)
 
-  ## remove some components according options
+  # remove some components according options
   if (isFALSE(echo)) {
     res = Filter(Negate(is.source), res)
   } else if (is.numeric(echo)) {
-    ## choose expressions to echo using a numeric vector
+    # choose expressions to echo using a numeric vector
     iss = which(sapply(res, is.source))
     if (length(idx <- setdiff(iss, iss[echo]))) res = res[-idx]
   }
@@ -143,7 +139,7 @@ block_exec = function(params) {
   if (!options$message)
     res = Filter(Negate(is.message), res)
 
-  ## rearrange locations of figures
+  # rearrange locations of figures
   figs = sapply(res, is.recordedplot)
   if (length(figs) && any(figs)) {
     if (keep == 'none') {
@@ -156,18 +152,18 @@ block_exec = function(params) {
         if (keep %in% c('first', 'last')) {
           res = res[-(if (keep == 'last') head else tail)(which(figs), -1L)]
         } else {
-          ## merge low-level plotting changes
+          # merge low-level plotting changes
           if (keep == 'high') res = merge_low_plot(res, figs)
         }
       }
     }
   }
-  ## number of plots in this chunk
+  # number of plots in this chunk
   if (is.null(options$fig.num)) {
     options$fig.num = if (length(res)) sum(sapply(res, is.recordedplot)) else 0L
   }
 
-  ## merge source lines if they do not have output; is there an elegant way??
+  # merge source lines if they do not have output; is there an elegant way??
   iss = if (length(res)) which(sapply(res, is.source)) else NULL
   if ((n <- length(iss)) > 1) {
     k1 = iss[1]; k2 = NULL
@@ -205,16 +201,35 @@ block_cache = function(options, output, objects) {
   hash = options$hash
   outname = str_c('.', hash)
   assign(outname, output, envir = knit_global())
-  ## purge my old cache and cache of chunks dependent on me
+  # purge my old cache and cache of chunks dependent on me
   cache$purge(str_c(valid_path(options$cache.path,
                                c(options$label, dep_list$get(options$label))), '_*'))
   cache$library(options$cache.path, save = TRUE)
   cache$save(objects, outname, hash)
 }
 
+# open a device for a chunk; depending on the option global.device, may or may
+# not need to close the device on exit
+chunk_device = function(width, height, record = TRUE) {
+  if (!opts_knit$get('global.device')) {
+    dargs = formals(getOption('device'))  # is NULL in RStudio's GD
+    (if (is.null(dargs) || !interactive()) {
+      function(...) pdf(file = NULL, ...)
+    } else dev.new)(width = width, height = height)
+    dev.control(displaylist = if (record) 'enable' else 'inhibit')  # enable recording
+    # if returns TRUE, we need to close this device after code is evaluated
+    return(TRUE)
+  } else if (is.null(dev.list())) {
+    # want to use a global device but not open yet
+    dev.new(width = width, height = height)
+    dev.control('enable')
+  }
+  FALSE
+}
+
 call_inline = function(block) {
 
-  ## change global options if detected inline options
+  # change global options if detected inline options
   options = block$params = lapply(block$params, eval_lang)  # try eval global options
   if (length(options)) opts_chunk$set(options)
   if (opts_knit$get('progress')) print(block)
@@ -224,23 +239,25 @@ call_inline = function(block) {
 
 inline_exec = function(block) {
 
-  ## run inline code and substitute original texts
+  # run inline code and substitute original texts
   code = block$code; input = block$input
   if ((n <- length(code)) == 0) return(input) # untouched if no code is found
 
   owd = setwd(input_dir()); on.exit(setwd(owd))
   loc = block$location
   for (i in 1:n) {
-    res = try(eval(parse(text = code[i]), envir = knit_global()))
+    res = if (opts_chunk$get('eval')) {
+      try(eval(parse(text = code[i]), envir = knit_global()))
+    } else '??'
     d = nchar(input)
-    ## replace with evaluated results
+    # replace with evaluated results
     str_sub(input, loc[i, 1], loc[i, 2]) = if (length(res)) {
       if (inherits(res, 'try-error')) {
         knit_hooks$get('error')(str_c('\n', res, '\n'), opts_chunk$get())
       } else knit_hooks$get('inline')(res)
     } else ''
     if (i < n) loc[(i + 1):n, ] = loc[(i + 1):n, ] - (d - nchar(input))
-    ## may need to move back and forth because replacement may be longer or shorter
+    # may need to move back and forth because replacement may be longer or shorter
   }
   input
 }
@@ -272,7 +289,7 @@ process_tangle.inline = function(x) {
 }
 
 
-## add a label to a code chunk
+# add a label to a code chunk
 label_code = function(code, label) {
   str_c(str_c('## @knitr ', label), '\n', str_c(code, collapse = '\n'), '\n')
 }

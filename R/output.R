@@ -26,16 +26,16 @@
 #'
 #' We need a set of syntax to identify special markups for R code chunks and R
 #' options, etc. The syntax is defined in a pattern list. All built-in pattern
-#' lists can be found in \code{all_patterns} (call it \code{apat}). First the
-#' content of the input document is matched against all pattern lists to
-#' automatically which pattern list is being used. If automatic detection
-#' failed, the pattern list will be decided based on the filename extension of
-#' the input document. \samp{Rnw} files use the list \code{apat$rnw}, \samp{tex}
-#' uses the list \code{apat$tex}, \samp{brew} uses \code{apat$brew} and
-#' HTML-like files use \code{apat$html} (e.g. \samp{html} and \samp{md} files).
-#' You can manually set the pattern list using the \code{\link{knit_patterns}}
-#' object or the \code{\link{pat_rnw}} series functions in advance and
-#' \pkg{knitr} will respect the setting.
+#' lists can be found in \code{all_patterns} (call it \code{apat}). First
+#' \pkg{knitr} will try to decide the pattern list based on the filename
+#' extension of the input document, e.g. \samp{Rnw} files use the list
+#' \code{apat$rnw}, \samp{tex} uses the list \code{apat$tex}, \samp{brew} uses
+#' \code{apat$brew} and HTML files use \code{apat$html}; for unkown extensions,
+#' the content of the input document is matched against all pattern lists to
+#' automatically which pattern list is being used. You can also manually set the
+#' pattern list using the \code{\link{knit_patterns}} object or the
+#' \code{\link{pat_rnw}} series functions in advance and \pkg{knitr} will
+#' respect the setting.
 #'
 #' According to the output format (\code{opts_knit$get('out.format')}), a set of
 #' output hooks will be set to mark up results from R (see
@@ -155,7 +155,7 @@ knit = function(input, output = NULL, tangle = FALSE, text = NULL, envir = paren
     if (is.null(pattern <- detect_pattern(text, ext))) {
       # nothing to be executed; just return original input
       if (is.null(output)) return(paste(text, collapse = '\n')) else {
-        cat(text, file = output); return(output)
+        cat(text, sep = '\n', file = output); return(output)
       }
     }
     if (!(pattern %in% names(apat)))
@@ -169,13 +169,7 @@ knit = function(input, output = NULL, tangle = FALSE, text = NULL, envir = paren
                                       brew = 'brew'))
   }
 
-  if (is.null(out_format())) {
-    fmt = switch(ext, rnw = 'latex', tex = 'latex', htm = 'html', html = 'html',
-                 md = 'markdown', markdown = 'markdown', brew = 'brew', rst = 'rst',
-                 {warning('cannot automatically decide the output format'); 'unknown'})
-    ## set built-in hooks
-    opts_knit$set(out.format = fmt)
-  }
+  if (is.null(out_format())) auto_format(ext)
   ## change output hooks only if they are not set beforehand
   if (identical(knit_hooks$get(names(.default.hooks)), .default.hooks) && !child_mode()) {
     switch(out_format(), latex = render_latex(),
@@ -189,7 +183,7 @@ knit = function(input, output = NULL, tangle = FALSE, text = NULL, envir = paren
   if (in.file) message(ifelse(progress, '\n\n', ''), 'processing file: ', input)
   res = process_file(text, output)
   res = knit_hooks$get('document')(res)
-  cat(res, file = output %n% '')
+  if (!is.null(output)) cat(res, file = output)
   dep_list$restore()  # empty dependency list
 
   if (in.file && is.character(output) && file.exists(output)) {
@@ -258,12 +252,31 @@ auto_out_name = function(input) {
   if (ext %in% c('rnw', 'snw')) return(str_c(base, '.tex'))
   if (ext %in% c('rmd', 'rmarkdown', 'rhtml', 'rhtm', 'rtex', 'stex', 'rrst'))
     return(str_c(base, '.', substring(ext, 2L)))
-  if (ext %in% c('brew', 'tex', 'html', 'md')) {
+  if (ext == 'brew') return(str_c(base, '.txt'))
+  if (ext %in% c('tex', 'html', 'md')) {
     if (str_detect(input, '_knit_')) {
       return(str_replace(input, '_knit_', ''))
     } else return(str_c(base, '-out.', ext))
   }
   stop('cannot determine the output filename automatically')
+}
+
+## decide output format based on file extension
+ext2fmt = c(
+  rnw = 'latex', snw = 'latex', tex = 'latex', rtex = 'latex', stex = 'latex',
+  htm = 'html', html = 'html', rhtml = 'html', rhtm = 'html',
+  md = 'markdown', markdown = 'markdown', rmd = 'markdown', rmarkdown = 'markdown',
+  brew = 'brew', rst = 'rst', rrst = 'rst'
+)
+
+auto_format = function(ext) {
+  fmt = ext2fmt[ext]
+  if (is.na(fmt)) fmt = {
+    warning('cannot automatically decide the output format')
+    'unknown'
+  }
+  opts_knit$set(out.format = fmt)
+  invisible(fmt)
 }
 
 #' Knit a child document
@@ -397,13 +410,15 @@ wrap.source = function(x, options) {
   if (options$highlight) {
     src = hilight_source(src, out_format(), options)
   } else if (options$prompt) src = sapply(src, line_prompt, USE.NAMES = FALSE)
-  src = str_c(src, collapse = '')
-  src = str_replace(src, '([^\n]+)$', '\\1\n')
+  src = str_replace(src, '\n$', '')
+  src = str_c(c(src, ''), collapse = '\n')
   knit_hooks$get('source')(src, options)
 }
 
 msg_wrap = function(message, type, options) {
-  message = str_wrap(message, width = getOption('width'))
+  # when output format is latex, do not wrap messages (let latex deal with wrapping)
+  if (!out_format(c('latex', 'listings', 'sweave')))
+    message = str_wrap(message, width = getOption('width'))
   knit_log$set(
     structure(list(c(knit_log$get(type), str_c('Chunk ', options$label, ':\n  ', message))),
     .Names = type)

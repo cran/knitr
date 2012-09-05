@@ -71,13 +71,13 @@ hook_plot_tex = function(x, options) {
   }
   if(length(cap) && !is.na(cap)) {
     if (plot1) {
-      fig1 = sprintf('\\begin{figure}[%s]\n', options$fig.pos)
+      fig1 = sprintf('\\begin{%s}[%s]\n', options$fig.env, options$fig.pos)
     }
     if (plot2) {
       lab = str_c(options$fig.lp, options$label, ifelse(mcap, fig.cur, ''))
       if (is.null(scap)) scap = str_split(cap, '\\.|;|:')[[1L]][1L]
       scap = if(is.na(scap)) '' else str_c('[', scap, ']')
-      fig2 = sprintf('\\caption%s{%s\\label{%s}}\n\\end{figure}\n', scap, cap, lab)
+      fig2 = sprintf('\\caption%s{%s\\label{%s}}\n\\end{%s}\n', scap, cap, lab, options$fig.env)
     }
   }
 
@@ -129,7 +129,10 @@ hook_plot_tex = function(x, options) {
 
 ## inline hook for tex
 .inline.hook.tex = function(x) {
-  if (is.numeric(x)) x = format_sci(x, 'latex')
+  if(is.numeric(x)) {
+    x = format_sci(x, 'latex')
+    if (getOption('OutDec') != '.') x = sprintf('\\text{%s}', x)
+  }
   .inline.hook(x)
 }
 # an example of a chunk hook
@@ -145,7 +148,7 @@ hook_plot_tex = function(x, options) {
 .color.block = function(color1 = '', color2 = '') {
   function(x, options) {
     x = gsub('\n*$', '', x)
-    sprintf('\\begin{flushleft}\\ttfamily\\noindent%s%s%s\\end{flushleft}',
+    sprintf('\n\n{\\ttfamily\\noindent%s%s%s}',
             color1, escape_latex(x, newlines = TRUE), color2)
   }
 }
@@ -221,7 +224,7 @@ render_sweave = function() {
   hook.o = function(x, options) if (output_asis(x, options)) x else hook.s(x, options)
   hook.c = function(x, options) {
     if (output_asis(x, options)) return(x)
-    str_c('\\begin{Schunk}\n', x, '\\end{Schunk}\n')
+    str_c('\\begin{Schunk}\n', x, '\\end{Schunk}')
   }
   knit_hooks$set(source = hook.i, output = hook.o, warning = hook.s,
                  message = hook.s, error = hook.s, inline = .inline.hook.tex,

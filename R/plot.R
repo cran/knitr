@@ -39,7 +39,8 @@ tikz_dev = function(...) {
   packages = switch(
     getOption('tikzDefaultEngine'),
     pdftex = getOption('tikzLatexPackages'),
-    xetex = getOption('tikzXelatexPackages')
+    xetex = getOption('tikzXelatexPackages'),
+    luatex = getOption('tikzLualatexPackages')
   )
   get('tikz', envir = as.environment('package:tikzDevice'))(
     ..., packages = c('\n\\nonstopmode\n', packages, .knitEnv$tikzPackages)
@@ -111,6 +112,7 @@ save_plot = function(plot, name, dev, ext, dpi, options) {
     system(str_c(switch(getOption("tikzDefaultEngine"),
                         pdftex = getOption('tikzLatex'),
                         xetex = getOption("tikzXelatex"),
+                        luatex = getOption("tikzLualatex"),
                         stop("a LaTeX engine must be specified for tikzDevice",
                              call. = FALSE)), shQuote(basename(path)), sep = ' '),
            ignore.stdout = TRUE)
@@ -139,7 +141,10 @@ load_device = function(name, package, dpi = NULL) {
 # 2.16; these blank plot objects should be removed
 rm_blank_plot = function(res) {
   Filter(function(x) {
-    !is.recordedplot(x) || identical(pc <- plot_calls(x), 'recordGraphics') || (length(pc) > 1L && !all(pc %in% c('par', 'layout', '.External2')))
+    !is.recordedplot(x) ||
+      identical(pc <- plot_calls(x), 'recordGraphics') ||
+      identical(pc, 'persp') ||
+      (length(pc) > 1L && !all(pc %in% c('par', 'layout', '.External2')))
   }, res)
 }
 

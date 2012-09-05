@@ -30,7 +30,7 @@ engine_output = function(code, out, options) {
   if (options$include) knit_hooks$get('chunk')(txt, options) else ''
 }
 
-## Python
+## Python (TODO: how to emulate the console??)
 eng_python = function(options) {
   code = str_c(options$code, collapse = '\n')
   cmd = sprintf('python -c %s', shQuote(code))
@@ -78,10 +78,19 @@ eng_highlight = function(options) {
   engine_output(code, out, options)
 }
 
+## bash (sh)
+eng_bash = function(options) {
+  code = str_c(options$code, collapse = '\n')
+  cmd = paste(options$engine, '-c', shQuote(code))
+  out = if (options$eval) system(cmd, intern = TRUE) else ''
+  engine_output(code, out, options)
+}
+
 knit_engines$set(
   python = eng_python, awk = eng_awk, gawk = eng_awk, ruby = eng_ruby,
-  haskell = eng_haskell, highlight = eng_highlight
+  haskell = eng_haskell, highlight = eng_highlight,
+  bash = eng_bash, sh = eng_bash
 )
 
 # possible values for engines (for auto-completion in RStudio)
-opts_chunk_attr$engine = as.list(c('R', names(knit_engines$get())))
+opts_chunk_attr$engine = as.list(sort(c('R', names(knit_engines$get()))))

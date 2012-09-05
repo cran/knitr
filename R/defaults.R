@@ -41,7 +41,7 @@ opts_chunk = new_defaults(list(
   fig.keep = 'high', fig.show = 'asis', fig.align = 'default',
   fig.path = 'figure/', fig.ext = NULL, dev = 'pdf', dpi = 72,
   dev.args = NULL, fig.width = 7, fig.height = 7,
-  fig.cap = NULL, fig.scap = NULL, fig.lp = 'fig:', fig.pos = '',
+  fig.env = 'figure', fig.cap = NULL, fig.scap = NULL, fig.lp = 'fig:', fig.pos = '',
   out.width = NULL, out.height = NULL, out.extra = NULL,
   resize.width = NULL, resize.height = NULL,
   external = TRUE, sanitize = FALSE,
@@ -82,7 +82,7 @@ opts_chunk_attr = (function() {
 opts_knit = new_defaults(list(
   progress = TRUE, verbose = FALSE, out.format = NULL,
   child.command = 'input', base.dir = NULL, base.url = NULL, child.path = '',
-  upload.fun = identity, animation.fun = NULL,
+  upload.fun = identity, animation.fun = NULL, global.device = FALSE,
   eval.after = NULL, concordance = FALSE, sweave.penalty = 10,
   tangle = FALSE, child = FALSE, parent = FALSE,
   cache.extra = NULL, aliases = NULL, root.dir = NULL,
