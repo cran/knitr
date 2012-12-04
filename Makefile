@@ -35,7 +35,8 @@ examples:
 vignettes:
 	cd inst/doc;\
 	lyx -e knitr knitr-intro.lyx;\
-	lyx -e knitr knitr-refcard.lyx
+	lyx -e pdflatex knitr-refcard.lyx;\
+	mv knitr-refcard.tex knitr-refcard.Rnw
 
 # the svn mirror created by
 # git svn clone svn://svn.rforge.net/knitr/trunk knitr-svn

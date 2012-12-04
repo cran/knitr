@@ -192,10 +192,7 @@ is_par_change = function(p1, p2) {
                  'out.width', 'out.height', 'out.extra')
 recycle_plot_opts = function(options) {
   n = options$fig.num
-  for (i in .recyle.opts) {
-    if (length(options[[i]]) == 0L) next
-    options[[i]] = rep(options[[i]], length.out = n)
-  }
+  for (i in .recyle.opts) options[[i]] = rep(options[[i]], length.out = n)
   options
 }
 

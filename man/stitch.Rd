@@ -1,15 +1,9 @@
 \name{stitch}
 \alias{stitch}
-\alias{stitch_rhtml}
-\alias{stitch_rmd}
 \title{Automatically create a report based on an R script and a template}
 \usage{
 stitch(script, template = system.file("misc", "knitr-template.Rnw", package = "knitr"), 
     output = NULL, envir = parent.frame())
-
-stitch_rhtml(...)
-
-stitch_rmd(...)
 }
 \arguments{
   \item{script}{path to the R script}
@@ -22,8 +16,6 @@ stitch_rmd(...)
   \code{\link{knit}}); by default it uses the base filename
   of the script}
 
-  \item{...}{arguments passed to \code{stitch()}}
-
   \item{envir}{the environment in which the code chunks are
   to be evaluated (can use \code{\link{new.env}()} to
   guarantee an empty new environment)}
@@ -33,11 +25,7 @@ stitch_rmd(...)
 }
 \description{
   This is a convenience function for small-scale automatic
-  reporting based on an R script and a template. The
-  default template is an Rnw file (LaTeX);
-  \code{stitch_rhtml()} and \code{stitch_rmd()} are
-  wrappers on top of \code{stitch()} using the R HTML and R
-  Markdown templates respectively.
+  reporting based on an R script and a template.
 }
 \details{
   The first two lines of the R script can contain the title

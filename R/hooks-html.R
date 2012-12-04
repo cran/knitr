@@ -41,8 +41,7 @@ hook_plot_html = function(x, options) {
 
 .chunk.hook.html = function(x, options) {
   if (output_asis(x, options)) return(x)
-  x = sprintf('<div class="chunk" id="%s"><div class="rcode">%s</div></div>',
-              options$label, x)
+  x = sprintf('<div class="chunk"><div class="rcode">%s</div></div>', x)
   x = gsub('<div class="rcode">\\s*</div>', '', x) # rm empty rcode layers
   if (options$split) {
     name = fig_path('.html', options)
@@ -150,7 +149,6 @@ hook_r2swf = function(x, options) {
 render_html = function() {
   knit_hooks$restore()
   opts_chunk$set(dev = 'png') # default device is png in HTML and markdown
-  opts_knit$set(out.format = 'html')
   ## use div with different classes
   html.hook = function(name) {
     force(name)

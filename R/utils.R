@@ -1,6 +1,5 @@
 ## copy objects in one environment to the other
 copy_env = function(from, to, keys = ls(envir = from, all.names = TRUE)) {
-  if (identical(from, to)) return()
   for (i in keys) assign(i, get(i, envir = from, inherits = FALSE), envir = to)
 }
 
@@ -44,7 +43,7 @@ comment_to_var = function(x, varname, pattern, envir) {
 }
 
 is_blank = function(x) {
-  if (length(x)) all(str_detect(x, '^\\s*$')) else TRUE
+  str_detect(x, '^\\s*$')
 }
 valid_path = function(prefix, label) {
   if (length(prefix) == 0L || is.na(prefix) || prefix == 'NA') prefix = ''
@@ -200,6 +199,75 @@ tikz_dict = function(path) {
 
 ## compatibility with Sweave and old beta versions of knitr
 fix_options = function(options) {
+  ## compatibility with Sweave
+  for (dev in c('pdf', 'eps', 'jpeg', 'png')) {
+    if (isTRUE(options[[dev]])) {
+      options$dev = dev
+      warning('chunk option ', dev,
+              "=TRUE deprecated in knitr; use new option 'dev' please")
+      break
+    }
+  }
+  if (any(idx <- options$dev == 'eps')) options$dev[idx] = 'postscript'
+  if (options$results == 'tex') {
+    warning("option 'results' was changed from 'tex' to 'asis'")
+    options$results = 'asis'
+  }
+
+  ## compatibility with old version of knitr
+  fig = options$fig
+  if (identical(fig, FALSE)) {
+    warning("option 'fig' deprecated; use fig.keep='none' please")
+    options$fig.keep = 'none'
+  } else if (identical(fig, TRUE)) {
+    if (isTRUE(options$fig.last)) {
+      warning("option 'fig.last' deprecated; use fig.keep='last' please")
+      options$fig.keep = 'last'
+    }
+    if (isTRUE(options$fig.low)) {
+      warning("option 'fig.low' deprecated; use fig.keep='all' please")
+      options$fig.keep = 'all'
+    }
+  }
+  hold = options$fig.hold
+  if (identical(hold, FALSE)) {
+    warning("option 'fig.hold' deprecated; use fig.show='asis' please")
+    options$fig.show = 'asis'
+  } else if (identical(hold, TRUE)) {
+    warning("option 'fig.hold' deprecated; use fig.show='hold' please")
+    options$fig.show = 'hold'
+  }
+  if (isTRUE(options$animate)) {
+    warning("option 'animate' deprecated; use fig.show='animate' please")
+    options$fig.show = 'animate'
+  }
+
+  align = options$align
+  if (!is.null(align)) {
+    warning("option 'align' deprecated; use fig.align instead")
+    options$fig.align = align
+  }
+  width = options$width
+  if (!is.null(width)) {
+    warning("option 'width' deprecated; use fig.width instead")
+    options$fig.width = width
+  }
+  height = options$height
+  if (!is.null(height)) {
+    warning("option 'height' deprecated; use fig.height instead")
+    options$fig.height = height
+  }
+
+  prefix = options$prefix.string
+  if (!is.null(prefix)) {
+    warning("option 'prefix.string' deprecated; use fig.path instead")
+    options$fig.path = prefix
+  }
+  prefix = options$prefix.cache
+  if (!is.null(prefix)) {
+    warning("option 'prefix.cache' deprecated; use cache.path instead")
+    options$cache.path = prefix
+  }
   # if you want to use subfloats, fig.show must be 'hold'
   if (length(options$fig.subcap)) options$fig.show = 'hold'
 
@@ -287,22 +355,22 @@ fig_path = function(suffix = '', options = opts_current$get()) {
   str_c(path, suffix)
 }
 
-#' The global environment in which code chunks are evaluated
+#' The environment in which a code chunk is evaluated
 #'
 #' This function makes the environment of a code chunk accessible inside a
 #' chunk.
 #'
-#' It returns the \code{envir} argument of \code{\link{knit}}, e.g. if we call
-#' \code{\link{knit}()} in the global environment, \code{knit_global()} returns
-#' R's global environment by default. You can call functions like
-#' \code{\link{ls}()} on this environment.
+#' In some special cases, we need access to the environment of the current
+#' chunk, e.g., to make sure the code is executed in the correct environment.
+#' @references \url{http://yihui.name/knitr/demo/cache/}
+#' @keywords internal
 #' @export
-knit_global = function() {
-  .knitEnv$knit_global
-}
-# current environment for knitr's code chunks
 knit_env = function() {
   .knitEnv$knit_env
+}
+# 'global' environment for knitr
+knit_global = function() {
+  .knitEnv$knit_global
 }
 
 #' A wrapper for rst2pdf
@@ -459,6 +527,12 @@ all_figs = function(options, ext = options$fig.ext, num = options$fig.num) {
                  '.', ext, sep = ''), options)
 }
 
+# remind about deprecated syntax
+reminder = function(...) {
+  warning(..., call. = FALSE)
+  Sys.sleep(opts_knit$get('sweave.penalty'))  # force you to pay attention!
+}
+
 # evaluate an expression in a diretory and restore wd after that
 in_dir = function(dir, expr) {
   owd = setwd(dir); on.exit(setwd(owd))
@@ -466,14 +540,13 @@ in_dir = function(dir, expr) {
 }
 
 # escape special LaTeX characters
-escape_latex = function(x, newlines = FALSE, spaces = FALSE) {
+escape_latex = function(x, newlines = FALSE) {
   x = gsub('\\\\', '\\\\textbackslash', x)
   x = gsub('([#$%&_{}])', '\\\\\\1', x)
   x = gsub('\\\\textbackslash([^{]|$)', '\\\\textbackslash{}\\1', x)
   x = gsub('~', '\\\\textasciitilde{}', x)
   x = gsub('\\^', '\\\\textasciicircum{}', x)
-  if (newlines) x = gsub('(?<!\n)\n(?!\n)', '\\\\\\\\', x, perl = TRUE)
-  if (spaces) x = gsub('  ', '\\\\ \\\\ ', x)
+  if (newlines) x = gsub('\n', '\\\\\\\\', x)
   x
 }
 
@@ -510,23 +583,4 @@ split_lines = function(x) {
   con = textConnection(x)
   on.exit(close(con))
   readLines(con)
-}
-
-# if a string has explicit encoding, convert it to native encoding
-native_encode = function(x, to = '') {
-  enc = Encoding(x)
-  idx = enc != 'unknown'
-  if (to == '') {
-    if (any(idx)) x[idx] = iconv(x[idx], enc[idx][1L], to)
-  } else x = iconv(x, if (any(idx)) enc[idx][1L] else '', to)
-  x
-}
-
-# make the encoding case-insensitive, e.g. LyX uses ISO-8859-15 but R uses iso-8859-15
-correct_encode = function(encoding) {
-  if (encoding == 'native.enc' || encoding == '') return('')
-  if (is.na(idx <- match(tolower(encoding), tolower(iconvlist())))) {
-    warning('encoding "', encoding, '" not supported; using the native encoding instead')
-    ''
-  } else iconvlist()[idx]
 }

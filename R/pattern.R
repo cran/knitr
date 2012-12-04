@@ -9,8 +9,10 @@
 all_patterns = list(
   `rnw` = list(chunk.begin = '^\\s*<<(.*)>>=', chunk.end = '^\\s*@\\s*(%+.*|)$',
                inline.code = '\\\\Sexpr\\{([^}]*)\\}',
+               input.doc = '(^|\n) *\\\\SweaveInput\\{([^}]*)\\}',
                inline.comment = '^\\s*%.*',
                ref.chunk = '^\\s*<<(.*)>>\\s*$',
+               global.options = '\\\\SweaveOpts\\{([^}]*)\\}',
                header.begin = '\\s*\\\\documentclass[^}]+\\}',
                document.begin = '\\s*\\\\begin\\{document\\}'),
 
@@ -20,6 +22,7 @@ all_patterns = list(
                chunk.end = '^\\s*%+\\s*end.rcode', chunk.code = '^%+',
                ref.chunk = '^%+\\s*<<(.*)>>\\s*$',
                inline.comment = '^\\s*%.*',
+               global.options = '%+\\s*roptions\\s*([^\n]*)',
                inline.code = '\\\\rinline\\{([^}]*)\\}',
                header.begin = '\\s*\\\\documentclass[^}]+\\}',
                document.begin = '\\s*\\\\begin\\{document\\}'),
@@ -28,18 +31,21 @@ all_patterns = list(
                 chunk.end = '^\\s*end.rcode\\s*-->',
                 ref.chunk = '^\\s*<<(.*)>>\\s*$',
                 inline.code = '<!--\\s*rinline\\s*([^>]*)\\s*-->',
+                global.options = '<!--\\s*roptions\\s*([^>]*)\\s*-->',
                 header.begin = '\\s*<head>'),
 
   `md` = list(chunk.begin = '^\\s*`{3,}\\s*\\{r(.*)\\}\\s*$',
               chunk.end = '^\\s*`{3,}\\s*$',
               ref.chunk = '^\\s*<<(.*)>>\\s*$',
-              inline.code = '`r +([^`\n]+)\\s*`'),
+              inline.code = '`r +([^`\n]+)\\s*`',
+              global.options = '`ro\\s+([^`]*)\\s+or`'),
 
   `rst` = list(chunk.begin = "^\\s*\\.{2}\\s+\\{r(.*)\\}\\s*$",
                chunk.end = "^\\s*\\.{2}\\s+\\.{2,}\\s*$",
                chunk.code = "^\\.{2}",
                ref.chunk = "^\\.*\\s*<<(.*)>>\\s*$",
-               inline.code = ":r:`([^`]*)`")
+               inline.code = ":r:`([^`]*)`",
+               global.options = ":roptions:`([^`]*)`")
 )
 
 .sep.label = '^#+\\s*@knitr(.*)$'  # pattern for code chunks in an R script
