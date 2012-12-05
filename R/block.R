@@ -12,16 +12,15 @@ call_block = function(block) {
   # now try eval all options except those in eval.after and their aliases
   af = opts_knit$get('eval.after'); al = opts_knit$get('aliases')
   if (!is.null(al) && !is.null(af)) af = c(af, names(al[af %in% al]))
-  for (o in setdiff(names(block$params), af))
-    block$params[[o]] = eval_lang(block$params[[o]])
-
   params = opts_chunk$merge(block$params)
+  for (o in setdiff(names(params), af))
+    params[o] = list(eval_lang(params[[o]]))
+
   params = fix_options(params)  # for compatibility
 
   # expand parameters defined via template
   if(!is.null(params$opts.label)) params = merge_list(params, opts_template$get(params$opts.label))
 
-  opts_current$restore(); opts_current$set(params)  # save current options
   label = ref.label = params$label
   if (!is.null(params$ref.label)) ref.label = sc_split(params$ref.label)
   params$code = unlist(knit_code$get(ref.label), use.names = FALSE)
@@ -53,8 +52,7 @@ call_block = function(block) {
   # Check cache
   if (params$cache) {
     content = list(params[setdiff(names(params), 'include')], getOption('width'))
-    content[[3L]] = eval_lang(opts_knit$get('cache.extra'))
-    hash = str_c(valid_path(params$cache.path, params$label), '_', digest(content))
+    hash = str_c(valid_path(params$cache.path, label), '_', digest(content))
     params$hash = hash
     if (cache$exists(hash)) {
       if (opts_knit$get('verbose')) message('  loading cache from ', hash)
@@ -63,7 +61,13 @@ call_block = function(block) {
       return(cache$output(hash))
     }
     cache$library(params$cache.path, save = FALSE) # load packages
+  } else if (label %in% names(dep_list$get())) {
+    warning('code chunks must not depend on the uncached chunk "', label, '"',
+            call. = FALSE)
   }
+
+  params$params.src = block$params.src
+  opts_current$restore(params)  # save current options
 
   block_exec(params)
 }
@@ -93,7 +97,9 @@ block_exec = function(params) {
   code = options$code
   echo = options$echo  # tidy code if echo
   if (!isFALSE(echo) && options$tidy) {
-    res = try(tidy.source(text = code, output = FALSE), silent = TRUE)
+    res = try(do.call(
+      tidy.source, c(list(text = code, output = FALSE), options$tidy.opts)
+    ), silent = TRUE)
     if (!inherits(res, 'try-error')) {
       code = res$text.tidy
       enc = Encoding(code)
@@ -103,21 +109,24 @@ block_exec = function(params) {
     } else warning('failed to tidy R code in chunk <', options$label, '>\n',
                    'reason: ', res)
   }
-  # no eval chunks
-  if (!options$eval) {
-    output = knit_hooks$get('chunk')(wrap.source(list(src = code), options), options)
-    if (options$cache) block_cache(options, output, character(0))
-    return(if (options$include) output else '')
+  # only evaluate certain lines
+  if (is.numeric(ev <- options$eval)) {
+    iss = seq_along(code)
+    code = comment_out(code, '##', setdiff(iss, iss[ev]), newline = FALSE)
   }
-
   # guess plot file type if it is NULL
   if (keep != 'none' && is.null(options$fig.ext)) {
     options$fig.ext = dev2ext(options$dev)
   }
 
-  owd = setwd(opts_knit$get('root.dir') %n% input_dir())
-  res = evaluate(code, envir = env) # run code
-  setwd(owd)
+  # return code with class 'source' if not eval chunks
+  res = if (isFALSE(ev)) {
+    list(structure(list(src = code), class = 'source'))
+  } else in_dir(
+    opts_knit$get('root.dir') %n% input_dir(),
+    evaluate(code, envir = env, new_device = FALSE,
+             stop_on_error = opts_knit$get('stop_on_error'))
+  )
 
   # eval other options after the chunk
   for (o in opts_knit$get('eval.after')) options[[o]] = eval_lang(options[[o]], env)
@@ -177,6 +186,10 @@ block_exec = function(params) {
     if (length(k2)) res = res[-k2] # remove lines that have been merged back
   }
 
+  on.exit(plot_counter(reset = TRUE), add = TRUE)  # restore plot number
+  if (options$fig.show != 'animate' && options$fig.num > 1) {
+    options = recycle_plot_opts(options)
+  }
   output = str_c(unlist(wrap(res, options)), collapse = '') # wrap all results together
 
   res.after = run_hooks(before = FALSE, options, env) # run 'after' hooks
@@ -184,7 +197,6 @@ block_exec = function(params) {
 
   output = str_c(c(res.before, output, res.after), collapse = '')  # insert hook results
   output = if (length(output) == 0L) '' else knit_hooks$get('chunk')(output, options)
-  plot_counter(reset = TRUE)  # restore plot number
 
   if (options$cache) {
     obj.after = ls(globalenv(), all.names = TRUE)  # figure out new global objs
@@ -212,10 +224,7 @@ block_cache = function(options, output, objects) {
 # not need to close the device on exit
 chunk_device = function(width, height, record = TRUE) {
   if (!opts_knit$get('global.device')) {
-    dargs = formals(getOption('device'))  # is NULL in RStudio's GD
-    (if (is.null(dargs) || !interactive()) {
-      function(...) pdf(file = NULL, ...)
-    } else dev.new)(width = width, height = height)
+    dev.new(width = width, height = height)
     dev.control(displaylist = if (record) 'enable' else 'inhibit')  # enable recording
     # if returns TRUE, we need to close this device after code is evaluated
     return(TRUE)
@@ -278,9 +287,12 @@ process_tangle.block = function(x) {
   if (!isFALSE(params$eval) && length(code) && str_detect(code, 'read_chunk\\(.+\\)')) {
     eval(parse(text = unlist(str_extract_all(code, 'read_chunk\\(([^)]+)\\)'))))
   }
-  label_code(parse_chunk(code), label)
+  label_code(parse_chunk(code), x$params.src)
 }
 process_tangle.inline = function(x) {
+  if (opts_knit$get('documentation') == 2L) {
+    return(str_c(line_prompt(x$input.src, "#' ", "#' "), collapse = '\n'))
+  }
   code = x$code
   if ((n <- length(code)) == 0 || !any(idx <- str_detect(code, "knit_child\\(.+\\)")))
     return('')
@@ -289,7 +301,9 @@ process_tangle.inline = function(x) {
 }
 
 
-# add a label to a code chunk
+# add a label [and extra chunk options] to a code chunk
 label_code = function(code, label) {
-  str_c(str_c('## @knitr ', label), '\n', str_c(code, collapse = '\n'), '\n')
+  code = str_c(c('', code, ''), collapse = '\n')
+  if (opts_knit$get('documentation') == 0L) return(code)
+  str_c('## @knitr ', label, code)
 }

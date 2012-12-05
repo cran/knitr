@@ -11,59 +11,117 @@
 #' programs to run the code via \code{\link[base]{system}}. Other chunk options
 #' are also contained in this argument, e.g. \code{options$echo} and
 #' \code{options$eval}, etc.
+#'
+#' In most cases, \code{options$engine} can be directly used in command line to
+#' execute the code, e.g. \code{python} or \code{ruby}, but sometimes we may
+#' want to specify the path of the engine program, in which case we can pass it
+#' through the \code{engine.path} option. For example, \code{engine='ruby',
+#' engine.path='/usr/bin/ruby1.9.1'}. Additional command line arguments can be
+#' passed through \code{options$engine.opts}, e.g. \code{engine='ruby',
+#' engine.opts='-v'}.
 #' @export
 #' @references Usage: \url{http://yihui.name/knitr/objects}
 #' @examples knit_engines$get('python'); knit_engines$get('awk')
+#' names(knit_engines$get())
 knit_engines = new_defaults()
 
 # give me source code, text output and I return formatted text using the three
 # hooks: source, output and chunk
-engine_output = function(code, out, options) {
+engine_output = function(options, code, out, extra = NULL) {
   if (length(code) != 1L) code = str_c(code, collapse = '\n')
   if (length(out) != 1L) out = str_c(out, collapse = '\n')
   code = str_replace(code, '([^\n]+)$', '\\1\n')
   out = str_replace(out, '([^\n]+)$', '\\1\n')
   txt = paste(c(
     if (options$echo) knit_hooks$get('source')(code, options),
-    if (options$results != 'hide' && !is_blank(out)) knit_hooks$get('output')(out, options)
+    if (options$results != 'hide' && !is_blank(out)) {
+      if (!output_asis(out, options)) out = comment_out(out, options$comment)
+      knit_hooks$get('output')(out, options)
+    },
+    extra
   ), collapse = '\n')
   if (options$include) knit_hooks$get('chunk')(txt, options) else ''
 }
 
-## Python (TODO: how to emulate the console??)
-eng_python = function(options) {
-  code = str_c(options$code, collapse = '\n')
-  cmd = sprintf('python -c %s', shQuote(code))
-  out = if (options$eval) system(cmd, intern = TRUE) else ''
-  engine_output(code, out, options)
-}
+## TODO: how to emulate the console?? e.g. for Python
 
-## Awk: file is the file to read in; awk.opts are other options to pass to awk
-eng_awk = function(options) {
+eng_interpreted = function(options) {
   code = str_c(options$code, collapse = '\n')
-  cmd = paste(options$engine, shQuote(code), shQuote(options$file), options$awk.opts)
+  code_option = switch(options$engine, bash = '-c', haskell = '-e', perl = '-e',
+                       python = '-c', ruby = '-e', sh = '-c', zsh = '-c', '')
+  cmd = paste(shQuote(options$engine.path %n% options$engine),
+              code_option, shQuote(code), options$engine.opts)
   out = if (options$eval) system(cmd, intern = TRUE) else ''
-  engine_output(code, out, options)
+  engine_output(options, code, out)
 }
-
 ## C
 
 ## Java
 
-## Ruby
-eng_ruby = function(options) {
+## Rcpp
+eng_Rcpp = function(options) {
+
   code = str_c(options$code, collapse = '\n')
-  cmd = sprintf('ruby -e %s', shQuote(code))
-  out = if (options$eval) system(cmd, intern = TRUE) else ''
-  engine_output(code, out, options)
+  # engine.opts is a list of arguments to be passed to Rcpp function, e.g.
+  # engine.opts=list(plugin='RcppArmadillo')
+  if (options$eval) {
+    message('Building shared library for Rcpp code chunk...')
+    do.call(
+      Rcpp::sourceCpp,
+      c(list(code = code, env = knit_global()), options$engine.opts)
+    )
+  }
+
+  options$engine = 'cpp' # wrap up source code in cpp syntax instead of Rcpp
+  engine_output(options, code, '')
 }
 
-## Haskell
-eng_haskell = function(options) {
-  code = str_c(options$code, collapse = '\n')
-  cmd = sprintf('ghc -e %s', shQuote(code))
-  out = if (options$eval) system(cmd, intern = TRUE) else ''
-  engine_output(code, out, options)
+## convert tikz string to PDF
+eng_tikz = function(options) {
+  if (!options$eval) return(engine_output(options, options$code, ''))
+
+  lines = readLines(tmpl <- options$engine.opts$template %n%
+                      system.file('misc', 'tikz2pdf.tex', package = 'knitr'))
+  i = grep('%% TIKZ_CODE %%', lines)
+  if (length(i) != 1L)
+    stop("Couldn't find replacement string; or the are multiple of them.")
+
+  s = append(lines, options$code, i)  # insert tikz into tex-template
+  writeLines(s, texf <- str_c(f <- tempfile('tikz', '.'), '.tex'))
+  unlink(outf <- str_c(f, '.pdf'))
+  texi2pdf(texf, clean = TRUE)
+  if (!file.exists(outf)) stop('failed to compile tikz; check the template: ', tmpl)
+  unlink(texf)
+
+  fig = fig_path('', options)
+  file.rename(outf, str_c(fig, '.pdf'))
+  # convert to the desired output-format, calling `convert`
+  ext = tolower(options$fig.ext %n% dev2ext(options$dev))
+  if (ext != 'pdf') {
+    conv = system(sprintf('convert %s.pdf %s.%s', fig, fig, ext))
+    if (conv != 0) stop('problems with `convert`; probably not installed?')
+  }
+  options$fig.num = 1L; options$fig.cur = 1L
+  extra = knit_hooks$get('plot')(c(fig, ext), options)
+  options$engine = 'tex'  # for output hooks to use the correct language class
+  engine_output(options, options$code, '', extra)
+}
+
+## GraphViz (dot)
+eng_dot = function(options){
+  f = tempfile()
+  writeLines(code <- options$code, f)
+  on.exit(unlink(f))
+  cmd = sprintf('%s %s -T%s -o%s', shQuote(options$engine %n% options$engine.path),
+                shQuote(f), ext <- options$fig.ext %n% dev2ext(options$dev),
+                shQuote(str_c(fig <- fig_path(), '.', ext)))
+  dir.create(dirname(fig), showWarnings = FALSE)
+  extra = if (options$eval) {
+    system(cmd)
+    options$fig.num = 1L; options$fig.cur = 1L
+    knit_hooks$get('plot')(c(fig, ext), options)
+  }
+  engine_output(options, code, '', extra)
 }
 
 ## Andre Simon's highlight
@@ -71,26 +129,38 @@ eng_highlight = function(options) {
   f = tempfile()
   writeLines(code <- options$code, f)
   on.exit(unlink(f))
-  # e.g. highlight.opts can be '-S matlab -O latex'
-  cmd = sprintf('highlight -f %s %s', options$highlight.opts %n% '-S text', shQuote(f))
+  # e.g. engine.opts can be '-S matlab -O latex'
+  if (!is.null(options$highlight.opts)) {
+    warning("chunk option 'highlight.opts' has been deprecated; use 'engine.opts' instead")
+    options$engine.opts = options$highlight.opts
+  }
+  cmd = sprintf('%s -f %s %s', shQuote(options$engine.path %n% options$engine),
+                options$engine.opts %n% '-S text', shQuote(f))
   out = if (options$eval) system(cmd, intern = TRUE) else ''
   options$echo = FALSE; options$results = 'asis'  # do not echo source code
-  engine_output(code, out, options)
+  engine_output(options, '', out)
 }
 
-## bash (sh)
-eng_bash = function(options) {
-  code = str_c(options$code, collapse = '\n')
-  cmd = paste(options$engine, '-c', shQuote(code))
+## SAS (I really do not understand SAS; this engine only runs SAS code)
+eng_sas = function(options) {
+  # SAS wants a physical file
+  writeLines(options$code, f <- basename(tempfile('sas', '.', '.sas')))
+  on.exit(unlink(c(f, sub('\\.sas$', '.log', f))))
+  cmd = paste(shQuote(options$engine.path %n% options$engine), '-SYSIN', f, options$engine.opts)
   out = if (options$eval) system(cmd, intern = TRUE) else ''
-  engine_output(code, out, options)
+  engine_output(options, options$code, out)
 }
 
+# set engines for interpreted languages
+for (i in c('awk', 'bash', 'gawk', 'haskell', 'perl', 'python', 'ruby', 'sed', 'sh', 'zsh')) {
+  knit_engines$set(setNames(list(eng_interpreted), i))
+}
+# additional engines
 knit_engines$set(
-  python = eng_python, awk = eng_awk, gawk = eng_awk, ruby = eng_ruby,
-  haskell = eng_haskell, highlight = eng_highlight,
-  bash = eng_bash, sh = eng_bash
+  highlight = eng_highlight, Rcpp = eng_Rcpp, sas = eng_sas,
+  tikz = eng_tikz, dot = eng_dot
 )
 
 # possible values for engines (for auto-completion in RStudio)
 opts_chunk_attr$engine = as.list(sort(c('R', names(knit_engines$get()))))
+opts_chunk_attr[c('engine.path', 'engine.opts')] = list('character', 'character')

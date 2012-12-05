@@ -88,14 +88,14 @@
 #'   The \pkg{knitr} graphics manual:
 #'   \url{https://github.com/downloads/yihui/knitr/knitr-graphics.pdf}
 #' @examples library(knitr)
-#' (f = tempfile(fileext = '.Rnw'))
-#' file.copy(system.file('examples', 'knitr-minimal.Rnw', package = 'knitr'),
-#'   f, overwrite = TRUE)
-#' knit(f)
-#' ## or setwd(dirname(f)); knit(basename(f))
+#' (f = system.file('examples', 'knitr-minimal.Rnw', package = 'knitr'))
+#' knit(f)  # compile to tex
 #'
-#' purl(f)  # extract R code only
-knit = function(input, output = NULL, tangle = FALSE, text = NULL, envir = parent.frame()) {
+#' purl(f)  # tangle R code
+#' purl(f, documentation = 0)  # extract R code only
+#' purl(f, documentation = 2)  # also include documentation
+knit = function(input, output = NULL, tangle = FALSE, text = NULL,
+                envir = parent.frame(), ...) {
 
   in.file = !missing(input) && is.character(input)  # is a file input
   oconc = knit_concord$get(); on.exit(knit_concord$set(oconc), add = TRUE)
@@ -120,10 +120,10 @@ knit = function(input, output = NULL, tangle = FALSE, text = NULL, envir = paren
     on.exit(options(oopts), add = TRUE)
     # restore chunk options after parent exits
     optc = opts_chunk$get()
-    on.exit({opts_chunk$restore(); opts_chunk$set(optc)}, add = TRUE)
+    on.exit(opts_chunk$restore(optc), add = TRUE)
     ocode = knit_code$get()
     if (tangle) knit_code$restore() # clean up code before tangling
-    on.exit({knit_code$restore(); knit_code$set(ocode)}, add = TRUE)
+    on.exit(knit_code$restore(ocode), add = TRUE)
     optk = opts_knit$get(); on.exit(opts_knit$set(optk), add = TRUE)
     opts_knit$set(tangle = tangle)
   }
@@ -144,12 +144,12 @@ knit = function(input, output = NULL, tangle = FALSE, text = NULL, envir = paren
   }
 
   text = if (is.null(text)) readLines(input, warn = FALSE) else {
-    unlist(strsplit(text, '\n')) # make sure each element is one line
+    split_lines(text) # make sure each element is one line
   }
   if (!length(text)) return() # a trivial case: simply and exit
 
   apat = all_patterns; opat = knit_patterns$get()
-  on.exit({knit_patterns$restore(); knit_patterns$set(opat)}, add = TRUE)
+  on.exit(knit_patterns$restore(opat), add = TRUE)
   if (length(opat) == 0 || all(sapply(opat, is.null))) {
     # use ext if cannot auto detect pattern
     if (is.null(pattern <- detect_pattern(text, ext))) {
@@ -162,8 +162,7 @@ knit = function(input, output = NULL, tangle = FALSE, text = NULL, envir = paren
       stop("a pattern list cannot be automatically found for the file extension '",
            ext, "' in built-in pattern lists; ",
            'see ?knit_patterns on how to set up customized patterns')
-    knit_patterns$restore()
-    knit_patterns$set(apat[[pattern]])
+    set_pattern(pattern)
     opts_knit$set(out.format = switch(pattern, rnw = 'latex', tex = 'latex',
                                       html = 'html', md = 'markdown', rst = 'rst',
                                       brew = 'brew'))
@@ -184,7 +183,10 @@ knit = function(input, output = NULL, tangle = FALSE, text = NULL, envir = paren
   res = process_file(text, output)
   res = knit_hooks$get('document')(res)
   if (!is.null(output)) cat(res, file = output)
-  dep_list$restore()  # empty dependency list
+  if (!child_mode()) {
+    dep_list$restore()  # empty dependency list
+    .knitEnv$labels = NULL
+  }
 
   if (in.file && is.character(output) && file.exists(output)) {
     concord_gen(input2, output)  # concordance file
@@ -199,9 +201,18 @@ knit = function(input, output = NULL, tangle = FALSE, text = NULL, envir = paren
   output %n% res
 }
 #' @rdname knit
-#' @param ... arguments passed to \code{\link{knit}}
+#' @param documentation an integer specifying the level of documentation to go
+#'   the tangled script: \code{0} means pure code (discard all text chunks);
+#'   \code{1} (default) means add the chunk headers to code; \code{2} means add
+#'   all text chunks to code as roxygen comments
+#' @param ... arguments passed to \code{\link{knit}()} from \code{purl()};
+#'   ignored if the arguments do not match with any arguments in \code{knit()}
 #' @export
-purl = function(...) {
+purl = function(..., documentation = 1L) {
+  # for compatibility to knitr <= 0.8.8
+  if (is.logical(documentation)) documentation = ifelse(documentation, 2L, 1L)
+  doc = opts_knit$get('documentation'); on.exit(opts_knit$set(documentation = doc))
+  opts_knit$set(documentation = documentation)
   knit(..., tangle = TRUE)
 }
 
@@ -222,15 +233,16 @@ process_file = function(text, output) {
       flush.console()
     }
     group = groups[[i]]
-    txt = try((if (tangle) process_tangle else process_group)(group), silent = TRUE)
-    if (inherits(txt, 'try-error')) {
-      print(group)
-      cat(res, sep = '\n', file = output %n% '')
-      stop(sprintf('Quitting from lines %s: (%s) %s',
-                   str_c(current_lines(i), collapse = '-'),
-                   paste('', knit_concord$get('infile'), sep = ''), txt))
-    }
-    res[i] = txt
+    res[i] = withCallingHandlers(
+      (if (tangle) process_tangle else process_group)(group),
+      error = function(e) {
+        cat(res, sep = '\n', file = output %n% '')
+        message(
+          'Quitting from lines ', str_c(current_lines(i), collapse = '-'),
+          ' (', knit_concord$get('infile'), ') '
+        )
+      }
+    )
     # output line numbers
     if (concord_mode()) {
       # look back and see who is 0, then fill them up
@@ -318,6 +330,7 @@ knit_child = function(..., eval = TRUE) {
   opts_knit$set(child = TRUE) # yes, in child mode now
   on.exit(opts_knit$set(child = child)) # restore child status
   path = knit(..., tangle = opts_knit$get('tangle'))
+  if (is.null(path)) return() # the input document is empty
   if (opts_knit$get('tangle')) {
     str_c('\n', 'source("', path, '")')
   } else if (concord_mode() || !out_format('latex')) {
@@ -335,8 +348,12 @@ knit_child = function(..., eval = TRUE) {
 #'
 #' The first two lines of the R script can contain the title and author of the
 #' report in comments of the form \samp{## title:} and \samp{## author:}. The
-#' template must have a chunk named \samp{auto-report}, which will be used to
+#' template must have a token \samp{\%sCHUNK_LABEL_HERE}, which will be used to
 #' input all the R code from the script. See the examples below.
+#'
+#' The R script may contain chunk headers of the form \samp{## @@knitr label},
+#' which will be copied to the template; if no chunk headers are found, the
+#' whole R script will be inserted into the template as one code chunk.
 #' @param script path to the R script
 #' @param template path of the template to use (by default the Rnw template in
 #'   this package; there is also an HTML template in \pkg{knitr})
@@ -361,20 +378,26 @@ stitch = function(script,
   ## extract title and author from first two lines
   if (comment_to_var(lines[1L], '.knitr.title', '^#+ *title:', envir)) lines = lines[-1L]
   if (comment_to_var(lines[1L], '.knitr.author', '^#+ *author:', envir)) lines = lines[-1L]
-  knit_code$set(`auto-report` = lines)
+  read_chunk(lines = lines)
+  if (length(knit_code$get()) == 0L) knit_code$set(`auto-report` = lines)
   input = basename(template)
   input = str_c(file_path_sans_ext(basename(script)), '.', file_ext(input))
-  if (file.exists(input)) warning(input, ' already exists') else file.copy(template, input)
-  out = knit(input, output, envir = envir)
+  txt = readLines(template, warn = FALSE)
+  i = grep('%sCHUNK_LABEL_HERE', txt)
+  if (length(i) != 1L) stop('Wrong template for stitch: ', template)
+  txt[i] = paste(sprintf(sub('CHUNK_LABEL_HERE', '', txt[i]), names(knit_code$get())),
+                 unlist(lapply(knit_code$get(), paste, collapse = '\n')),
+                 sep = '\n', collapse = '\n')
+  knit_code$restore()
+  out = knit(input, output, envir = envir, text = txt)
   switch(file_ext(out), tex = {
     texi2pdf(out, clean = TRUE)
-    system(paste(getOption('pdfviewer'), shQuote(str_replace(out, '\\.tex$', '.pdf'))))
+    message('PDF output at: ', str_replace(out, '\\.tex$', '.pdf'))
   }, md = {
     out.html = str_c(file_path_sans_ext(out), '.html')
     markdown::markdownToHTML(out, out.html)
-    browseURL(out.html)
-  }, html = browseURL(out))
-  knit_code$restore()
+    message('HTML output at: ', out.html)
+  })
   out
 }
 
@@ -401,16 +424,15 @@ wrap.list = function(x, options = list()) {
 }
 
 wrap.character = function(x, options) {
-  if (!output_asis(x, options)) x = comment_out(x, options)
+  if (!output_asis(x, options)) x = comment_out(x, options$comment)
   knit_hooks$get('output')(x, options)
 }
 
 wrap.source = function(x, options) {
-  src = x$src
+  src = str_replace(x$src, '\n$', '')
   if (options$highlight) {
     src = hilight_source(src, out_format(), options)
-  } else if (options$prompt) src = sapply(src, line_prompt, USE.NAMES = FALSE)
-  src = str_replace(src, '\n$', '')
+  } else if (options$prompt) src = line_prompt(src)
   src = str_c(c(src, ''), collapse = '\n')
   knit_hooks$get('source')(src, options)
 }
@@ -419,11 +441,11 @@ msg_wrap = function(message, type, options) {
   # when output format is latex, do not wrap messages (let latex deal with wrapping)
   if (!out_format(c('latex', 'listings', 'sweave')))
     message = str_wrap(message, width = getOption('width'))
-  knit_log$set(
-    structure(list(c(knit_log$get(type), str_c('Chunk ', options$label, ':\n  ', message))),
-    .Names = type)
-  )
-  knit_hooks$get(type)(comment_out(str_c(message, '\n'), options), options)
+  knit_log$set(setNames(
+    list(c(knit_log$get(type), str_c('Chunk ', options$label, ':\n  ', message))),
+    type
+  ))
+  knit_hooks$get(type)(comment_out(message, options$comment), options)
 }
 
 wrap.warning = function(x, options) {
@@ -443,11 +465,9 @@ wrap.recordedplot = function(x, options) {
     odir = setwd(base.dir); on.exit(setwd(odir)) # switch to abs dir, then restore
   }
   ## figure number sequence for multiple plots
-  if (options$fig.num <= 1) fig.cur = 0L else {
-    fig.cur = plot_counter()
-  }
+  fig.cur = plot_counter()
   options$fig.cur = fig.cur # put fig num in options
-  name = fig_path(if(fig.cur == 0L) '' else fig.cur, options)
+  name = fig_path(if(options$fig.num <= 1) '' else fig.cur, options)
   if (!file.exists(dirname(name)))
     dir.create(dirname(name), recursive = TRUE) # automatically creates dir for plots
   ## vectorize over dev, ext and dpi: save multiple versions of the plot
@@ -455,5 +475,5 @@ wrap.recordedplot = function(x, options) {
                     dev = options$dev, ext = options$fig.ext, dpi = options$dpi,
                     MoreArgs = list(plot = x, name = name, options = options),
                     SIMPLIFY = FALSE)[[1]]
-  knit_hooks$get('plot')(name.ext, options)
+  knit_hooks$get('plot')(name.ext, reduce_plot_opts(options))
 }

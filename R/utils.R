@@ -16,19 +16,21 @@ knit_counter = function(init = 0L) {
 plot_counter = knit_counter(1L)
 chunk_counter = knit_counter(1L)
 
-line_prompt = function(x, ...) {
-  x[x == ''] = '\n'
-  evaluate:::line_prompt(x, ...)
+## a vectorized and better version than evaluate:::line_prompt
+line_prompt = function(x, prompt = getOption('prompt'), continue = getOption('continue')) {
+  # match a \n, then followed by any character (use zero width assertion)
+  str_c(prompt, gsub('(?<=\n)(?=.|\n)', continue, x, perl = TRUE))
 }
 
 ## add a prefix to output
-comment_out = function(x, options) {
-  prefix = options$comment
-  if (!is.null(prefix) && nzchar(prefix) && !is.na(prefix)) {
-    prefix = str_c(prefix, ' ')
-    x = gsub('\\s*$', '', x)
-    line_prompt(x, prompt = prefix, continue = prefix)
-  } else x
+comment_out = function(x, prefix = '##', which = TRUE, newline = TRUE) {
+  x = gsub('[\n]{2,}$', '\n', x)
+  if (newline) x = gsub('([^\n])$', '\\1\n', x)  # add \n if not exists
+  if (is.null(prefix) || !nzchar(prefix) || is.na(prefix)) return(x)
+  prefix = str_c(prefix, ' ')
+  x = gsub(' +([\n]*)$', '\\1', x)
+  x[which] = line_prompt(x[which], prompt = prefix, continue = prefix)
+  x
 }
 
 ## assign string in comments to a global variable
@@ -55,8 +57,8 @@ color_def = function(col, variable = 'shadecolor') {
     if (n == 1L) x = drop(col2rgb(x)/255) else {
       x = switch(variable, shadecolor = rep(.97, 3), fgcolor = rep(0, 3))
       warning("the color '", col, "' is invalid;",
-              "using default color...",
-              "see http://yihui.name/knitr/options")
+              'using default color...',
+              'see http://yihui.name/knitr/options')
     }
   }
   if (length(x) != 3L) stop('invalid color:', col)
@@ -68,7 +70,7 @@ color_def = function(col, variable = 'shadecolor') {
 ## split by semicolon or colon
 sc_split = function(string) {
   if (is.call(string)) string = eval(string)
-  if (length(string) > 1L) return(string)
+  if (is.numeric(string) || length(string) > 1L) return(string)
   str_trim(str_split(string, ';|,')[[1]])
 }
 
@@ -86,7 +88,7 @@ set_preamble = function(input) {
   idx = str_locate(txt, hb)  # locate documentclass
   if (any(is.na(idx))) return()
   options(tikzDocumentDeclaration = str_sub(txt, idx[, 1L], idx[, 2L]))
-  preamble = pure_preamble(str_split(str_sub(txt, idx[, 2L] + 1L), '\n')[[1L]])
+  preamble = pure_preamble(split_lines(str_sub(txt, idx[, 2L] + 1L)))
   .knitEnv$tikzPackages = c(.header.sweave.cmd, preamble, '\n')
 }
 ## filter out code chunks from preamble if they exist (they do in LyX/Sweave)
@@ -144,34 +146,40 @@ output_asis = function(x, options) {
 ## path relative to dir of the input file
 input_dir = function() .knitEnv$input.dir %n% '.'
 
-## scientific notation in TeX
-format_sci = function(x, format = "latex") {
-  if (!is.double(x)) return(x)
-  scipen = getOption("scipen") + 4L
-  if (all(abs(lx <- floor(log(abs(x), 10))) < scipen))
-    return(round(x, getOption("digits"))) # no need sci notation
-  b = round(x/10^lx, getOption("digits"))
-  b[b %in% c(1, -1)] = ""
-  res = switch(format, latex = {
-    s = sci_notation("%s%s10^{%s}", b, "\\times ", lx)
-    if (inherits(x, "AsIs")) s else sprintf("$%s$", s)
-  }, html = sci_notation("%s%s10<sup>%s</sup>", b, " &times; ", lx), rst = {
+## scientific notation in TeX, HTML and reST
+format_sci_one = function(x, format = 'latex') {
+
+  if (!is.double(x) || is.na(x) || x == 0) return(as.character(x))
+
+  if (abs(lx <- floor(log10(abs(x)))) < getOption('scipen') + 4L)
+    return(as.character(round(x, getOption('digits')))) # no need sci notation
+
+  b = round(x/10^lx, getOption('digits'))
+  b[b %in% c(1, -1)] = ''
+
+  switch(format, latex = {
+    s = sci_notation('%s%s10^{%s}', b, '\\times ', lx)
+    sprintf('\\ensuremath{%s}', s)
+  }, html = sci_notation('%s%s10<sup>%s</sup>', b, ' &times; ', lx), rst = {
     # if AsIs, use the :math: directive
-    if (inherits(x, "AsIs")) {
-      s = sci_notation("%s%s10^{%s}", b, "\\times ", lx)
-      sprintf(":math:`%s`", s)
+    if (inherits(x, 'AsIs')) {
+      s = sci_notation('%s%s10^{%s}', b, '\\times ', lx)
+      sprintf(':math:`%s`', s)
     } else {
       # This needs the following line at the top of the file to define |times|
       # .. include <isonum.txt>
-      sci_notation("%s%s10 :sup:`%s`", b, " |times| ", lx)
+      sci_notation('%s%s10 :sup:`%s`', b, ' |times| ', lx)
     }
-  }, x)
-  res[x == 0] = 0
-  res
+  }, as.character(x))
 }
 
 sci_notation = function(format, base, times, power) {
-  sprintf(format, base, ifelse(base == "", "", times), power)
+  sprintf(format, base, ifelse(base == '', '', times), power)
+}
+
+## vectorized version of format_sci_one()
+format_sci = function(x, ...) {
+  vapply(x, format_sci_one, character(1L), ..., USE.NAMES = FALSE)
 }
 
 ## absolute path?
@@ -195,7 +203,7 @@ fix_options = function(options) {
   for (dev in c('pdf', 'eps', 'jpeg', 'png')) {
     if (isTRUE(options[[dev]])) {
       options$dev = dev
-      warning("chunk option ", dev,
+      warning('chunk option ', dev,
               "=TRUE deprecated in knitr; use new option 'dev' please")
       break
     }
@@ -260,11 +268,14 @@ fix_options = function(options) {
     warning("option 'prefix.cache' deprecated; use cache.path instead")
     options$cache.path = prefix
   }
+  # if you want to use subfloats, fig.show must be 'hold'
+  if (length(options$fig.subcap)) options$fig.show = 'hold'
 
   ## deal with aliases: a1 is real option; a0 is alias
   if (length(a1 <- opts_knit$get('aliases')) && length(a0 <- names(a1))) {
     for (i in seq_along(a1)) {
-      options[[a1[i]]] = options[[a0[i]]]
+      # use alias only if the name exists in options
+      if (a0[i] %in% names(options)) options[[a1[i]]] = options[[a0[i]]]
     }
   }
 
@@ -288,7 +299,7 @@ isFALSE = function(x) identical(x, FALSE)
 
 ## check latex packages; if not exist, copy them over to ./
 test_latex_pkg = function(name, path) {
-  res = try(system(sprintf("kpsewhich %s.sty", name), intern = TRUE), silent = TRUE)
+  res = try(system(sprintf('kpsewhich %s.sty', name), intern = TRUE), silent = TRUE)
   if (inherits(res, 'try-error') || !length(res)) {
     warning("unable to find LaTeX package '", name, "'; will use a copy from knitr")
     file.copy(path, '.')
@@ -302,7 +313,7 @@ parent_mode = function() opts_knit$get('parent')
 # return the output format, or if current format is in specified formats
 out_format = function(x) {
   fmt = opts_knit$get('out.format')
-  if (missing(x)) fmt else fmt %in% x
+  if (missing(x)) fmt else !is.null(fmt) && (fmt %in% x)
 }
 
 #' Path for figure files
@@ -327,6 +338,7 @@ out_format = function(x) {
 #' fig_path(1:10, list(fig.path='foo-', label='bar'))
 fig_path = function(suffix = '', options = opts_current$get()) {
   path = valid_path(options$fig.path, options$label)
+  if (!out_format(c('latex', 'sweave', 'listings'))) return(str_c(path, suffix))
   # sanitize filename for LaTeX
   if (str_detect(path, '[^-_./\\[:alnum:]]')) {
     warning('replaced special characters in figure filename "', path, '" -> "',
@@ -351,6 +363,7 @@ fig_path = function(suffix = '', options = opts_current$get()) {
 #' In some special cases, we need access to the environment of the current
 #' chunk, e.g., to make sure the code is executed in the correct environment.
 #' @references \url{http://yihui.name/knitr/demo/cache/}
+#' @keywords internal
 #' @export
 knit_env = function() {
   .knitEnv$knit_env
@@ -373,7 +386,7 @@ knit_global = function() {
 #' @export
 #' @seealso \code{\link{knit2pdf}}
 #' @references \url{http://rst2pdf.ralsina.com.ar/}
-rst2pdf = function(input, command = "rst2pdf", options = "") {
+rst2pdf = function(input, command = 'rst2pdf', options = '') {
   system2(command, paste(input, options))
 }
 
@@ -407,8 +420,8 @@ knit2pdf = function(input, output = NULL, compiler = NULL, ..., envir = parent.f
   out = knit(input, output, envir = envir)
   owd = setwd(dirname(out)); on.exit(setwd(owd))
   if (!is.null(compiler)) {
-    if (compiler == "rst2pdf") {
-      if (tolower(file_ext(out)) != "rst") stop("for rst2pdf compiler input must be a .rst file")
+    if (compiler == 'rst2pdf') {
+      if (tolower(file_ext(out)) != 'rst') stop('for rst2pdf compiler input must be a .rst file')
       return(rst2pdf(basename(out), ...))
     } else {
       # use the specified PDFLATEX command
@@ -432,7 +445,7 @@ knit2pdf = function(input, output = NULL, compiler = NULL, ..., envir = parent.f
 #'   is returned; otherwise the result is written into a file and \code{NULL} is
 #'   returned.
 #' @examples # a minimal example
-#' writeLines(c("# hello markdown", '``` {r hello-random, echo=TRUE}', 'rnorm(5)', '```'), 'test.Rmd')
+#' writeLines(c("# hello markdown", '```{r hello-random, echo=TRUE}', 'rnorm(5)', '```'), 'test.Rmd')
 #' knit2html('test.Rmd')
 #' if (interactive()) browseURL('test.html')
 knit2html = function(input, ..., text = NULL, envir = parent.frame()){
@@ -511,7 +524,19 @@ merge_list = function(x, y) {
 # paths of all figures
 all_figs = function(options, ext = options$fig.ext, num = options$fig.num) {
   fig_path(paste(if (num == 1L) '' else seq_len(num),
-                 ".", ext, sep = ""), options)
+                 '.', ext, sep = ''), options)
+}
+
+# remind about deprecated syntax
+reminder = function(...) {
+  warning(..., call. = FALSE)
+  Sys.sleep(opts_knit$get('sweave.penalty'))  # force you to pay attention!
+}
+
+# evaluate an expression in a diretory and restore wd after that
+in_dir = function(dir, expr) {
+  owd = setwd(dir); on.exit(setwd(owd))
+  expr
 }
 
 # escape special LaTeX characters
@@ -523,4 +548,39 @@ escape_latex = function(x, newlines = FALSE) {
   x = gsub('\\^', '\\\\textasciicircum{}', x)
   if (newlines) x = gsub('\n', '\\\\\\\\', x)
   x
+}
+
+# escape special HTML chars
+escape_html = function(x) {
+  x = gsub('&', '&amp;', x)
+  x = gsub('<', '&lt;', x)
+  x = gsub('>', '&gt;', x)
+  x = gsub('"', '&quot;', x)
+  x
+}
+
+#' Read source code from R-Forge
+#'
+#' This function reads source code from the SVN repositories on R-Forge.
+#' @param path relative path to the source script on R-Forge
+#' @param project name of the R-Forge project
+#' @param extra extra parameters to be passed to the URL (e.g. \code{extra =
+#'   '&revision=48'} to check out the source of revision 48)
+#' @param base the base URL
+#' @return A character vector of the source code.
+#' @author Yihui Xie and Peter Ruckdeschel
+#' @export
+#' @examples \dontrun{read_rforge('rgl/R/axes.R', project = 'rgl')
+#' read_rforge('rgl/R/axes.R', project = 'rgl', extra='&revision=519')}
+read_rforge = function(path, project, extra = '',
+                      base = 'http://r-forge.r-project.org/scm/viewvc.php/*checkout*/pkg') {
+  readLines(sprintf('%s/%s?root=%s%s', base, path, project, extra))
+}
+
+# because I think strsplit('', 'foo') should return '' instead of character(0)
+split_lines = function(x) {
+  if (length(grep('\n', x)) == 0L) return(x)
+  con = textConnection(x)
+  on.exit(close(con))
+  readLines(con)
 }

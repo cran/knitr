@@ -48,8 +48,6 @@ hook_rgl = function(before, options, envir) {
   par3d(windowRect = 100 + options$dpi * c(0, 0, options$fig.width, options$fig.height))
   Sys.sleep(.05) # need time to respond to window size change
 
-  if (out_format(c('html', 'markdown', 'jekyll', 'rst'))) options$dev = 'png'
-
   ## support 3 formats: eps, pdf and png (default)
   switch(options$dev,
          postscript = rgl.postscript(str_c(name, '.eps'), fmt = 'eps'),
@@ -122,7 +120,7 @@ hook_plot_custom = function(before, options, envir){
   if (n <= 1L) hook(c(name, ext), options) else {
     res = unlist(lapply(seq_len(n), function(i) {
       options$fig.cur = i
-      hook(c(str_c(name, i), ext), options)
+      hook(c(str_c(name, i), ext), reduce_plot_opts(options))
     }), use.names = FALSE)
     str_c(res, collapse = '')
   }
