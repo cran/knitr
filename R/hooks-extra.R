@@ -42,13 +42,12 @@
 #' @examples knit_hooks$set(rgl = hook_rgl)
 #' ## then in code chunks, use the option rgl=TRUE
 hook_rgl = function(before, options, envir) {
+  library(rgl)
   ## after a chunk has been evaluated
-  if (before || !require('rgl') || rgl.cur() == 0) return()  # no active device
+  if (before || rgl.cur() == 0) return()  # no active device
   name = fig_path()
   par3d(windowRect = 100 + options$dpi * c(0, 0, options$fig.width, options$fig.height))
   Sys.sleep(.05) # need time to respond to window size change
-
-  if (out_format(c('html', 'markdown', 'jekyll', 'rst'))) options$dev = 'png'
 
   ## support 3 formats: eps, pdf and png (default)
   switch(options$dev,
@@ -122,7 +121,7 @@ hook_plot_custom = function(before, options, envir){
   if (n <= 1L) hook(c(name, ext), options) else {
     res = unlist(lapply(seq_len(n), function(i) {
       options$fig.cur = i
-      hook(c(str_c(name, i), ext), options)
+      hook(c(str_c(name, i), ext), reduce_plot_opts(options))
     }), use.names = FALSE)
     str_c(res, collapse = '')
   }

@@ -32,7 +32,7 @@ get_theme = function(theme = NULL) {
 #' returned by the \code{get()} method. See examples below.
 #' @author Ramnath Vaidyanathan and Yihui Xie
 #' @seealso \code{\link{eclipse_theme}} (use Eclipse themes)
-#' @references \url{https://github.com/downloads/yihui/knitr/knitr-themes.pdf}
+#' @references \url{https://bitbucket.org/stat/knitr/downloads/knitr-themes.pdf}
 #' (its Rnw source is at
 #' \url{https://github.com/yihui/knitr/blob/master/inst/examples/knitr-themes.Rnw})
 #' @export
@@ -42,7 +42,7 @@ get_theme = function(theme = NULL) {
 #'
 #' thm = knit_theme$get('acid')  # parse the theme to a list
 #' knit_theme$set(thm)
-#' 
+#'
 #' opts_knit$set(out.format=NULL) # restore option
 knit_theme = list(set = set_theme, get = get_theme)
 
