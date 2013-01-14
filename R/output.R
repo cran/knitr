@@ -55,6 +55,7 @@
 #'   file
 #' @param envir the environment in which the code chunks are to be evaluated
 #'   (can use \code{\link{new.env}()} to guarantee an empty new environment)
+#' @param encoding the encoding of the input file; see \code{\link{file}}
 #' @return The compiled document is written into the output file, and the path
 #'   of the output file is returned, but if the \code{output} path is
 #'   \code{NULL}, the output is returned as a character vector.
@@ -83,10 +84,10 @@
 #' @references Package homepage: \url{http://yihui.name/knitr/}
 #'
 #'   The \pkg{knitr} main manual:
-#'   \url{https://github.com/downloads/yihui/knitr/knitr-manual.pdf}
+#'   \url{https://bitbucket.org/stat/knitr/downloads/knitr-manual.pdf}
 #'
 #'   The \pkg{knitr} graphics manual:
-#'   \url{https://github.com/downloads/yihui/knitr/knitr-graphics.pdf}
+#'   \url{https://bitbucket.org/stat/knitr/downloads/knitr-graphics.pdf}
 #' @examples library(knitr)
 #' (f = system.file('examples', 'knitr-minimal.Rnw', package = 'knitr'))
 #' knit(f)  # compile to tex
@@ -95,17 +96,22 @@
 #' purl(f, documentation = 0)  # extract R code only
 #' purl(f, documentation = 2)  # also include documentation
 knit = function(input, output = NULL, tangle = FALSE, text = NULL,
-                envir = parent.frame(), ...) {
+                envir = parent.frame(), encoding = getOption('encoding')) {
 
-  in.file = !missing(input) && is.character(input)  # is a file input
+  # is input from a file? (or a connection on a file)
+  in.file = !missing(input) &&
+    (is.character(input) || prod(inherits(input, c('file', 'connection'), TRUE)))
   oconc = knit_concord$get(); on.exit(knit_concord$set(oconc), add = TRUE)
-  if (in.file) input2 = input # make a copy of the input path
+  # make a copy of the input path in input2 and change input to file path
+  if (!missing(input)) input2 = input
+  if (in.file && !is.character(input)) input = summary(input)$description
+
   if (child_mode()) {
     setwd(opts_knit$get('output.dir')) # always restore original working dir
     # in child mode, input path needs to be adjusted
     if (in.file && !is_abs_path(input)) {
-      input2 = str_c(opts_knit$get('child.path'), input)
-      input = file.path(input_dir(), input2)
+      input = str_c(opts_knit$get('child.path'), input)
+      input = file.path(input_dir(), input)
     }
   } else {
     .knitEnv$knit_global = envir  # the envir to eval code
@@ -135,7 +141,7 @@ knit = function(input, output = NULL, tangle = FALSE, text = NULL,
     if (is.null(output)) output = basename(auto_out_name(input))
     ext = tolower(file_ext(input))
     options(tikzMetricsDictionary = tikz_dict(input)) # cache tikz dictionary
-    knit_concord$set(infile = input2)
+    knit_concord$set(infile = input)
   }
   if (concord_mode()) {
     # 'outfile' from last parent call is my parent
@@ -143,10 +149,14 @@ knit = function(input, output = NULL, tangle = FALSE, text = NULL,
     knit_concord$set(outfile = output)
   }
 
-  text = if (is.null(text)) readLines(input, warn = FALSE) else {
-    split_lines(text) # make sure each element is one line
-  }
+  encoding = correct_encode(encoding)
+  text = if (is.null(text)) {
+    readLines(if (is.character(input2)) {
+      con = file(input2, encoding = encoding); on.exit(close(con), add = TRUE); con
+    } else input2, warn = FALSE)
+  } else split_lines(text) # make sure each element is one line
   if (!length(text)) return() # a trivial case: simply and exit
+  text = native_encode(text)
 
   apat = all_patterns; opat = knit_patterns$get()
   on.exit(knit_patterns$restore(opat), add = TRUE)
@@ -163,6 +173,7 @@ knit = function(input, output = NULL, tangle = FALSE, text = NULL,
            ext, "' in built-in pattern lists; ",
            'see ?knit_patterns on how to set up customized patterns')
     set_pattern(pattern)
+    if (pattern == 'rnw' && is_sweave(text)) remind_sweave(if (in.file) input)
     opts_knit$set(out.format = switch(pattern, rnw = 'latex', tex = 'latex',
                                       html = 'html', md = 'markdown', rst = 'rst',
                                       brew = 'brew'))
@@ -181,8 +192,10 @@ knit = function(input, output = NULL, tangle = FALSE, text = NULL,
   progress = opts_knit$get('progress')
   if (in.file) message(ifelse(progress, '\n\n', ''), 'processing file: ', input)
   res = process_file(text, output)
-  res = knit_hooks$get('document')(res)
-  if (!is.null(output)) cat(res, file = output)
+  res = paste(knit_hooks$get('document')(res), collapse = '\n')
+  if (!is.null(output))
+    writeLines(if (encoding == '') res else native_encode(res, to = encoding),
+               con = output, useBytes = encoding != '')
   if (!child_mode()) {
     dep_list$restore()  # empty dependency list
     .knitEnv$labels = NULL
@@ -205,8 +218,7 @@ knit = function(input, output = NULL, tangle = FALSE, text = NULL,
 #'   the tangled script: \code{0} means pure code (discard all text chunks);
 #'   \code{1} (default) means add the chunk headers to code; \code{2} means add
 #'   all text chunks to code as roxygen comments
-#' @param ... arguments passed to \code{\link{knit}()} from \code{purl()};
-#'   ignored if the arguments do not match with any arguments in \code{knit()}
+#' @param ... arguments passed to \code{\link{knit}()} from \code{purl()}
 #' @export
 purl = function(..., documentation = 1L) {
   # for compatibility to knitr <= 0.8.8
@@ -254,7 +266,7 @@ process_file = function(text, output) {
   if (!tangle) res = insert_header(res)  # insert header
   print_knitlog()
 
-  str_c(c(res, ""), collapse = "\n")
+  res
 }
 
 auto_out_name = function(input) {
@@ -341,66 +353,6 @@ knit_child = function(..., eval = TRUE) {
   }
 }
 
-#' Automatically create a report based on an R script and a template
-#'
-#' This is a convenience function for small-scale automatic reporting based on
-#' an R script and a template.
-#'
-#' The first two lines of the R script can contain the title and author of the
-#' report in comments of the form \samp{## title:} and \samp{## author:}. The
-#' template must have a token \samp{\%sCHUNK_LABEL_HERE}, which will be used to
-#' input all the R code from the script. See the examples below.
-#'
-#' The R script may contain chunk headers of the form \samp{## @@knitr label},
-#' which will be copied to the template; if no chunk headers are found, the
-#' whole R script will be inserted into the template as one code chunk.
-#' @param script path to the R script
-#' @param template path of the template to use (by default the Rnw template in
-#'   this package; there is also an HTML template in \pkg{knitr})
-#' @param output the output filename (passed to \code{\link{knit}}); by default
-#'   it uses the base filename of the script
-#' @inheritParams knit
-#' @return path of the output document
-#' @export
-#' @seealso \code{\link{spin}} (turn a specially formatted R script to a report)
-#' @examples s = system.file('misc', 'stitch-test.R', package = 'knitr')
-#' \dontrun{stitch(s)}
-#'
-#' # HTML report
-#' stitch(s, system.file('misc', 'knitr-template.Rhtml', package = 'knitr'))
-#'
-#' # or convert markdown to HTML
-#' stitch(s, system.file('misc', 'knitr-template.Rmd', package = 'knitr'))
-stitch = function(script,
-                  template = system.file('misc', 'knitr-template.Rnw', package = 'knitr'),
-                  output = NULL, envir = parent.frame()) {
-  lines = readLines(script, warn = FALSE)
-  ## extract title and author from first two lines
-  if (comment_to_var(lines[1L], '.knitr.title', '^#+ *title:', envir)) lines = lines[-1L]
-  if (comment_to_var(lines[1L], '.knitr.author', '^#+ *author:', envir)) lines = lines[-1L]
-  read_chunk(lines = lines)
-  if (length(knit_code$get()) == 0L) knit_code$set(`auto-report` = lines)
-  input = basename(template)
-  input = str_c(file_path_sans_ext(basename(script)), '.', file_ext(input))
-  txt = readLines(template, warn = FALSE)
-  i = grep('%sCHUNK_LABEL_HERE', txt)
-  if (length(i) != 1L) stop('Wrong template for stitch: ', template)
-  txt[i] = paste(sprintf(sub('CHUNK_LABEL_HERE', '', txt[i]), names(knit_code$get())),
-                 unlist(lapply(knit_code$get(), paste, collapse = '\n')),
-                 sep = '\n', collapse = '\n')
-  knit_code$restore()
-  out = knit(input, output, envir = envir, text = txt)
-  switch(file_ext(out), tex = {
-    texi2pdf(out, clean = TRUE)
-    message('PDF output at: ', str_replace(out, '\\.tex$', '.pdf'))
-  }, md = {
-    out.html = str_c(file_path_sans_ext(out), '.html')
-    markdown::markdownToHTML(out, out.html)
-    message('HTML output at: ', out.html)
-  })
-  out
-}
-
 knit_log = new_defaults()  # knitr log for errors, warnings and messages
 
 #' Wrap evaluated results for output
@@ -420,6 +372,7 @@ wrap = function(x, options = list()) {
 }
 
 wrap.list = function(x, options = list()) {
+  if (length(x) == 0L) return(x)
   lapply(x, wrap, options)
 }
 
@@ -430,9 +383,7 @@ wrap.character = function(x, options) {
 
 wrap.source = function(x, options) {
   src = str_replace(x$src, '\n$', '')
-  if (options$highlight) {
-    src = hilight_source(src, out_format(), options)
-  } else if (options$prompt) src = line_prompt(src)
+  src = hilight_source(src, out_format(), options)
   src = str_c(c(src, ''), collapse = '\n')
   knit_hooks$get('source')(src, options)
 }
