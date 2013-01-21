@@ -20,7 +20,11 @@ Or download the [zip ball](https://github.com/yihui/knitr/zipball/master) or [ta
 library(devtools); install_github('knitr', 'yihui')
 ```
 
-Note Windows users have to first install [Rtools](http://cran.rstudio.com/bin/windows/Rtools/).
+Note Windows users have to first install [Rtools](http://cran.rstudio.com/bin/windows/Rtools/). Another choice is R-Forge but it is unpredictable in the sense that the build service may halt occasionally, so make sure to [check this page](https://r-forge.r-project.org/R/?group_id=656) to see if the version on R-Forge matches with the [development version](/yihui/knitr/blob/master/DESCRIPTION) on Github:
+
+```r
+install.packages('knitr', repos = 'http://R-Forge.R-project.org')
+```
 
 ## Motivation
 

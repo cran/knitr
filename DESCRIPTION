@@ -1,8 +1,8 @@
 Package: knitr
 Type: Package
 Title: A general-purpose package for dynamic report generation in R
-Version: 1.0
-Date: 2013-01-14
+Version: 1.0.5
+Date: 2013-01-21
 Authors@R: c(person("Hadley", "Wickham", email = "hadley@rice.edu",
         role = "ctb"), person("Ramnath", "Vaidyanathan", role = "ctb"),
         person("Joseph J.", "Allaire", role = "ctb"), person("Tom",
@@ -14,8 +14,9 @@ Authors@R: c(person("Hadley", "Wickham", email = "hadley@rice.edu",
         "ctb"), person("Wush", "Wu", role = "ctb"), person("Simon", "de
         Bernard", role = "ctb"), person("Michel", "Kuhlmann", role =
         "ctb"), person("Alastair", "Andrew", role = "ctb"),
-        person("Jim", "Hester", role = "ctb"), person("Yihui", "Xie",
-        email = "xie@yihui.name", role = c("aut", "cre")))
+        person("Jim", "Hester", role = "ctb"), person("Nacho",
+        "Caballero", role = "ctb"), person("Yihui", "Xie", email =
+        "xie@yihui.name", role = c("aut", "cre")))
 Author: Yihui Xie
 Maintainer: Yihui Xie <xie@yihui.name>
 Description: This package provides a general-purpose tool for dynamic
@@ -66,7 +67,7 @@ Collate: 'package.R' 'utils-upload.R' 'plot.R' 'defaults.R' 'parser.R'
         'hooks-chunk.R' 'hooks-extra.R' 'hooks-latex.R' 'hooks-html.R'
         'hooks-md.R' 'hooks-rst.R' 'spin.R' 'highlight.R'
         'utils-base64.R' 'utils-rd2html.R' 'zzz.R' 'template.R'
-        'utils-sweave.R'
-Packaged: 2013-01-14 03:10:24 UTC; yihui
+        'utils-sweave.R' 'utils-conversion.R'
+Packaged: 2013-01-20 23:48:14 UTC; yihui
 Repository: CRAN
-Date/Publication: 2013-01-14 08:50:44
+Date/Publication: 2013-01-21 14:47:03

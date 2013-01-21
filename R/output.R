@@ -114,7 +114,8 @@ knit = function(input, output = NULL, tangle = FALSE, text = NULL,
       input = file.path(input_dir(), input)
     }
   } else {
-    .knitEnv$knit_global = envir  # the envir to eval code
+    oenvir = .knitEnv$knit_global; .knitEnv$knit_global = envir
+    on.exit({.knitEnv$knit_global = oenvir}, add = TRUE)
     opts_knit$set(output.dir = getwd()) # record working directory in 1st run
     knit_log$restore()
     on.exit(chunk_counter(reset = TRUE), add = TRUE) # restore counter
@@ -125,11 +126,9 @@ knit = function(input, output = NULL, tangle = FALSE, text = NULL,
                   })
     on.exit(options(oopts), add = TRUE)
     # restore chunk options after parent exits
-    optc = opts_chunk$get()
-    on.exit(opts_chunk$restore(optc), add = TRUE)
-    ocode = knit_code$get()
+    optc = opts_chunk$get(); on.exit(opts_chunk$restore(optc), add = TRUE)
+    ocode = knit_code$get(); on.exit(knit_code$restore(ocode), add = TRUE)
     if (tangle) knit_code$restore() # clean up code before tangling
-    on.exit(knit_code$restore(ocode), add = TRUE)
     optk = opts_knit$get(); on.exit(opts_knit$set(optk), add = TRUE)
     opts_knit$set(tangle = tangle)
   }
@@ -186,7 +185,7 @@ knit = function(input, output = NULL, tangle = FALSE, text = NULL,
            sweave = render_sweave(), listings = render_listings(),
            html = render_html(), jekyll = render_jekyll(),
            markdown = render_markdown(), rst = render_rst())
-    on.exit(knit_hooks$restore(), add = TRUE)
+    on.exit(knit_hooks$set(.default.hooks), add = TRUE)
   }
 
   progress = opts_knit$get('progress')
