@@ -24,15 +24,19 @@ knit2html(input, ..., text = NULL, envir = parent.frame())
 }
 \description{
   This is a convenience function to knit the input markdown
-  source and call \code{markdownToHTML()} to convert the
-  result to HTML.
+  source and call \code{\link[markdown]{markdownToHTML}()}
+  in the \pkg{markdown} package to convert the result to
+  HTML.
 }
 \examples{
 # a minimal example
 writeLines(c("# hello markdown", "```{r hello-random, echo=TRUE}", "rnorm(5)", "```"), 
     "test.Rmd")
-knit2html("test.Rmd")
-if (interactive()) browseURL("test.html")
+if (require("markdown")) {
+    knit2html("test.Rmd")
+    if (interactive()) 
+        browseURL("test.html")
+}
 }
 \seealso{
   \code{\link{knit}},

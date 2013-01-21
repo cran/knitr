@@ -43,12 +43,16 @@ hi_html = function(x) {
 }
 
 # may require the highlight package
-highlight_fun = function(name) getFromNamespace(name, 'highlight')
+highlight_fun = function(name) {
+  do.call('library', list(package = 'parser', character.only = TRUE))
+  getFromNamespace(name, 'highlight')
+}
 
 .default.css = css.parser(.default.sty)
 
 hilight_source = function(x, format, options) {
-  if (!(format %in% c('latex', 'html'))) return(x)
+  if (!((format %in% c('latex', 'html')) && options$highlight))
+    return(if (options$prompt) line_prompt(x) else x)
   if (opts_knit$get('use.highlight')) {
     highlight = highlight_fun('highlight')
     x = split_lines(x) # remove the extra \n in code (#331)

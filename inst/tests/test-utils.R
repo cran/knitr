@@ -28,19 +28,18 @@ test_that('fig_path() sanitizes paths', {
   expect_identical(fig_path('.png', list(fig.path = 'fig/', label = 'foo')), 'fig/foo.png')
   opts = list(fig.path = 'figure/', label = 'a b')
   expect_warning(fig_path(, opts))
-  expect_identical(suppressWarnings(fig_path(, opts)), 'figure/a_b')
-  expect_identical(
-    suppressWarnings(fig_path(, list(fig.path = 'fig space/', label = 'a.b'))),
-    'fig_space/a_b'
-  )
-  expect_identical(fig_path(, list(fig.path = '../', label = 'c.d')), '../c_d')
-  expect_identical(fig_path(, list(fig.path = './../', label = 'c..d')), './../c__d')
+  suppressWarnings({
+    expect_identical(fig_path(, opts), 'figure/a_b')
+    expect_identical(fig_path(, list(fig.path = 'fig space/', label = 'a.b')), 'fig_space/a_b')
+    expect_identical(fig_path(, list(fig.path = '../', label = 'c.d')), '../c_d')
+    expect_identical(fig_path(, list(fig.path = './../', label = 'c..d')), './../c__d')
+  })
   opts_knit$set(out.format = NULL)
 })
 
 test_that('base64_encode() gets the same result as markdown:::.b64EncodeFile', {
   f = file.path(R.home('doc'), "html", "logo.jpg")
-  expect_identical(markdown:::.b64EncodeFile(f), image_uri(f))
+  if (require('markdown')) expect_identical(markdown:::.b64EncodeFile(f), image_uri(f))
 })
 
 test_that('escape special LaTeX characters', {

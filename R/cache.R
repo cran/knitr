@@ -89,9 +89,11 @@ new_cache = function() {
 # analyze code and find out global variables
 find_globals = function(code) {
   fun = eval(parse(text = str_c(c('function(){', code, '}'), collapse='\n')))
-  setdiff(codetools::findGlobals(fun),
-          c('{', '[', ':', '<-', '=', '+', '-', '*', '/', '%%', '%/%', '%*%', '%*%', '%o%', '%in%'))
+  setdiff(codetools::findGlobals(fun), known_globals)
 }
+known_globals = c(
+  '{', '[', '(', ':', '<-', '=', '+', '-', '*', '/', '%%', '%/%', '%*%', '%o%', '%in%'
+)
 
 cache = new_cache()
 
@@ -118,6 +120,8 @@ cache = new_cache()
 #' @seealso \code{\link{dep_prev}}
 #' @references \url{http://yihui.name/knitr/demo/cache/}
 dep_auto = function(path = opts_chunk$get('cache.path')) {
+  # this function should be evaluated in the original working directory
+  owd = setwd(opts_knit$get('output.dir')); on.exit(setwd(owd))
   paths = valid_path(path, c('__objects', '__globals'))
   locals = parse_objects(paths[1L]); globals = parse_objects(paths[2L])
   if (is.null(locals) || is.null(globals)) return(invisible(NULL))

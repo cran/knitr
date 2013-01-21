@@ -13,8 +13,7 @@ call_block = function(block) {
   af = opts_knit$get('eval.after'); al = opts_knit$get('aliases')
   if (!is.null(al) && !is.null(af)) af = c(af, names(al[af %in% al]))
   params = opts_chunk$merge(block$params)
-  for (o in setdiff(names(params), af))
-    params[o] = list(eval_lang(params[[o]]))
+  for (o in setdiff(names(params), af)) params[o] = list(eval_lang(params[[o]]))
 
   params = fix_options(params)  # for compatibility
 
@@ -26,7 +25,8 @@ call_block = function(block) {
   params$code = unlist(knit_code$get(ref.label), use.names = FALSE)
   if (opts_knit$get('progress')) print(block)
 
-  if (params$eval && !is.null(params$child)) {
+  if (!is.null(params$child)) {
+    if (!params$eval) return('')
     if (concord_mode()) {
       concord_gen()  # generate a partial concordance before knit children
       i = knit_concord$get('i'); olines = knit_concord$get('outlines')
@@ -39,12 +39,6 @@ call_block = function(block) {
                        in.next = i + 1L)
     }
     return(out)
-  }
-
-  if ((!params$eval && isFALSE(params$echo)) || length(params$code) == 0 ||
-    all(is_blank(params$code))) {
-    message('chunk "', label, '" is empty or set not to be evaluated')
-    return('') # a trivial chunk; do nothing
   }
 
   params$code = parse_chunk(params$code) # parse sub-chunk references
@@ -61,10 +55,9 @@ call_block = function(block) {
       return(cache$output(hash))
     }
     cache$library(params$cache.path, save = FALSE) # load packages
-  } else if (label %in% names(dep_list$get())) {
+  } else if (label %in% names(dep_list$get()))
     warning('code chunks must not depend on the uncached chunk "', label, '"',
             call. = FALSE)
-  }
 
   params$params.src = block$params.src
   opts_current$restore(params)  # save current options
@@ -72,8 +65,7 @@ call_block = function(block) {
   block_exec(params)
 }
 
-block_exec = function(params) {
-  options = params
+block_exec = function(options) {
   # when code is not R language
   if (options$engine != 'R') {
     output = knit_engines$get(options$engine)(options)
@@ -96,16 +88,12 @@ block_exec = function(params) {
 
   code = options$code
   echo = options$echo  # tidy code if echo
-  if (!isFALSE(echo) && options$tidy) {
+  if (!isFALSE(echo) && options$tidy && length(code)) {
     res = try(do.call(
       tidy.source, c(list(text = code, output = FALSE), options$tidy.opts)
     ), silent = TRUE)
     if (!inherits(res, 'try-error')) {
-      code = res$text.tidy
-      enc = Encoding(code)
-      idx = enc != 'unknown'
-      # convert non-native enc
-      if (any(idx)) code[idx] = iconv(code[idx], enc[idx][1L])
+      code = native_encode(res$text.tidy)
     } else warning('failed to tidy R code in chunk <', options$label, '>\n',
                    'reason: ', res)
   }
@@ -115,17 +103,16 @@ block_exec = function(params) {
     code = comment_out(code, '##', setdiff(iss, iss[ev]), newline = FALSE)
   }
   # guess plot file type if it is NULL
-  if (keep != 'none' && is.null(options$fig.ext)) {
+  if (keep != 'none' && is.null(options$fig.ext))
     options$fig.ext = dev2ext(options$dev)
-  }
 
   # return code with class 'source' if not eval chunks
-  res = if (isFALSE(ev)) {
+  res = if (is_blank(code)) list() else if (isFALSE(ev)) {
     list(structure(list(src = code), class = 'source'))
   } else in_dir(
     opts_knit$get('root.dir') %n% input_dir(),
     evaluate(code, envir = env, new_device = FALSE,
-             stop_on_error = opts_knit$get('stop_on_error'))
+             stop_on_error = if (options$include) opts_knit$get('stop_on_error') else 2L)
   )
 
   # eval other options after the chunk
@@ -136,17 +123,17 @@ block_exec = function(params) {
     res = Filter(Negate(is.source), res)
   } else if (is.numeric(echo)) {
     # choose expressions to echo using a numeric vector
-    iss = which(sapply(res, is.source))
-    if (length(idx <- setdiff(iss, iss[echo]))) res = res[-idx]
+    if (isFALSE(ev)) {
+      res = list(structure(list(src = code[echo]), class = 'source'))
+    } else {
+      iss = which(sapply(res, is.source))
+      if (length(idx <- setdiff(iss, iss[echo]))) res = res[-idx]
+    }
   }
-  if (options$results == 'hide')
-    res = Filter(Negate(is.character), res)
-  if (!options$warning)
-    res = Filter(Negate(is.warning), res)
-  if (!options$error)
-    res = Filter(Negate(is.error), res)
-  if (!options$message)
-    res = Filter(Negate(is.message), res)
+  if (options$results == 'hide') res = Filter(Negate(is.character), res)
+  if (!options$warning) res = Filter(Negate(is.warning), res)
+  if (!options$error) res = Filter(Negate(is.error), res)
+  if (!options$message) res = Filter(Negate(is.message), res)
 
   # rearrange locations of figures
   figs = sapply(res, is.recordedplot)
@@ -168,9 +155,8 @@ block_exec = function(params) {
     }
   }
   # number of plots in this chunk
-  if (is.null(options$fig.num)) {
+  if (is.null(options$fig.num))
     options$fig.num = if (length(res)) sum(sapply(res, is.recordedplot)) else 0L
-  }
 
   # merge source lines if they do not have output; is there an elegant way??
   iss = if (length(res)) which(sapply(res, is.source)) else NULL
@@ -190,13 +176,13 @@ block_exec = function(params) {
   if (options$fig.show != 'animate' && options$fig.num > 1) {
     options = recycle_plot_opts(options)
   }
-  output = str_c(unlist(wrap(res, options)), collapse = '') # wrap all results together
+  output = unlist(wrap(res, options)) # wrap all results together
 
   res.after = run_hooks(before = FALSE, options, env) # run 'after' hooks
   if (options$cache) copy_env(env, knit_global())
 
   output = str_c(c(res.before, output, res.after), collapse = '')  # insert hook results
-  output = if (length(output) == 0L) '' else knit_hooks$get('chunk')(output, options)
+  output = if (is_blank(output)) '' else knit_hooks$get('chunk')(output, options)
 
   if (options$cache) {
     obj.after = ls(globalenv(), all.names = TRUE)  # figure out new global objs
@@ -237,33 +223,34 @@ chunk_device = function(width, height, record = TRUE) {
 }
 
 call_inline = function(block) {
-
-  # change global options if detected inline options
-  options = block$params = lapply(block$params, eval_lang)  # try eval global options
-  if (length(options)) opts_chunk$set(options)
   if (opts_knit$get('progress')) print(block)
-
-  inline_exec(block)
+  in_dir(opts_knit$get('root.dir') %n% input_dir(), inline_exec(block))
 }
 
-inline_exec = function(block) {
+inline_exec = function(block, eval = opts_chunk$get('eval'), envir = knit_global(),
+                       stop_on_error = opts_knit$get('stop_on_error'),
+                       hook = knit_hooks$get('inline')) {
 
   # run inline code and substitute original texts
   code = block$code; input = block$input
   if ((n <- length(code)) == 0) return(input) # untouched if no code is found
 
-  owd = setwd(input_dir()); on.exit(setwd(owd))
   loc = block$location
   for (i in 1:n) {
-    res = if (opts_chunk$get('eval')) {
-      try(eval(parse(text = code[i]), envir = knit_global()))
+    res = if (eval) {
+      (if (stop_on_error == 2L) identity else try)(
+        {
+          v = withVisible(eval(parse(text = code[i], srcfile = NULL), envir = envir))
+          if (v$visible) v$value
+        }
+      )
     } else '??'
     d = nchar(input)
     # replace with evaluated results
     str_sub(input, loc[i, 1], loc[i, 2]) = if (length(res)) {
       if (inherits(res, 'try-error')) {
         knit_hooks$get('error')(str_c('\n', res, '\n'), opts_chunk$get())
-      } else knit_hooks$get('inline')(res)
+      } else hook(res)
     } else ''
     if (i < n) loc[(i + 1):n, ] = loc[(i + 1):n, ] - (d - nchar(input))
     # may need to move back and forth because replacement may be longer or shorter
@@ -278,23 +265,25 @@ process_tangle = function(x) {
 }
 process_tangle.block = function(x) {
   params = opts_chunk$merge(x$params)
-  label = params$label
-  code = if (!isFALSE(params$eval) && !is.null(params$child)) {
+  label = params$label; ev = params$eval
+  code = if (!isFALSE(ev) && !is.null(params$child)) {
     cmds = lapply(sc_split(params$child), knit_child)
     str_c(unlist(cmds), collapse = '\n')
   } else knit_code$get(label)
   # read external code if exists
-  if (!isFALSE(params$eval) && length(code) && str_detect(code, 'read_chunk\\(.+\\)')) {
+  if (!isFALSE(ev) && length(code) && str_detect(code, 'read_chunk\\(.+\\)')) {
     eval(parse(text = unlist(str_extract_all(code, 'read_chunk\\(([^)]+)\\)'))))
   }
-  label_code(parse_chunk(code), x$params.src)
+  code = parse_chunk(code)
+  if (isFALSE(ev)) code = comment_out(code, params$comment, newline = FALSE)
+  label_code(code, x$params.src)
 }
 process_tangle.inline = function(x) {
   if (opts_knit$get('documentation') == 2L) {
     return(str_c(line_prompt(x$input.src, "#' ", "#' "), collapse = '\n'))
   }
   code = x$code
-  if ((n <- length(code)) == 0 || !any(idx <- str_detect(code, "knit_child\\(.+\\)")))
+  if (length(code) == 0L || !any(idx <- str_detect(code, "knit_child\\(.+\\)")))
     return('')
   str_c(str_c(sapply(code[idx], function(z) eval(parse(text = z))),
               collapse = '\n'), '\n')

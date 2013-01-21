@@ -47,8 +47,10 @@ engine_output = function(options, code, out, extra = NULL) {
 
 eng_interpreted = function(options) {
   code = str_c(options$code, collapse = '\n')
-  code_option = switch(options$engine, bash = '-c', haskell = '-e', perl = '-e',
-                       python = '-c', ruby = '-e', sh = '-c', zsh = '-c', '')
+  code_option = switch(
+    options$engine, bash = '-c', coffee = '-p -e', haskell = '-e', perl = '-e',
+    python = '-c', ruby = '-e', sh = '-c', zsh = '-c', ''
+  )
   cmd = paste(shQuote(options$engine.path %n% options$engine),
               code_option, shQuote(code), options$engine.opts)
   out = if (options$eval) system(cmd, intern = TRUE) else ''
@@ -151,6 +153,17 @@ eng_sas = function(options) {
   engine_output(options, options$code, out)
 }
 
+## CoffeeScript
+eng_coffee = function(options) {
+  f = basename(tempfile('coffee', '.', '.coffee'))
+  writeLines(options$code, f)
+  on.exit(unlink(f))
+  cmd = sprintf('%s -p %s %s', shQuote(options$engine.path %n% options$engine),
+                options$engine.opts %n% '', shQuote(f))
+  out = if (options$eval) system(cmd, intern = TRUE) else ''
+  engine_output(options, options$code, out)
+}
+
 # set engines for interpreted languages
 for (i in c('awk', 'bash', 'gawk', 'haskell', 'perl', 'python', 'ruby', 'sed', 'sh', 'zsh')) {
   knit_engines$set(setNames(list(eng_interpreted), i))
@@ -158,7 +171,7 @@ for (i in c('awk', 'bash', 'gawk', 'haskell', 'perl', 'python', 'ruby', 'sed', '
 # additional engines
 knit_engines$set(
   highlight = eng_highlight, Rcpp = eng_Rcpp, sas = eng_sas,
-  tikz = eng_tikz, dot = eng_dot
+  tikz = eng_tikz, dot = eng_dot, coffee = eng_coffee
 )
 
 # possible values for engines (for auto-completion in RStudio)
