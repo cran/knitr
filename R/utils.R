@@ -76,12 +76,10 @@ sc_split = function(string) {
 }
 
 ## extract LaTeX packages for tikzDevice
-set_preamble = function(input) {
+set_preamble = function(input, patterns = knit_patterns$get()) {
   if (!out_format('latex')) return()
-  db = knit_patterns$get('document.begin')
-  if (length(db) != 1L) return()  # no \begin{document} pattern
-  hb = knit_patterns$get('header.begin')
-  if (length(hb) != 1L) return()  # no \documentclass{} pattern
+  if (length(db <- patterns$document.begin) != 1L) return()  # no \begin{document} pattern
+  if (length(hb <- patterns$header.begin) != 1L) return()  # no \documentclass{} pattern
   idx2 = str_detect(input, db)
   if (!any(idx2)) return()
   if ((idx2 <- which(idx2)[1]) < 2L) return()
@@ -89,17 +87,19 @@ set_preamble = function(input) {
   idx = str_locate(txt, hb)  # locate documentclass
   if (any(is.na(idx))) return()
   options(tikzDocumentDeclaration = str_sub(txt, idx[, 1L], idx[, 2L]))
-  preamble = pure_preamble(split_lines(str_sub(txt, idx[, 2L] + 1L)))
+  preamble = pure_preamble(split_lines(str_sub(txt, idx[, 2L] + 1L)), patterns)
   .knitEnv$tikzPackages = c(.header.sweave.cmd, preamble, '\n')
 }
 ## filter out code chunks from preamble if they exist (they do in LyX/Sweave)
-pure_preamble = function(preamble) {
-  res = split_file(lines = preamble, set.preamble = FALSE) # should avoid recursion
+pure_preamble = function(preamble, patterns) {
+  res = split_file(lines = preamble, set.preamble = FALSE, patterns) # should avoid recursion
   if (!parent_mode()) {
     ## when not in parent mode, just return normal texts and skip code
     return(unlist(res))
   }
   owd = setwd(input_dir()); on.exit(setwd(owd))
+  progress = opts_knit$get('progress')  # suppress printing of blocks and texts
+  opts_knit$set(progress = FALSE); on.exit(opts_knit$set(progress = progress), add = TRUE)
   ## run the code in the preamble
   sapply(res, if (opts_knit$get('tangle')) process_tangle else process_group)
 }
@@ -133,7 +133,7 @@ pure_preamble = function(preamble) {
 #'
 #' # @@
 set_parent = function(parent) {
-  if (child_mode()) return() # quit if in child mode
+  if (child_mode()) return(invisible(NULL)) # quit if in child mode
   opts_knit$set(parent = TRUE)
   set_preamble(readLines(parent, warn = FALSE))
   invisible(NULL)
@@ -305,29 +305,6 @@ knit_env = function() {
   .knitEnv$knit_env
 }
 
-#' Run the code in a specified chunk
-#'
-#' We can specify a chunk label and use this function to evaluate the code in
-#' this chunk. It is an alternative to the chunk reference in Sweave.
-#'
-#' The difference between this type of chunk reference and the chunk option
-#' \code{ref.label} is that the latter can only be used for a chunk so that it
-#' has exactly the same code as the reference chunk, whereas this function makes
-#' it possible to collect several little chunks and run them inside another big
-#' chunk.
-#' @param label the chunk label
-#' @param envir the environment in which to evaluate the code
-#' @return Values returned by the code in the chunk.
-#' @note Recursion (must be finite, of course) of reference is allowed, e.g. we
-#'   may run the code of \samp{chunk2} in \samp{chunk1}, and \samp{chunk2} also
-#'   contains a reference to \samp{chunk3}, then if we run \samp{chunk1}, both
-#'   the code in \samp{chunk2} and \samp{chunk3} will be evaluated.
-#' @export
-#' @examples # see http://yihui.name/knitr/demo/reference/
-run_chunk = function(label, envir = parent.frame()) {
-  eval(parse(text = knit_code$get(label)), envir = envir)
-}
-
 # Indents a Block
 #  Input
 #     "library(ggplot2)\nqplot(wt, mpg, data = mtcars)"
@@ -375,7 +352,9 @@ all_figs = function(options, ext = options$fig.ext, num = options$fig.num) {
 
 # evaluate an expression in a diretory and restore wd after that
 in_dir = function(dir, expr) {
-  owd = setwd(dir); on.exit(setwd(owd))
+  if (!is.null(dir)) {
+    owd = setwd(dir); on.exit(setwd(owd))
+  }
   expr
 }
 

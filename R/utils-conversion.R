@@ -41,8 +41,8 @@ rst2pdf = function(input, command = 'rst2pdf', options = '') {
 #' ## compile a reST file with rst2pdf
 #'
 #' ## knit2pdf(..., compiler = 'rst2pdf')
-knit2pdf = function(input, output = NULL, compiler = NULL, ..., envir = parent.frame()) {
-  out = knit(input, output, envir = envir)
+knit2pdf = function(input, output = NULL, compiler = NULL, encoding = getOption('encoding'), ...) {
+  out = knit(input, output, envir = parent.frame(), encoding = encoding)
   owd = setwd(dirname(out)); on.exit(setwd(owd))
   if (!is.null(compiler)) {
     if (compiler == 'rst2pdf') {
@@ -74,14 +74,53 @@ knit2pdf = function(input, output = NULL, compiler = NULL, ..., envir = parent.f
 #' writeLines(c("# hello markdown", '```{r hello-random, echo=TRUE}', 'rnorm(5)', '```'), 'test.Rmd')
 #' if (require('markdown')) {knit2html('test.Rmd')
 #' if (interactive()) browseURL('test.html')}
-knit2html = function(input, ..., text = NULL, envir = parent.frame()){
-  if (!has_package('markdown'))
-    return(warning('the package markdown is not available'))
+knit2html = function(input, ..., text = NULL, encoding = getOption('encoding')){
   if (is.null(text)) {
-    out = knit(input, envir = envir)
+    out = knit(input, envir = parent.frame(), encoding = encoding)
     markdown::markdownToHTML(out, str_c(file_path_sans_ext(out), '.html'), ...)
   } else {
-    out = knit(text = text, envir = envir)
+    out = knit(text = text, envir = parent.frame(), encoding = encoding)
     markdown::markdownToHTML(text = out, ...)
   }
+}
+
+#' Knit an R Markdown document and post it to WordPress
+#'
+#' This function is a wrapper around the \pkg{RWordPress} package. It compiles
+#' an R Markdown document to HTML and post the results to WordPress.
+#' @param input the filename of the Rmd document
+#' @param title the post title
+#' @param ... other meta information of the post, e.g. \code{categories = c('R',
+#'   'Stats')} and \code{mt_keywords = c('knitr', 'wordpress')}, etc
+#' @param shortcode whether to use the shortcode \samp{[sourcecode lang='lang']}
+#'   which can be useful to WordPress.com users for syntax highlighting of
+#'   source code
+#' @inheritParams knit
+#' @export
+#' @references \url{http://yihui.name/knitr/demo/wordpress/}
+#' @author William K. Morris and Yihui Xie
+#' @note This function will convert the encoding of the post and the title to
+#'   UTF-8 internally. If you have additional data to send to WordPress (e.g.
+#'   keywords and categories), you may have to manually convert them to the
+#'   UTF-8 encoding with the \code{\link{iconv}(x, to = 'UTF-8')} function
+#'   (especially when using Windows).
+#' @examples # see the reference
+knit2wp = function(input, title = 'A post from knitr', ..., shortcode = FALSE,
+                   encoding = getOption('encoding')) {
+  out = knit(input, encoding = encoding); on.exit(unlink(out))
+  con = file(out, encoding = encoding); on.exit(close(con), add = TRUE)
+  content = native_encode(readLines(con, warn = FALSE))
+  content = paste(content, collapse = '\n')
+  content = markdown::markdownToHTML(text = content, fragment.only = TRUE)
+  if (shortcode) {
+    content = gsub('<pre><code class="([[:alpha:]]+)">', '[sourcecode language="\\1"]', content)
+    content = gsub('<pre><code( class="no-highlight"|)>', '[sourcecode]', content)
+    content = gsub('</code></pre>', '[/sourcecode]', content)
+  }
+  content = native_encode(content, 'UTF-8')
+  title = native_encode(title, 'UTF-8')
+  do.call('library', list(package = 'RWordPress', character.only = TRUE))
+  getFromNamespace('newPost', 'RWordPress')(list(
+    description = content, title = title, ...
+  ))
 }

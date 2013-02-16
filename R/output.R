@@ -120,25 +120,25 @@ knit = function(input, output = NULL, tangle = FALSE, text = NULL,
     knit_log$restore()
     on.exit(chunk_counter(reset = TRUE), add = TRUE) # restore counter
     ## turn off fancy quotes, use smaller digits/width, warn immediately
-    oopts = options(useFancyQuotes = FALSE, digits = 4L, width = 75L, warn = 1L,
-                  device = function(file = NULL, width = 7, height = 7, ...) {
-                    pdf(file, width, height, ...)
-                  })
+    oopts = options(
+      useFancyQuotes = FALSE, digits = 4L, warn = 1L, width = getOption('KNITR_WIDTH', 75L),
+      device = function(width = 7, height = 7, ...) pdf(NULL, width, height, ...)
+    )
     on.exit(options(oopts), add = TRUE)
     # restore chunk options after parent exits
     optc = opts_chunk$get(); on.exit(opts_chunk$restore(optc), add = TRUE)
     ocode = knit_code$get(); on.exit(knit_code$restore(ocode), add = TRUE)
     if (tangle) knit_code$restore() # clean up code before tangling
     optk = opts_knit$get(); on.exit(opts_knit$set(optk), add = TRUE)
-    opts_knit$set(tangle = tangle)
+    opts_knit$set(tangle = tangle, encoding = encoding)
   }
 
   ext = 'unknown'
   if (in.file) {
     input.dir = .knitEnv$input.dir; on.exit({.knitEnv$input.dir = input.dir}, add = TRUE)
     .knitEnv$input.dir = dirname(input) # record input dir
-    if (is.null(output)) output = basename(auto_out_name(input))
     ext = tolower(file_ext(input))
+    if (is.null(output)) output = basename(auto_out_name(input, ext))
     options(tikzMetricsDictionary = tikz_dict(input)) # cache tikz dictionary
     knit_concord$set(infile = input)
   }
@@ -268,10 +268,9 @@ process_file = function(text, output) {
   res
 }
 
-auto_out_name = function(input) {
+auto_out_name = function(input, ext = tolower(file_ext(input))) {
   base = file_path_sans_ext(input)
   if (opts_knit$get('tangle')) return(str_c(base, '.R'))
-  ext = tolower(file_ext(input))
   if (ext %in% c('rnw', 'snw')) return(str_c(base, '.tex'))
   if (ext %in% c('rmd', 'rmarkdown', 'rhtml', 'rhtm', 'rtex', 'stex', 'rrst'))
     return(str_c(base, '.', substring(ext, 2L)))
@@ -340,7 +339,8 @@ knit_child = function(..., eval = TRUE) {
   child = child_mode()
   opts_knit$set(child = TRUE) # yes, in child mode now
   on.exit(opts_knit$set(child = child)) # restore child status
-  path = knit(..., tangle = opts_knit$get('tangle'))
+  path = knit(..., tangle = opts_knit$get('tangle'),
+              encoding = opts_knit$get('encoding') %n% getOption('encoding'))
   if (is.null(path)) return() # the input document is empty
   if (opts_knit$get('tangle')) {
     str_c('\n', 'source("', path, '")')
@@ -411,9 +411,6 @@ wrap.error = function(x, options) {
 }
 
 wrap.recordedplot = function(x, options) {
-  if (!is.null(base.dir <- opts_knit$get('base.dir'))) {
-    odir = setwd(base.dir); on.exit(setwd(odir)) # switch to abs dir, then restore
-  }
   ## figure number sequence for multiple plots
   fig.cur = plot_counter()
   options$fig.cur = fig.cur # put fig num in options
