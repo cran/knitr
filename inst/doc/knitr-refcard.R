@@ -1,0 +1,5 @@
+
+## @knitr echo=FALSE
+x=paste('\\Sexpr', '{', 'z}', sep = '')
+
+

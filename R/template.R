@@ -32,15 +32,15 @@
 #' stitch(s, system.file('misc', 'knitr-template.Rmd', package = 'knitr'))
 stitch = function(script,
                   template = system.file('misc', 'knitr-template.Rnw', package = 'knitr'),
-                  output = NULL, envir = parent.frame()) {
-  lines = readLines(script, warn = FALSE)
+                  output = NULL, text = NULL, envir = parent.frame()) {
+  lines = if (nosrc <- is.null(text)) readLines(script, warn = FALSE) else split_lines(text)
   ## extract title and author from first two lines
   if (comment_to_var(lines[1L], '.knitr.title', '^#+ *title:', envir)) lines = lines[-1L]
   if (comment_to_var(lines[1L], '.knitr.author', '^#+ *author:', envir)) lines = lines[-1L]
   read_chunk(lines = lines)
   if (length(knit_code$get()) == 0L) knit_code$set(`auto-report` = lines)
   input = basename(template)
-  input = str_c(file_path_sans_ext(basename(script)), '.', file_ext(input))
+  input = sub_ext(basename(if (nosrc) script else tempfile()), file_ext(input))
   txt = readLines(template, warn = FALSE)
   i = grep('%sCHUNK_LABEL_HERE', txt)
   if (length(i) != 1L) stop('Wrong template for stitch: ', template)
@@ -49,8 +49,7 @@ stitch = function(script,
                  sep = '\n', collapse = '\n')
   knit_code$restore()
   opts_chunk$set(
-    fig.align = 'center', out.width = '.6\\linewidth', par = TRUE,
-    fig.width = 6, fig.height = 6,
+    fig.align = 'center', par = TRUE, fig.width = 6, fig.height = 6,
     fig.path = paste('figure', gsub('[^[:alnum:]]', '-', input), sep = '/')
   )
   on.exit(opts_chunk$restore(), add = TRUE)
@@ -65,7 +64,7 @@ stitch = function(script,
     texi2pdf(out, clean = TRUE)
     message('PDF output at: ', str_replace(out, '\\.tex$', '.pdf'))
   }, md = {
-    out.html = str_c(file_path_sans_ext(out), '.html')
+    out.html = sub_ext(out, 'html')
     markdown::markdownToHTML(out, out.html)
     message('HTML output at: ', out.html)
   })

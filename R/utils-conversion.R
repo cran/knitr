@@ -6,13 +6,17 @@
 #' @param command a character string which gives the path of the
 #'   \command{rst2pdf} program (if it is not in PATH, the full path has to be
 #'   given)
-#' @param options extra command line options, e.g. \code{'-o foo.pdf -v'}
-#' @author Alex Zvoleff
+#' @param options extra command line options, e.g. \code{'-v'}
+#' @author Alex Zvoleff and Yihui Xie
+#' @return An input file \file{*.rst} will produce \file{*.pdf} and this output
+#'   filename is returned if the conversion was successful.
 #' @export
 #' @seealso \code{\link{knit2pdf}}
 #' @references \url{http://rst2pdf.ralsina.com.ar/}
 rst2pdf = function(input, command = 'rst2pdf', options = '') {
-  system2(command, paste(input, options))
+  out = sub_ext(input, 'pdf')
+  system2(command, paste(shQuote(input), '-o', shQuote(out), options))
+  if (file.exists(out)) out else stop('conversion by rst2pdf failed!')
 }
 
 #' Convert Rnw or Rrst files to PDF using knit() and texi2pdf() or rst2pdf()
@@ -20,6 +24,8 @@ rst2pdf = function(input, command = 'rst2pdf', options = '') {
 #' Knit the input Rnw or Rrst document, and compile to PDF using \code{texi2pdf}
 #' or \code{rst2pdf}.
 #' @inheritParams knit
+#' @param output the output filename to be passed to the PDF compiler (e.g. a
+#'   tex document)
 #' @param compiler a character string which gives the LaTeX program used to
 #'   compile the tex document to PDF (by default it uses the default setting of
 #'   \code{\link[tools]{texi2pdf}}, which is often PDFLaTeX); this argument will
@@ -30,24 +36,25 @@ rst2pdf = function(input, command = 'rst2pdf', options = '') {
 #' @param ... options to be passed to \code{\link[tools]{texi2pdf}} or
 #'   \code{\link{rst2pdf}}
 #' @author Ramnath Vaidyanathan, Alex Zvoleff and Yihui Xie
+#' @return The filename of the PDF file.
 #' @export
 #' @importFrom tools texi2pdf
 #' @seealso \code{\link{knit}}, \code{\link[tools]{texi2pdf}},
 #'   \code{\link{rst2pdf}}
-#' @examples ## compile with xelatex
-#'
+#' @examples #' compile with xelatex
 #' ## knit2pdf(..., compiler = 'xelatex')
 #'
-#' ## compile a reST file with rst2pdf
-#'
+#' #' compile a reST file with rst2pdf
 #' ## knit2pdf(..., compiler = 'rst2pdf')
-knit2pdf = function(input, output = NULL, compiler = NULL, encoding = getOption('encoding'), ...) {
-  out = knit(input, output, envir = parent.frame(), encoding = encoding)
+knit2pdf = function(input, output = NULL, compiler = NULL, envir = parent.frame(),
+                    encoding = getOption('encoding'), ...) {
+  out = knit(input, output = output, envir = envir, encoding = encoding)
   owd = setwd(dirname(out)); on.exit(setwd(owd))
   if (!is.null(compiler)) {
     if (compiler == 'rst2pdf') {
       if (tolower(file_ext(out)) != 'rst') stop('for rst2pdf compiler input must be a .rst file')
-      return(rst2pdf(basename(out), ...))
+      rst2pdf(basename(out), ...)
+      return(sub_ext(out, 'pdf'))
     } else {
       # use the specified PDFLATEX command
       oc = Sys.getenv('PDFLATEX')
@@ -56,6 +63,7 @@ knit2pdf = function(input, output = NULL, compiler = NULL, encoding = getOption(
     }
   }
   texi2pdf(basename(out), ...)
+  sub_ext(out, 'pdf')
 }
 
 #' Convert markdown to HTML using knit() and markdownToHTML()
@@ -68,18 +76,20 @@ knit2pdf = function(input, output = NULL, compiler = NULL, encoding = getOption(
 #' @export
 #' @seealso \code{\link{knit}}, \code{\link[markdown]{markdownToHTML}}
 #' @return If the argument \code{text} is NULL, a character string (HTML code)
-#'   is returned; otherwise the result is written into a file and \code{NULL} is
-#'   returned.
+#'   is returned; otherwise the result is written into a file and the filename
+#'   is returned.
 #' @examples # a minimal example
 #' writeLines(c("# hello markdown", '```{r hello-random, echo=TRUE}', 'rnorm(5)', '```'), 'test.Rmd')
 #' if (require('markdown')) {knit2html('test.Rmd')
 #' if (interactive()) browseURL('test.html')}
-knit2html = function(input, ..., text = NULL, encoding = getOption('encoding')){
+knit2html = function(input, ..., envir = parent.frame(), text = NULL, quiet = FALSE,
+                     encoding = getOption('encoding')){
   if (is.null(text)) {
-    out = knit(input, envir = parent.frame(), encoding = encoding)
-    markdown::markdownToHTML(out, str_c(file_path_sans_ext(out), '.html'), ...)
+    out = knit(input, envir = envir, encoding = encoding, quiet = quiet)
+    markdown::markdownToHTML(out, outfile <- sub_ext(out, 'html'), ...)
+    invisible(outfile)
   } else {
-    out = knit(text = text, envir = parent.frame(), encoding = encoding)
+    out = knit(text = text, envir = envir, encoding = encoding, quiet = quiet)
     markdown::markdownToHTML(text = out, ...)
   }
 }
@@ -95,6 +105,7 @@ knit2html = function(input, ..., text = NULL, encoding = getOption('encoding')){
 #' @param shortcode whether to use the shortcode \samp{[sourcecode lang='lang']}
 #'   which can be useful to WordPress.com users for syntax highlighting of
 #'   source code
+#' @param publish whether to publish the post immediately
 #' @inheritParams knit
 #' @export
 #' @references \url{http://yihui.name/knitr/demo/wordpress/}
@@ -106,7 +117,7 @@ knit2html = function(input, ..., text = NULL, encoding = getOption('encoding')){
 #'   (especially when using Windows).
 #' @examples # see the reference
 knit2wp = function(input, title = 'A post from knitr', ..., shortcode = FALSE,
-                   encoding = getOption('encoding')) {
+                   encoding = getOption('encoding'), publish = TRUE) {
   out = knit(input, encoding = encoding); on.exit(unlink(out))
   con = file(out, encoding = encoding); on.exit(close(con), add = TRUE)
   content = native_encode(readLines(con, warn = FALSE))
@@ -122,5 +133,5 @@ knit2wp = function(input, title = 'A post from knitr', ..., shortcode = FALSE,
   do.call('library', list(package = 'RWordPress', character.only = TRUE))
   getFromNamespace('newPost', 'RWordPress')(list(
     description = content, title = title, ...
-  ))
+  ), publish = publish)
 }

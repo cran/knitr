@@ -32,6 +32,7 @@ engine_output = function(options, code, out, extra = NULL) {
   if (length(out) != 1L) out = str_c(out, collapse = '\n')
   code = str_replace(code, '([^\n]+)$', '\\1\n')
   out = str_replace(out, '([^\n]+)$', '\\1\n')
+  if (options$engine == 'Rscript') options$engine = 'r'
   txt = paste(c(
     if (options$echo) knit_hooks$get('source')(code, options),
     if (options$results != 'hide' && !is_blank(out)) {
@@ -46,15 +47,25 @@ engine_output = function(options, code, out, extra = NULL) {
 ## TODO: how to emulate the console?? e.g. for Python
 
 eng_interpreted = function(options) {
-  code = str_c(options$code, collapse = '\n')
-  code_option = switch(
-    options$engine, bash = '-c', coffee = '-p -e', haskell = '-e', perl = '-e',
-    python = '-c', ruby = '-e', sh = '-c', zsh = '-c', ''
-  )
-  cmd = paste(shQuote(options$engine.path %n% options$engine),
-              code_option, shQuote(code), options$engine.opts)
+  code = if (options$engine %in% c('highlight', 'Rscript', 'sas')) {
+    f = basename(tempfile(options$engine, '.', '.txt'))
+    writeLines(options$code, f)
+    on.exit(unlink(f))
+    f
+  } else if (options$engine %in% c('haskell')) {
+    # need multiple -e because the engine does not accept \n in code
+    paste('-e', shQuote(options$code), collapse = ' ')
+  } else paste(switch(
+    options$engine, bash = '-c', coffee = '-p -e', perl = '-e', python = '-c',
+    ruby = '-e', sh = '-c', zsh = '-c', NULL
+  ), shQuote(str_c(options$code, collapse = '\n')))
+  # FIXME: for these engines, the correct order is options + code + file
+  code = if (options$engine %in% c('awk', 'gawk', 'sed'))
+    paste(code, options$engine.opts) else paste(options$engine.opts, code)
+  cmd = paste(shQuote(options$engine.path %n% options$engine), code)
+  message('running: ', cmd)
   out = if (options$eval) system(cmd, intern = TRUE) else ''
-  engine_output(options, code, out)
+  engine_output(options, options$code, out)
 }
 ## C
 
@@ -127,50 +138,21 @@ eng_dot = function(options){
 
 ## Andre Simon's highlight
 eng_highlight = function(options) {
-  f = tempfile()
-  writeLines(code <- options$code, f)
-  on.exit(unlink(f))
   # e.g. engine.opts can be '-S matlab -O latex'
-  if (!is.null(options$highlight.opts)) {
-    warning("chunk option 'highlight.opts' has been deprecated; use 'engine.opts' instead")
-    options$engine.opts = options$highlight.opts
-  }
-  cmd = sprintf('%s -f %s %s', shQuote(options$engine.path %n% options$engine),
-                options$engine.opts %n% '-S text', shQuote(f))
-  out = if (options$eval) system(cmd, intern = TRUE) else ''
+  if (is.null(options$engine.opts)) options$engine.opts = '-S text'
+  options$engine.opts[1L] = paste('-f', options$engine.opts[1L])
   options$echo = FALSE; options$results = 'asis'  # do not echo source code
-  engine_output(options, '', out)
-}
-
-## SAS (I really do not understand SAS; this engine only runs SAS code)
-eng_sas = function(options) {
-  # SAS wants a physical file
-  writeLines(options$code, f <- basename(tempfile('sas', '.', '.sas')))
-  on.exit(unlink(c(f, sub('\\.sas$', '.log', f))))
-  cmd = paste(shQuote(options$engine.path %n% options$engine), '-SYSIN', f, options$engine.opts)
-  out = if (options$eval) system(cmd, intern = TRUE) else ''
-  engine_output(options, options$code, out)
-}
-
-## CoffeeScript
-eng_coffee = function(options) {
-  f = basename(tempfile('coffee', '.', '.coffee'))
-  writeLines(options$code, f)
-  on.exit(unlink(f))
-  cmd = sprintf('%s -p %s %s', shQuote(options$engine.path %n% options$engine),
-                options$engine.opts %n% '', shQuote(f))
-  out = if (options$eval) system(cmd, intern = TRUE) else ''
-  engine_output(options, options$code, out)
+  eng_interpreted(options)
 }
 
 # set engines for interpreted languages
-for (i in c('awk', 'bash', 'gawk', 'haskell', 'perl', 'python', 'ruby', 'sed', 'sh', 'zsh')) {
+for (i in c('awk', 'bash', 'coffee', 'gawk', 'haskell', 'perl', 'python',
+            'Rscript', 'ruby', 'sas', 'sed', 'sh', 'zsh')) {
   knit_engines$set(setNames(list(eng_interpreted), i))
 }
 # additional engines
 knit_engines$set(
-  highlight = eng_highlight, Rcpp = eng_Rcpp, sas = eng_sas,
-  tikz = eng_tikz, dot = eng_dot, coffee = eng_coffee
+  highlight = eng_highlight, Rcpp = eng_Rcpp, tikz = eng_tikz, dot = eng_dot
 )
 
 # possible values for engines (for auto-completion in RStudio)

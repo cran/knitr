@@ -2,10 +2,13 @@
 \alias{knit2pdf}
 \title{Convert Rnw or Rrst files to PDF using knit() and texi2pdf() or rst2pdf()}
 \usage{
-knit2pdf(input, output = NULL, compiler = NULL, encoding = getOption("encoding"), 
+knit2pdf(input, output = NULL, compiler = NULL, envir = parent.frame(), encoding = getOption("encoding"), 
     ...)
 }
 \arguments{
+  \item{output}{the output filename to be passed to the PDF
+  compiler (e.g. a tex document)}
+
   \item{compiler}{a character string which gives the LaTeX
   program used to compile the tex document to PDF (by
   default it uses the default setting of
@@ -21,24 +24,25 @@ knit2pdf(input, output = NULL, compiler = NULL, encoding = getOption("encoding")
 
   \item{input}{path of the input file}
 
-  \item{output}{path of the output file; if \code{NULL},
-  this function will try to guess and it will be under the
-  current working directory}
+  \item{envir}{the environment in which the code chunks are
+  to be evaluated (can use \code{\link{new.env}()} to
+  guarantee an empty new environment)}
 
   \item{encoding}{the encoding of the input file; see
   \code{\link{file}}}
+}
+\value{
+  The filename of the PDF file.
 }
 \description{
   Knit the input Rnw or Rrst document, and compile to PDF
   using \code{texi2pdf} or \code{rst2pdf}.
 }
 \examples{
-## compile with xelatex
-
+#' compile with xelatex
 ## knit2pdf(..., compiler = 'xelatex')
 
-## compile a reST file with rst2pdf
-
+#' compile a reST file with rst2pdf
 ## knit2pdf(..., compiler = 'rst2pdf')
 }
 \author{

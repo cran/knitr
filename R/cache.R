@@ -63,11 +63,11 @@ new_cache = function() {
     path = valid_path(path, '__packages')
     if (save) {
       x = .packages()
-      if (file.exists(path)) x = unique(c(x, readLines(path)))
-      cat(x, file = path, sep = '\n')
+      if (file.exists(path)) x = setdiff(c(x, readLines(path)), .base.pkgs)
+      writeLines(sort(x), path)
     } else {
       if (!file.exists(path)) return()
-      for (p in setdiff(readLines(path), .base.pkgs))
+      for (p in readLines(path))
         suppressPackageStartupMessages(library(p, character.only = TRUE))
     }
   }
@@ -88,7 +88,7 @@ new_cache = function() {
 }
 # analyze code and find out global variables
 find_globals = function(code) {
-  fun = eval(parse(text = str_c(c('function(){', code, '}'), collapse='\n')))
+  fun = eval(parse_only(c('function(){', code, '}')))
   setdiff(codetools::findGlobals(fun), known_globals)
 }
 known_globals = c(

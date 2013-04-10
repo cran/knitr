@@ -97,9 +97,13 @@ save_plot = function(plot, name, dev, ext, dpi, options) {
     get(dev, mode = 'function')
   )
 
+  dargs = options$dev.args
+  if (is.list(dargs) && length(options$dev) > 1L) {
+    # dev.args is list(dev1 = list(arg1 = val1, ...), dev2 = list(arg2, ...))
+    if (all(options$dev %in% names(dargs))) dargs = dargs[[dev]]
+  }
   ## re-plot the recorded plot to an off-screen device
-  do.call(device, c(list(path, width = options$fig.width, height = options$fig.height),
-                    options$dev.args))
+  do.call(device, c(list(path, width = options$fig.width, height = options$fig.height), dargs))
   print(plot)
   dev.off()
 
@@ -152,6 +156,7 @@ rm_blank_plot = function(res) {
 ## merge low-level plotting changes
 merge_low_plot = function(x, idx = sapply(x, is.recordedplot)) {
   idx = which(idx); n = length(idx); m = NULL # store indices that will be removed
+  if (n <= 1) return(x)
   i1 = idx[1]; i2 = idx[2]  # compare plots sequentially
   for (i in 1:(n - 1)) {
     p1 = x[[i1]]; p2 = x[[i2]]

@@ -2,7 +2,7 @@
 \alias{knit2html}
 \title{Convert markdown to HTML using knit() and markdownToHTML()}
 \usage{
-knit2html(input, ..., text = NULL, encoding = getOption("encoding"))
+knit2html(input, ..., envir = parent.frame(), text = NULL, quiet = FALSE, encoding = getOption("encoding"))
 }
 \arguments{
   \item{...}{options passed to
@@ -10,8 +10,15 @@ knit2html(input, ..., text = NULL, encoding = getOption("encoding"))
 
   \item{input}{path of the input file}
 
+  \item{envir}{the environment in which the code chunks are
+  to be evaluated (can use \code{\link{new.env}()} to
+  guarantee an empty new environment)}
+
   \item{text}{a character vector as an alternative way to
   provide the input file}
+
+  \item{quiet}{whether to suppress the progress bar and
+  messages}
 
   \item{encoding}{the encoding of the input file; see
   \code{\link{file}}}
@@ -19,7 +26,7 @@ knit2html(input, ..., text = NULL, encoding = getOption("encoding"))
 \value{
   If the argument \code{text} is NULL, a character string
   (HTML code) is returned; otherwise the result is written
-  into a file and \code{NULL} is returned.
+  into a file and the filename is returned.
 }
 \description{
   This is a convenience function to knit the input markdown
