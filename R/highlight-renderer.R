@@ -21,6 +21,10 @@ styler_assistant_latex = function(x) {
       start = str_c(start, '\\textit{')
       end = str_c('}', end)
     }
+    if (has('text-decoration', 'underline')) {
+      start = str_c(start, '\\underline{')
+      end = str_c('}', end)
+    }
     sprintf('%s#1%s', start, end)
   })
   sprintf('\\newcommand{\\hl%s}[1]{%s}%%', names(x), styles)
@@ -28,5 +32,5 @@ styler_assistant_latex = function(x) {
 
 col2latexrgb = function(hex) {
   col = col2rgb(hex)[, 1]/255
-  paste(round(col, 3), collapse = ',')
+  paste(col, collapse = ',')
 }

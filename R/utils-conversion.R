@@ -24,6 +24,8 @@ rst2pdf = function(input, command = 'rst2pdf', options = '') {
 #' Knit the input Rnw or Rrst document, and compile to PDF using \code{texi2pdf}
 #' or \code{rst2pdf}.
 #' @inheritParams knit
+#' @param output the output filename to be passed to the PDF compiler (e.g. a
+#'   tex document)
 #' @param compiler a character string which gives the LaTeX program used to
 #'   compile the tex document to PDF (by default it uses the default setting of
 #'   \code{\link[tools]{texi2pdf}}, which is often PDFLaTeX); this argument will
@@ -35,9 +37,8 @@ rst2pdf = function(input, command = 'rst2pdf', options = '') {
 #'   \code{\link{rst2pdf}}
 #' @author Ramnath Vaidyanathan, Alex Zvoleff and Yihui Xie
 #' @return The filename of the PDF file.
-#' @note The \code{output} argument specifies the output filename to be passed
-#'   to the PDF compiler (e.g. a tex document) instead of the PDF filename.
 #' @export
+#' @importFrom tools texi2pdf
 #' @seealso \code{\link{knit}}, \code{\link[tools]{texi2pdf}},
 #'   \code{\link{rst2pdf}}
 #' @examples #' compile with xelatex
@@ -46,10 +47,9 @@ rst2pdf = function(input, command = 'rst2pdf', options = '') {
 #' #' compile a reST file with rst2pdf
 #' ## knit2pdf(..., compiler = 'rst2pdf')
 knit2pdf = function(input, output = NULL, compiler = NULL, envir = parent.frame(),
-                    quiet = FALSE, encoding = getOption('encoding'), ...) {
-  out = knit(input, output = output, envir = envir, quiet = quiet, encoding = encoding)
+                    encoding = getOption('encoding'), ...) {
+  out = knit(input, output = output, envir = envir, encoding = encoding)
   owd = setwd(dirname(out)); on.exit(setwd(owd))
-  if (is.null(compiler) && grepl('\\.rst$', out)) compiler = 'rst2pdf'
   if (!is.null(compiler)) {
     if (compiler == 'rst2pdf') {
       if (tolower(file_ext(out)) != 'rst') stop('for rst2pdf compiler input must be a .rst file')
@@ -62,7 +62,7 @@ knit2pdf = function(input, output = NULL, compiler = NULL, envir = parent.frame(
       Sys.setenv(PDFLATEX = compiler)
     }
   }
-  tools::texi2pdf(basename(out), ...)
+  texi2pdf(basename(out), ...)
   sub_ext(out, 'pdf')
 }
 
@@ -80,15 +80,18 @@ knit2pdf = function(input, output = NULL, compiler = NULL, envir = parent.frame(
 #'   is returned.
 #' @examples # a minimal example
 #' writeLines(c("# hello markdown", '```{r hello-random, echo=TRUE}', 'rnorm(5)', '```'), 'test.Rmd')
-#' knit2html('test.Rmd')
-#' if (interactive()) browseURL('test.html')
-knit2html = function(input, output = NULL, ..., envir = parent.frame(), text = NULL,
-                     quiet = FALSE, encoding = getOption('encoding')) {
-  out = knit(input, output, text = text, envir = envir, encoding = encoding, quiet = quiet)
+#' if (require('markdown')) {knit2html('test.Rmd')
+#' if (interactive()) browseURL('test.html')}
+knit2html = function(input, ..., envir = parent.frame(), text = NULL, quiet = FALSE,
+                     encoding = getOption('encoding')){
   if (is.null(text)) {
+    out = knit(input, envir = envir, encoding = encoding, quiet = quiet)
     markdown::markdownToHTML(out, outfile <- sub_ext(out, 'html'), ...)
     invisible(outfile)
-  } else markdown::markdownToHTML(text = out, ...)
+  } else {
+    out = knit(text = text, envir = envir, encoding = encoding, quiet = quiet)
+    markdown::markdownToHTML(text = out, ...)
+  }
 }
 
 #' Knit an R Markdown document and post it to WordPress

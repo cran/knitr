@@ -2,14 +2,13 @@
 \name{all_patterns}
 \alias{all_patterns}
 \title{All built-in patterns}
-\format{List of 7
- $ rnw     :List of 7
- $ brew    :List of 1
- $ tex     :List of 8
- $ html    :List of 5
- $ md      :List of 4
- $ rst     :List of 5
- $ asciidoc:List of 6}
+\format{List of 6
+ $ rnw :List of 7
+ $ brew:List of 1
+ $ tex :List of 8
+ $ html:List of 5
+ $ md  :List of 4
+ $ rst :List of 5}
 \usage{
 all_patterns
 }

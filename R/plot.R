@@ -18,26 +18,19 @@ auto_exts = c(
 
 dev2ext = function(x) {
   res = auto_exts[x]
-  if (any(idx <- is.na(res))) {
-    for (i in x[idx]) check_dev(i)
+  if (any(idx <- is.na(res)))
     stop('cannot find appropriate filename extensions for device ', x[idx],
          "; please use chunk option 'fig.ext' (http://yihui.name/knitr/options)",
          call. = FALSE)
-  }
   res
-}
-
-check_dev = function(dev) {
-  if (exists(dev, mode = 'function', envir = knit_global()))
-    get(dev, mode = 'function', envir = knit_global()) else
-      stop('the graphical device', sQuote(dev), 'does not exist (as a function)')
 }
 
 ## quartiz devices under Mac
 quartz_dev = function(type, dpi) {
   force(type); force(dpi)
   function(file, width, height, ...) {
-    grDevices::quartz(file = file, width = width, height = height, type = type, dpi = dpi, ...)
+    quartz(file = file, width = width, height = height, type = type, dpi = dpi,
+           ...)
   }
 }
 
@@ -50,30 +43,30 @@ tikz_dev = function(...) {
     xetex = getOption('tikzXelatexPackages'),
     luatex = getOption('tikzLualatexPackages')
   )
-  getFromNamespace('tikz', 'tikzDevice')(
+  get('tikz', envir = as.environment('package:tikzDevice'))(
     ..., packages = c('\n\\nonstopmode\n', packages, .knitEnv$tikzPackages)
   )
 }
 
 ## save a recorded plot
-save_plot = function(plot, name, dev, width, height, ext, dpi, options) {
+save_plot = function(plot, name, dev, ext, dpi, options) {
 
-  path = paste(name, ext, sep = '.')
+  path = str_c(name, ".", ext)
 
   ## built-in devices
   device = switch(
     dev,
-    bmp = function(...) bmp(...,  res = dpi, units = 'in'),
+    bmp = function(...) bmp(...,  res = dpi, units = "in"),
     postscript = function(...) {
-      postscript(..., onefile = FALSE, horizontal = FALSE, paper = 'special')
+      postscript(..., onefile = FALSE, horizontal = FALSE, paper = "special")
     },
-    jpeg = function(...) jpeg(..., res = dpi, units = 'in'),
+    jpeg = function(...) jpeg(..., res = dpi, units = "in"),
     pdf = grDevices::pdf,
-    png = function(...) png(..., res = dpi, units = 'in'),
+    png = function(...) png(..., res = dpi, units = "in"),
     svg = grDevices::svg,
     pictex = grDevices::pictex,
-    tiff = function(...) tiff(..., res = dpi, units = 'in'),
-    win.metafile = grDevices::win.metafile,
+    tiff = function(...) tiff(..., res = dpi, units = "in"),
+    win.metafile = function(...) win.metafile(...),
     cairo_pdf = grDevices::cairo_pdf,
     cairo_ps = grDevices::cairo_ps,
 
@@ -101,7 +94,7 @@ save_plot = function(plot, name, dev, width, height, ext, dpi, options) {
       tikz_dev(..., sanitize = options$sanitize, standAlone = options$external)
     },
 
-    check_dev(dev)
+    get(dev, mode = 'function')
   )
 
   dargs = options$dev.args
@@ -110,23 +103,23 @@ save_plot = function(plot, name, dev, width, height, ext, dpi, options) {
     if (all(options$dev %in% names(dargs))) dargs = dargs[[dev]]
   }
   ## re-plot the recorded plot to an off-screen device
-  do.call(device, c(list(path, width = width, height = height), dargs))
+  do.call(device, c(list(path, width = options$fig.width, height = options$fig.height), dargs))
   print(plot)
   dev.off()
 
   ## compile tikz to pdf
   if (dev == 'tikz' && options$external) {
-    unlink(pdf.plot <- paste(name, '.pdf', sep = ''))
+    unlink(pdf.plot <- str_c(name, '.pdf'))
     owd = setwd(dirname(path))
     # add old wd to TEXINPUTS (see #188)
     oti = Sys.getenv('TEXINPUTS'); on.exit(Sys.setenv(TEXINPUTS = oti))
-    Sys.setenv(TEXINPUTS = paste(owd, oti, sep = ':'))
-    system(paste(switch(getOption('tikzDefaultEngine'),
+    Sys.setenv(TEXINPUTS = str_c(owd, oti, sep = ':'))
+    system(str_c(switch(getOption("tikzDefaultEngine"),
                         pdftex = getOption('tikzLatex'),
-                        xetex = getOption('tikzXelatex'),
-                        luatex = getOption('tikzLualatex'),
-                        stop('a LaTeX engine must be specified for tikzDevice',
-                             call. = FALSE)), shQuote(basename(path))),
+                        xetex = getOption("tikzXelatex"),
+                        luatex = getOption("tikzLualatex"),
+                        stop("a LaTeX engine must be specified for tikzDevice",
+                             call. = FALSE)), shQuote(basename(path)), sep = ' '),
            ignore.stdout = TRUE)
     setwd(owd)
     if (file.exists(pdf.plot)) ext = 'pdf' else {
@@ -140,11 +133,25 @@ save_plot = function(plot, name, dev, width, height, ext, dpi, options) {
 ## this is mainly for Cairo and cairoDevice
 load_device = function(name, package, dpi = NULL) {
   do.call('library', list(package = package))
-  dev = getFromNamespace(name, package)
+  dev = get(name, envir = as.environment(str_c('package:', package)))
   ## dpi is for bitmap devices; units must be inches!
   if (is.null(dpi)) dev else function(...) dev(..., dpi = dpi, units = 'in')
 }
 
+
+## filter out plot objects purely for layout (raised by par(), layout())
+
+# layout() results in plot_calls() of length 1 under R >= 2.16; all calls are
+# par/layout for par()/layout() under R <= 2.15, and are .External2 for R >=
+# 2.16; these blank plot objects should be removed
+rm_blank_plot = function(res) {
+  Filter(function(x) {
+    !is.recordedplot(x) ||
+      identical(pc <- plot_calls(x), 'recordGraphics') ||
+      identical(pc, 'persp') ||
+      (length(pc) > 1L && !all(pc %in% c('par', 'layout', '.External2')))
+  }, res)
+}
 
 ## merge low-level plotting changes
 merge_low_plot = function(x, idx = sapply(x, is.recordedplot)) {
@@ -152,9 +159,16 @@ merge_low_plot = function(x, idx = sapply(x, is.recordedplot)) {
   if (n <= 1) return(x)
   i1 = idx[1]; i2 = idx[2]  # compare plots sequentially
   for (i in 1:(n - 1)) {
-    # remove the previous plot and move its index to the next plot
-    if (is_low_change(x[[i1]], x[[i2]])) m = c(m, i1)
-    i1 = idx[i + 1]
+    p1 = x[[i1]]; p2 = x[[i2]]
+    if (is_low_change(p1, p2)) {
+      # if the next plot only differs with the previous plot by par() changes,
+      # remove the next plot and keep the previous fixed, otherwise remove the
+      # previous and move its index to the next plot
+      if (is_par_change(p1, p2)) r = i2 else {
+        r = i1; i1 = idx[i + 1]
+      }
+      m = c(m, r)
+    } else i1 = idx[i + 1]
     i2 = idx[i + 2]
   }
   if (is.null(m)) x else x[-m]
@@ -165,6 +179,16 @@ is_low_change = function(p1, p2) {
   p1 = p1[[1]]; p2 = p2[[1]]  # real plot info is in [[1]]
   if ((n2 <- length(p2)) < (n1 <- length(p1))) return(FALSE)  # length must increase
   identical(p1[1:n1], p2[1:n1])
+}
+
+plot_calls = evaluate:::plot_calls
+
+## is the new plot identical to the old one except a few par/layout primitives in the end?
+is_par_change = function(p1, p2) {
+  n1 = length(prim1 <- plot_calls(p1))
+  n2 = length(prim2 <- plot_calls(p2))
+  if (n2 <= n1) return(TRUE)
+  all(prim2[(n1 + 1):n2] %in% c('layout', 'par', '.External2'))  # TODO: is this list exhaustive?
 }
 
 # recycle some plot options such as fig.cap, out.width/height, etc when there

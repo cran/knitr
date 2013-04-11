@@ -2,8 +2,8 @@
 \alias{spin}
 \title{Spin goat's hair into wool}
 \usage{
-spin(hair, knit = TRUE, report = TRUE, text = NULL, envir = parent.frame(), 
-    format = c("Rmd", "Rnw", "Rhtml", "Rtex", "Rrst"), doc = "^#+'[ ]?")
+spin(hair, knit = TRUE, report = TRUE, text = NULL, format = c("Rmd", "Rnw", "Rhtml", 
+    "Rtex", "Rrst"), doc = "^#+'[ ]?")
 }
 \arguments{
   \item{hair}{the path to the R script}
@@ -18,9 +18,6 @@ spin(hair, knit = TRUE, report = TRUE, text = NULL, envir = parent.frame(),
   \item{text}{a character vector as an alternative way to
   \code{hair} to provide the R source; if \code{text} is
   not \code{NULL}, \code{hair} will be ignored}
-
-  \item{envir}{the environment for \code{\link{knit}()} to
-  evaluate the code}
 
   \item{format}{character: the output format (it takes five
   possible values); the default is R Markdown}
@@ -41,7 +38,7 @@ spin(hair, knit = TRUE, report = TRUE, text = NULL, envir = parent.frame(),
   default normal text (documentation) should be written
   after the roxygen comment (\code{#'}) and code chunk
   options are written after \code{#+} or \code{#-} or
-  \code{# ----}.
+  \code{# @knitr}.
 }
 \details{
   Obviously the goat's hair is the original R script, and

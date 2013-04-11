@@ -44,10 +44,9 @@ read_demo(topic, package = NULL, ...)
 \details{
   There are two approaches to read external code into the
   current session: (1) Use a special separator of the from
-  \code{## ---- chunk-label} (at least four dashes before
-  the chunk label) in the script; (2) Manually specify the
-  labels, starting and ending positions of code chunks in
-  the script.
+  \code{## @knitr chunk-label} in the script; (2) Manually
+  specify the labels, starting and ending positions of code
+  chunks in the script.
 
   The second approach will be used only when \code{labels}
   is not \code{NULL}. For this approach, if \code{from} is
@@ -78,7 +77,7 @@ read_demo(topic, package = NULL, ...)
 \examples{
 ## put this in foo.R and read_chunk('foo.R')
 
-## ---- my-label ----
+## @knitr my-label
 1 + 1
 lm(y ~ x, data = data.frame(x = 1:10, y = rnorm(10)))
 
@@ -89,11 +88,10 @@ code = c("#@a", "1+1", "#@b", "#@a", "rnorm(10)", "#@b")
 read_chunk(lines = code, labels = "foo")  # put all code into one chun named foo
 read_chunk(lines = code, labels = "foo", from = 2, to = 2)  # line 2 into chunk foo
 read_chunk(lines = code, labels = c("foo", "bar"), from = c(1, 4), to = c(3, 6))
-# automatically figure out 'to'
-read_chunk(lines = code, labels = c("foo", "bar"), from = c(1, 4))
+read_chunk(lines = code, labels = c("foo", "bar"), from = c(1, 4))  # automatically figure out 'to'
 read_chunk(lines = code, labels = c("foo", "bar"), from = "^#@a", to = "^#@b")
-read_chunk(lines = code, labels = c("foo", "bar"), from = "^#@a", to = "^#@b", 
-    from.offset = 1, to.offset = -1)
+read_chunk(lines = code, labels = c("foo", "bar"), from = "^#@a", to = "^#@b", from.offset = 1, 
+    to.offset = -1)
 
 ## later you can use, e.g., <<foo>>=
 knitr:::knit_code$get()  # use this to check chunks in the current session

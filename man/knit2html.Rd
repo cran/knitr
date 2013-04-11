@@ -2,18 +2,13 @@
 \alias{knit2html}
 \title{Convert markdown to HTML using knit() and markdownToHTML()}
 \usage{
-knit2html(input, output = NULL, ..., envir = parent.frame(), text = NULL, quiet = FALSE, 
-    encoding = getOption("encoding"))
+knit2html(input, ..., envir = parent.frame(), text = NULL, quiet = FALSE, encoding = getOption("encoding"))
 }
 \arguments{
   \item{...}{options passed to
   \code{\link[markdown]{markdownToHTML}}}
 
   \item{input}{path of the input file}
-
-  \item{output}{path of the output file for \code{knit()};
-  if \code{NULL}, this function will try to guess and it
-  will be under the current working directory}
 
   \item{envir}{the environment in which the code chunks are
   to be evaluated (can use \code{\link{new.env}()} to
@@ -43,8 +38,11 @@ knit2html(input, output = NULL, ..., envir = parent.frame(), text = NULL, quiet 
 # a minimal example
 writeLines(c("# hello markdown", "```{r hello-random, echo=TRUE}", "rnorm(5)", "```"), 
     "test.Rmd")
-knit2html("test.Rmd")
-if (interactive()) browseURL("test.html")
+if (require("markdown")) {
+    knit2html("test.Rmd")
+    if (interactive()) 
+        browseURL("test.html")
+}
 }
 \seealso{
   \code{\link{knit}},

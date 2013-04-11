@@ -1,5 +1,4 @@
 \name{render_latex}
-\alias{render_asciidoc}
 \alias{render_html}
 \alias{render_jekyll}
 \alias{render_latex}
@@ -22,8 +21,6 @@ render_markdown(strict = FALSE)
 render_jekyll(highlight = c("pygments", "prettify", "none"), extra = "")
 
 render_rst(strict = FALSE)
-
-render_asciidoc()
 }
 \arguments{
   \item{strict}{whether to use strict markdown or reST
@@ -50,7 +47,7 @@ render_asciidoc()
 }
 \description{
   These functions set built-in output hooks for LaTeX,
-  HTML, Markdown, reStructuredText and AsciiDoc.
+  HTML, Markdown and reStructuredText.
 }
 \details{
   There are three variants of markdown documents: ordinary
@@ -65,9 +62,8 @@ render_asciidoc()
   \file{Sweave.sty}) and listings style
   (\code{render_listings()}; use LaTeX \pkg{listings}
   package). Default HTML output hooks are set by
-  \code{render_html()}; \code{render_rst()} and
-  \code{render_asciidoc()} are for reStructuredText and
-  AsciiDoc respectively.
+  \code{render_html()}, and reStructuredText uses
+  \code{render_rst()}.
 
   These functions can be used before \code{knit()} or in
   the first chunk of the input document (ideally this chunk

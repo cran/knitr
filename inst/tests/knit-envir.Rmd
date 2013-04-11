@@ -1,6 +1,10 @@
 Test the `envir` argument of `knit()`.
 
-```{r test, include=FALSE}
+```{r setup}
+opts_knit$set(stop_on_error = 2L)
+```
+
+```{r test}
 asdfqwerzxcv=1
 y
 z+9

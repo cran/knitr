@@ -1,5 +1,4 @@
 \name{pat_rnw}
-\alias{pat_asciidoc}
 \alias{pat_brew}
 \alias{pat_html}
 \alias{pat_md}
@@ -19,8 +18,6 @@ pat_html()
 pat_md()
 
 pat_rst()
-
-pat_asciidoc()
 }
 \value{
   The patterns object \code{\link{knit_patterns}} is
