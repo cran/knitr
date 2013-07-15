@@ -35,7 +35,7 @@ new_defaults = function(value = list()) {
 #' @examples opts_chunk$get('prompt'); opts_chunk$get('fig.keep')
 opts_chunk = new_defaults(list(
   eval = TRUE, echo = TRUE, results = 'markup', tidy = TRUE,
-  cache = FALSE, dependson = NULL, cache.path = 'cache/',
+  cache = FALSE, dependson = NULL, cache.path = 'cache/', cache.vars = NULL,
   ref.label = NULL, child = NULL, engine = 'R',
   prompt = FALSE, comment = '##', autodep = FALSE,
   fig.keep = 'high', fig.show = 'asis', fig.align = 'default',
@@ -44,7 +44,7 @@ opts_chunk = new_defaults(list(
   fig.env = 'figure', fig.cap = NULL, fig.scap = NULL, fig.lp = 'fig:',
   fig.pos = '', out.width = NULL, out.height = NULL, out.extra = NULL,
   resize.width = NULL, resize.height = NULL,
-  external = TRUE, sanitize = FALSE,
+  external = TRUE, sanitize = FALSE, purl = TRUE,
   highlight = TRUE, size = 'normalsize',
   warning = TRUE, error = TRUE, message = TRUE,
   background = '#F7F7F7', split = FALSE, include = TRUE,
@@ -60,14 +60,14 @@ opts_chunk_attr = (function() {
   opts = lapply(opts_chunk$get(), class)
   opts[opts == 'NULL'] = 'character'
   opts$results = list('markup', 'asis', 'hide')
-  opts$fig.show = list('asis', 'hold', 'animate')
+  opts$fig.show = list('asis', 'hold', 'animate', 'hide')
   opts$fig.keep = list('high', 'none', 'all', 'first', 'last')
   opts$fig.align = list('default', 'left', 'right', 'center')
   opts$dev = as.list(names(auto_exts))
   opts$fig.ext = as.list(unique(auto_exts))
   opts$tidy.opts = 'list'
   opts$fig.subcap = 'character'
-  opts$cache.vars = 'character'
+  opts$external = opts$sanitize = NULL  # hide these two rare options
   opts
 })()
 
@@ -102,8 +102,9 @@ opts_knit = new_defaults(list(
   animation.fun = NULL, global.device = FALSE, eval.after = NULL,
   concordance = FALSE, tangle = FALSE, child = FALSE,
   parent = FALSE, documentation = FALSE, aliases = NULL, root.dir = NULL,
-  self.contained = TRUE, use.highlight = FALSE,
-  header = c(highlight = '', tikz = '', framed = ''), stop_on_error = 0L
+  self.contained = TRUE,
+  header = c(highlight = '', tikz = '', framed = ''), stop_on_error = 0L,
+  unnamed.chunk.label = 'unnamed-chunk'
 ))
 ## header should not be set by hand unless you know what you are doing
 

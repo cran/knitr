@@ -601,21 +601,14 @@ for normal texts,
 \series bold
 knitr
 \series default
- will find out if there are chunk options set among them (e.g.
- 
-\family typewriter
-
-\backslash
-SweaveOpts{}
-\family default
-), and evaluate inline R code (e.g.
- 
+ will find inline R code (e.g.
+ in 
 \family typewriter
 
 \backslash
 Sexpr{}
 \family default
-); the latter is involved with the 
+) and evaluate it; the output is wrapped by the 
 \family typewriter
 inline
 \family default
@@ -2153,7 +2146,7 @@ knitr
  Currently the setting is like this: the R script also uses chunk labels
  (marked in the form 
 \family typewriter
-## @knitr chunk-label
+## ---- chunk-label
 \family default
  by default); if the code chunk in the input document is empty, 
 \series bold
@@ -2183,7 +2176,7 @@ status open
 
 \begin_layout Plain Layout
 
-## @knitr Q1
+## ---- Q1 ---------------------
 \end_layout
 
 \begin_layout Plain Layout

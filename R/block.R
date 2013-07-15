@@ -27,8 +27,8 @@ call_block = function(block) {
 
   if (!is.null(params$child)) {
     if (!params$eval) return('')
-    cmds = lapply(sc_split(params$child), knit_child)
-    out = str_c(unlist(cmds), collapse = '\n')
+    cmds = lapply(sc_split(params$child), knit_child, options = block$params)
+    out = paste(unlist(cmds), collapse = '\n')
     return(out)
   }
 
@@ -45,7 +45,8 @@ call_block = function(block) {
       if (!params$include) return('')
       return(cache$output(hash))
     }
-    cache$library(params$cache.path, save = FALSE) # load packages
+    if (params$engine == 'R')
+      cache$library(params$cache.path, save = FALSE) # load packages
   } else if (label %in% names(dep_list$get()))
     warning('code chunks must not depend on the uncached chunk "', label, '"',
             call. = FALSE)
@@ -63,7 +64,7 @@ block_exec = function(options) {
     output = in_dir(opts_knit$get('root.dir') %n% input_dir(),
                     knit_engines$get(options$engine)(options))
     res.after = run_hooks(before = FALSE, options)
-    output = str_c(c(res.before, output, res.after), collapse = '')
+    output = paste(c(res.before, output, res.after), collapse = '')
     if (options$cache) block_cache(options, output, character(0))
     return(output)
   }
@@ -74,7 +75,7 @@ block_exec = function(options) {
 
   keep = options$fig.keep
   # open a device to record plots
-  if (chunk_device(options$fig.width, options$fig.height, keep != 'none')) {
+  if (chunk_device(options$fig.width[1L], options$fig.height[1L], keep != 'none')) {
     dv = dev.cur(); on.exit(dev.off(dv))
   }
 
@@ -136,7 +137,6 @@ block_exec = function(options) {
       res = res[!figs] # remove all
     } else {
       if (options$fig.show == 'hold') res = c(res[!figs], res[figs]) # move to the end
-      res = rm_blank_plot(res)
       figs = sapply(res, is.recordedplot)
       if (length(figs) && sum(figs) > 1) {
         if (keep %in% c('first', 'last')) {
@@ -152,19 +152,9 @@ block_exec = function(options) {
   if (is.null(options$fig.num))
     options$fig.num = if (length(res)) sum(sapply(res, is.recordedplot)) else 0L
 
-  # merge source lines if they do not have output; is there an elegant way??
-  iss = if (length(res)) which(sapply(res, is.source)) else NULL
-  if ((n <- length(iss)) > 1) {
-    k1 = iss[1]; k2 = NULL
-    for (i in 1:(n - 1)) {
-      if (iss[i + 1] - iss[i] == 1) {
-        res[[k1]] = structure(list(src = c(res[[k1]]$src, res[[iss[i + 1]]]$src)),
-                              class = 'source')  # CAUTION: now node src is a vector!!
-        k2 = c(k2, iss[i + 1])
-      } else k1 = iss[i + 1]
-    }
-    if (length(k2)) res = res[-k2] # remove lines that have been merged back
-  }
+  # merge neighbor elements of the same class into one element
+  for (cls in c('source', 'warning', 'message'))
+    res = merge_class(res, cls)
 
   on.exit(plot_counter(reset = TRUE), add = TRUE)  # restore plot number
   if (options$fig.show != 'animate' && options$fig.num > 1) {
@@ -175,7 +165,7 @@ block_exec = function(options) {
     res.after = run_hooks(before = FALSE, options, env) # run 'after' hooks
   })
 
-  output = str_c(c(res.before, output, res.after), collapse = '')  # insert hook results
+  output = paste(c(res.before, output, res.after), collapse = '')  # insert hook results
   output = if (is_blank(output)) '' else knit_hooks$get('chunk')(output, options)
 
   if (options$cache) {
@@ -216,6 +206,29 @@ chunk_device = function(width, height, record = TRUE) {
     dev.control('enable')
   }
   FALSE
+}
+
+# merge neighbor elements of the same class in a list returned by evaluate()
+merge_class = function(res, class = c('source', 'warning', 'message')) {
+
+  class = match.arg(class)
+  idx = if (length(res)) which(sapply(res, inherits, what = class))
+  if ((n <- length(idx)) <= 1) return(res)
+
+  k1 = idx[1]; k2 = NULL
+  for (i in 1:(n - 1)) {
+    if (idx[i + 1] - idx[i] == 1) {
+      res[[k1]] = if (class == 'source') {
+        structure(list(src = c(res[[k1]]$src, res[[idx[i + 1]]]$src)), class = class)
+      } else {
+        structure(list(message = c(res[[k1]]$message, res[[idx[i + 1]]]$message)), class = class)
+      }
+      k2 = c(k2, idx[i + 1])
+    } else k1 = idx[i + 1]
+  }
+  if (length(k2)) res = res[-k2] # remove lines that have been merged back
+  res
+
 }
 
 call_inline = function(block) {
@@ -261,13 +274,16 @@ process_tangle = function(x) {
 }
 process_tangle.block = function(x) {
   params = opts_chunk$merge(x$params)
+  for (o in c('purl', 'eval', 'child'))
+    try(params[o] <- list(eval_lang(params[[o]])))
+  if (isFALSE(params$purl)) return('')
   label = params$label; ev = params$eval
   code = if (!isFALSE(ev) && !is.null(params$child)) {
     cmds = lapply(sc_split(params$child), knit_child)
-    str_c(unlist(cmds), collapse = '\n')
+    paste(unlist(cmds), collapse = '\n')
   } else knit_code$get(label)
   # read external code if exists
-  if (!isFALSE(ev) && length(code) && str_detect(code, 'read_chunk\\(.+\\)')) {
+  if (!isFALSE(ev) && length(code) && grepl('read_chunk\\(.+\\)', code)) {
     eval(parse_only(unlist(str_extract_all(code, 'read_chunk\\(([^)]+)\\)'))))
   }
   code = parse_chunk(code)
@@ -276,10 +292,10 @@ process_tangle.block = function(x) {
 }
 process_tangle.inline = function(x) {
   if (opts_knit$get('documentation') == 2L) {
-    return(str_c(line_prompt(x$input.src, "#' ", "#' "), collapse = '\n'))
+    return(paste(line_prompt(x$input.src, "#' ", "#' "), collapse = '\n'))
   }
   code = x$code
-  if (length(code) == 0L || !any(idx <- str_detect(code, "knit_child\\(.+\\)")))
+  if (length(code) == 0L || !any(idx <- grepl('knit_child\\(.+\\)', code)))
     return('')
   str_c(str_c(sapply(code[idx], function(z) eval(parse_only(z))),
               collapse = '\n'), '\n')
@@ -288,7 +304,8 @@ process_tangle.inline = function(x) {
 
 # add a label [and extra chunk options] to a code chunk
 label_code = function(code, label) {
-  code = str_c(c('', code, ''), collapse = '\n')
+  code = paste(c('', code, ''), collapse = '\n')
   if (opts_knit$get('documentation') == 0L) return(code)
-  str_c('## @knitr ', label, code)
+  str_c('## ----', str_pad(label, max(getOption('width') - 11L, 0L), 'right', '-'),
+        '----', code)
 }

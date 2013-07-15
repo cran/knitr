@@ -3,7 +3,7 @@
 #' This function takes a specially formatted R script and converts it to a
 #' literate programming document. By default normal text (documentation) should
 #' be written after the roxygen comment (\code{#'}) and code chunk options are
-#' written after \code{#+} or \code{#-} or \code{# @@knitr}.
+#' written after \code{#+} or \code{#-} or \code{# ----}.
 #'
 #' Obviously the goat's hair is the original R script, and the wool is the
 #' literate programming document (ready to be knitted).
@@ -14,6 +14,7 @@
 #' @param text a character vector as an alternative way to \code{hair} to
 #'   provide the R source; if \code{text} is not \code{NULL}, \code{hair} will
 #'   be ignored
+#' @param envir the environment for \code{\link{knit}()} to evaluate the code
 #' @param format character: the output format (it takes five possible values);
 #'   the default is R Markdown
 #' @param doc a regular expression to identify the documentation lines; by
@@ -46,29 +47,29 @@
 #' spin(s, FALSE, format='Rhtml')
 #' spin(s, FALSE, format='Rtex')
 #' spin(s, FALSE, format='Rrst')
-spin = function(hair, knit = TRUE, report = TRUE, text = NULL,
+spin = function(hair, knit = TRUE, report = TRUE, text = NULL, envir = parent.frame(),
                 format = c('Rmd', 'Rnw', 'Rhtml', 'Rtex', 'Rrst'), doc = "^#+'[ ]?") {
 
   format = match.arg(format)
   x = if (nosrc <- is.null(text)) readLines(hair, warn = FALSE) else split_lines(text)
-  r = rle(str_detect(x, doc))
+  r = rle(grepl(doc, x))
   n = length(r$lengths); txt = vector('list', n); idx = c(0L, cumsum(r$lengths))
   p = .fmt.pat[[tolower(format)]]
-  p1 = str_replace(str_c('^', p[1L], '.*', p[2L], '$'), '\\{', '\\\\{')
+  p1 = gsub('\\{', '\\\\{', str_c('^', p[1L], '.*', p[2L], '$'))
 
   for (i in seq_len(n)) {
     block = x[seq(idx[i] + 1L, idx[i+1])]
     txt[[i]] = if (r$value[i]) {
       # normal text; just strip #'
-      str_replace(block, doc, '')
+      sub(doc, '', block)
     } else {
       # R code; #+/- indicates chunk options
       block = strip_white(block) # rm white lines in beginning and end
       if (!length(block)) next
-      if (any(opt <- str_detect(block, '^#+(\\+|-| @knitr)'))) {
-        block[opt] = str_c(p[1L], str_replace(block[opt], '^#+(\\+|-| @knitr)\\s*', ''), p[2L])
+      if (length(opt <- grep('^#+(\\+|-| ----+| @knitr)', block))) {
+        block[opt] = str_c(p[1L], gsub('^#+(\\+|-| ----+| @knitr)\\s*|-*\\s*$', '', block[opt]), p[2L])
       }
-      if (!str_detect(block[1L], p1)) {
+      if (!grepl(p1, block[1L])) {
         block = c(str_c(p[1L], p[2L]), block)
       }
       c('', block, p[3L], '')
@@ -77,7 +78,7 @@ spin = function(hair, knit = TRUE, report = TRUE, text = NULL,
 
   txt = unlist(txt)
   # make it a complete TeX document if document class not specified
-  if (report && format %in% c('Rnw', 'Rtex') && !str_detect(txt, '^\\s*\\\\documentclass')) {
+  if (report && format %in% c('Rnw', 'Rtex') && !grepl('^\\s*\\\\documentclass', txt)) {
     txt = c('\\documentclass{article}', '\\begin{document}', txt, '\\end{document}')
   }
   if (nosrc) {
@@ -87,10 +88,10 @@ spin = function(hair, knit = TRUE, report = TRUE, text = NULL,
   } else outsrc = NULL
   if (!knit) return(txt %n% outsrc)
   if (report) {
-    if (format == 'Rmd') return(knit2html(outsrc, text = txt))
-    if (!nosrc && (format %in% c('Rnw', 'Rtex'))) return(knit2pdf(outsrc))
+    if (format == 'Rmd') return(knit2html(outsrc, text = txt, envir = envir))
+    if (!nosrc && (format %in% c('Rnw', 'Rtex'))) return(knit2pdf(outsrc, envir = envir))
   }
-  knit(outsrc, text = txt)
+  knit(outsrc, text = txt, envir = envir)
 }
 
 .fmt.pat = list(

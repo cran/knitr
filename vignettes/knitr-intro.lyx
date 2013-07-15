@@ -5,7 +5,7 @@
 \textclass article
 \begin_preamble
 % \VignetteIndexEntry{An Introduction to knitr}
-% \VignetteEngine{knitr}
+% \VignetteEngine{knitr::knitr}
 \end_preamble
 \use_default_options true
 \begin_modules
@@ -202,7 +202,7 @@ summary(lm(y~x, data=df))
 \begin_layout Standard
 \begin_inset CommandInset bibtex
 LatexCommand bibtex
-bibfiles "../examples/knitr-packages"
+bibfiles "../inst/examples/knitr-packages"
 options "jss"
 
 \end_inset
