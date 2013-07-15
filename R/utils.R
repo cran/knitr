@@ -36,15 +36,15 @@ comment_out = function(x, prefix = '##', which = TRUE, newline = TRUE) {
 
 ## assign string in comments to a global variable
 comment_to_var = function(x, varname, pattern, envir) {
-  if (str_detect(x, pattern)) {
-    assign(varname, str_replace(x, pattern, ''), envir = envir)
+  if (grepl(pattern, x)) {
+    assign(varname, sub(pattern, '', x), envir = envir)
     return(TRUE)
   }
   FALSE
 }
 
 is_blank = function(x) {
-  if (length(x)) all(str_detect(x, '^\\s*$')) else TRUE
+  if (length(x)) all(grepl('^\\s*$', x)) else TRUE
 }
 valid_path = function(prefix, label) {
   if (length(prefix) == 0L || is.na(prefix) || prefix == 'NA') prefix = ''
@@ -80,10 +80,10 @@ set_preamble = function(input, patterns = knit_patterns$get()) {
   if (!out_format('latex')) return()
   if (length(db <- patterns$document.begin) != 1L) return()  # no \begin{document} pattern
   if (length(hb <- patterns$header.begin) != 1L) return()  # no \documentclass{} pattern
-  idx2 = str_detect(input, db)
+  idx2 = grepl(db, input)
   if (!any(idx2)) return()
   if ((idx2 <- which(idx2)[1]) < 2L) return()
-  txt = str_c(input[seq_len(idx2 - 1L)], collapse = '\n')  # rough preamble
+  txt = paste(input[seq_len(idx2 - 1L)], collapse = '\n')  # rough preamble
   idx = str_locate(txt, hb)  # locate documentclass
   if (any(is.na(idx))) return()
   options(tikzDocumentDeclaration = str_sub(txt, idx[, 1L], idx[, 2L]))
@@ -195,7 +195,7 @@ is_tikz_dev = function(options) {
 }
 
 tikz_dict = function(path) {
-  str_c(file_path_sans_ext(basename(path)), '-tikzDictionary')
+  str_c(sans_ext(basename(path)), '-tikzDictionary')
 }
 
 ## compatibility with Sweave and old beta versions of knitr
@@ -214,10 +214,15 @@ fix_options = function(options) {
   options
 }
 
+## parse but do not keep source
+parse_only = if (getRversion() >= '3.0.0') {
+  function(code) parse(text = code, keep.source = FALSE)
+} else function(code) parse(text = code, srcfile = NULL)
+
 ## try eval an option (character) to its value
 eval_opt = function(x) {
   if (!is.character(x)) return(x)
-  eval(parse(text = x), envir = knit_global())
+  eval(parse_only(x), envir = knit_global())
 }
 
 ## eval options as symbol/language objects
@@ -270,18 +275,21 @@ out_format = function(x) {
 #' fig_path(1:10, list(fig.path='foo-', label='bar'))
 fig_path = function(suffix = '', options = opts_current$get()) {
   path = valid_path(options$fig.path, options$label)
-  if (!out_format(c('latex', 'sweave', 'listings'))) return(str_c(path, suffix))
-  # sanitize filename for LaTeX
-  if (str_detect(path, '[^-_./\\[:alnum:]]')) {
+  (if (out_format(c('latex', 'sweave', 'listings', 'markdown'))) sanitize_fn else
+    str_c)(path, suffix)
+}
+# sanitize filename for LaTeX
+sanitize_fn = function(path, suffix = '') {
+  if (grepl('[^~:_./\\[:alnum:]-]', path)) {
     warning('replaced special characters in figure filename "', path, '" -> "',
-            path <- str_replace_all(path, '[^-_./\\[:alnum:]]', '_'), '"')
+            path <- gsub('[^~:_./\\[:alnum:]-]', '_', path), '"')
   }
   # replace . with _ except ../ and ./
   s = str_split(path, '[/\\]')[[1L]]
-  i = (s != '.') & (s != '..') & str_detect(s, '\\.')
+  i = (s != '.') & (s != '..') & grepl('\\.', s)
   if (any(i)) {
-    s[i] = str_replace_all(s[i], '\\.', '_')
-    path = str_c(s, collapse = '/')
+    s[i] = gsub('\\.', '_', s[i])
+    path = paste(s, collapse = '/')
     warning('dots in figure paths replaced with _ ("', path, '")')
   }
   str_c(path, suffix)
@@ -298,11 +306,7 @@ fig_path = function(suffix = '', options = opts_current$get()) {
 #' \code{\link{ls}()} on this environment.
 #' @export
 knit_global = function() {
-  .knitEnv$knit_global
-}
-# current environment for knitr's code chunks
-knit_env = function() {
-  .knitEnv$knit_env
+  .knitEnv$knit_global %n% globalenv()
 }
 
 # Indents a Block
@@ -362,7 +366,7 @@ in_dir = function(dir, expr) {
 escape_latex = function(x, newlines = FALSE, spaces = FALSE) {
   x = gsub('\\\\', '\\\\textbackslash', x)
   x = gsub('([#$%&_{}])', '\\\\\\1', x)
-  x = gsub('\\\\textbackslash([^{]|$)', '\\\\textbackslash{}\\1', x)
+  x = gsub('\\\\textbackslash', '\\\\textbackslash{}', x)
   x = gsub('~', '\\\\textasciitilde{}', x)
   x = gsub('\\^', '\\\\textasciicircum{}', x)
   if (newlines) x = gsub('(?<!\n)\n(?!\n)', '\\\\\\\\', x, perl = TRUE)
@@ -386,14 +390,13 @@ escape_html = function(x) {
 #' @param project name of the R-Forge project
 #' @param extra extra parameters to be passed to the URL (e.g. \code{extra =
 #'   '&revision=48'} to check out the source of revision 48)
-#' @param base the base URL
 #' @return A character vector of the source code.
 #' @author Yihui Xie and Peter Ruckdeschel
 #' @export
 #' @examples \dontrun{read_rforge('rgl/R/axes.R', project = 'rgl')
 #' read_rforge('rgl/R/axes.R', project = 'rgl', extra='&revision=519')}
-read_rforge = function(path, project, extra = '',
-                      base = 'http://r-forge.r-project.org/scm/viewvc.php/*checkout*/pkg') {
+read_rforge = function(path, project, extra = '') {
+  base = 'http://r-forge.r-project.org/scm/viewvc.php/*checkout*/pkg'
   readLines(sprintf('%s/%s?root=%s%s', base, path, project, extra))
 }
 
@@ -421,10 +424,82 @@ native_encode = function(x, to = '') {
 
 # make the encoding case-insensitive, e.g. LyX uses ISO-8859-15 but R uses iso-8859-15
 correct_encode = function(encoding) {
-  if (encoding == 'native.enc' || encoding == '' || encoding == localeToCharset())
-    return('')
+  if (encoding == 'native.enc' || encoding == '') return('')
+  lcc = localeToCharset()[1L]
+  if (!is.na(lcc) && encoding == lcc) return('')
   if (is.na(idx <- match(tolower(encoding), tolower(iconvlist())))) {
     warning('encoding "', encoding, '" not supported; using the native encoding instead')
     ''
   } else iconvlist()[idx]
+}
+
+# import functions from tools
+file_ext = tools::file_ext
+sans_ext = tools::file_path_sans_ext
+# substitute extension
+sub_ext = function(x, ext) {
+  if (grepl('\\.([[:alnum:]]+)$', x)) x = sans_ext(x)
+  paste(x, ext, sep = '.')
+}
+
+#' Wrap long lines in Rmd files
+#'
+#' This function wraps long paragraphs in an R Markdown file. Other elements are
+#' not wrapped: the YAML preamble, fenced code blocks, section headers and
+#' indented elements. The main reason for wrapping long lines is to make it
+#' easier to review differences in version control.
+#' @param file the input Rmd file
+#' @param width the expected line width
+#' @param text an alternative to \code{file} to input the text lines
+#' @param backup the path to back up the original file (in case anything goes
+#'   wrong); if \code{NULL}, it is ignored; by default it is constructed from
+#'   \code{file} by adding \code{__} before the base filename
+#' @return If \code{file} is provided, it is overwritten; if \code{text} is
+#'   provided, a character vector is returned.
+#' @note Currently it does not wrap blockquotes or lists (ordered or unordered).
+#'   This feature may or may not be added in the future.
+#' @export
+#' @examples wrap_rmd(text = c('```', '1+1', '```', '- a list item', '> a quote', '',
+#' paste(rep('this is a normal paragraph', 5), collapse = ' ')))
+wrap_rmd = function(file, width = 80, text = NULL, backup) {
+  x = if (is.null(text)) readLines(file, warn = FALSE) else split_lines(text)
+  x = strip_white(x)  # strip blank lines in the beginning and end
+  if ((n <- length(x)) <= 1L) return(x)  # are you kidding?
+  idx = NULL  # collect the lines to exclude from wrapping
+  i = grep('^---$', x)  # yaml preamble
+  if (length(i) > 1 && i[1L] == 1L) idx = c(idx, i[1L]:i[2L])
+  i = grep('^(```|\\{% (end|)highlight [a-z ]*%\\}|</?script.*>)', x)  # code blocks
+  if (length(i)) {
+    if (length(i) %% 2L != 0L) stop('markers for code blocks must be paired up')
+    idx = c(idx, unlist(apply(matrix(i, ncol = 2L, byrow = TRUE), 1L,
+                              function(z) z[1L]:z[2L])))
+  }
+  # section headers, indented code blocks and latex math
+  idx = c(idx, grep('^(#|===|---|    |\t)', x))
+  # blank lines
+  idx = c(idx, grep('^\\s*$', x))
+  # TODO: this is naive -- I treat a line as (a part of) a normal paragraph if
+  # it does not start with a space, or > (blockquotes) or -, *, 1. (lists), and
+  # only wrap paragraphs
+  idx = c(idx, grep('^\\s*( |> |- |\\* |\\d+ )', x))
+  idx = unique(idx)
+  if (length(idx) == n) return(x)  # no need to wrap anything
+
+  i = logical(n); i[idx] = TRUE; r = rle(i)
+  n = length(r$lengths); txt = vector('list', n); j = c(0L, cumsum(r$lengths))
+  for (i in seq_len(n)) {
+    block = x[seq(j[i] + 1L, j[i + 1])]
+    txt[[i]] = if (r$value[i]) {
+      # those lines not to be wrapped
+      gsub('\\s+$', '', block)  # strip pending spaces
+    } else {
+      strwrap(paste(block, collapse = '\n'), width)
+    }
+  }
+  txt = unlist(txt)
+  if (is.null(text)) {
+    if (missing(backup)) backup = file.path(dirname(file), paste0('__', basename(file)))
+    if (!is.null(backup)) file.copy(file, backup, overwrite = TRUE)
+    writeLines(txt, file)
+  } else txt
 }

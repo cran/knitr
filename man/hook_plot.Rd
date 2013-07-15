@@ -1,4 +1,5 @@
 \name{hook_plot_tex}
+\alias{hook_plot_asciidoc}
 \alias{hook_plot_html}
 \alias{hook_plot_md}
 \alias{hook_plot_rst}
@@ -12,6 +13,8 @@ hook_plot_html(x, options)
 hook_plot_md(x, options)
 
 hook_plot_rst(x, options)
+
+hook_plot_asciidoc(x, options)
 }
 \arguments{
   \item{x}{a character vector of length 2 ; \code{x[1]} is
@@ -57,8 +60,8 @@ hook_plot_tex(c("bar", "tikz"), opts_chunk$merge(list(dev = "tikz")))
 ## <<foo, dev='pdf', fig.show='animate', interval=.1>>=
 
 ## 5 plots are generated in this chunk
-hook_plot_tex(c("foo5", "pdf"), opts_chunk$merge(list(fig.show = "animate", interval = 0.1, 
-    fig.cur = 5, fig.num = 5)))
+hook_plot_tex(c("foo5", "pdf"), opts_chunk$merge(list(fig.show = "animate", 
+    interval = 0.1, fig.cur = 5, fig.num = 5)))
 }
 \references{
   \url{http://yihui.name/knitr/hooks}

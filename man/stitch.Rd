@@ -5,7 +5,7 @@
 \title{Automatically create a report based on an R script and a template}
 \usage{
 stitch(script, template = system.file("misc", "knitr-template.Rnw", package = "knitr"), 
-    output = NULL, envir = parent.frame())
+    output = NULL, text = NULL, envir = parent.frame())
 
 stitch_rhtml(...)
 
@@ -23,6 +23,9 @@ stitch_rmd(...)
   of the script}
 
   \item{...}{arguments passed to \code{stitch()}}
+
+  \item{text}{a character vector as an alternative way to
+  provide the input file}
 
   \item{envir}{the environment in which the code chunks are
   to be evaluated (can use \code{\link{new.env}()} to
@@ -48,7 +51,7 @@ stitch_rmd(...)
   below.
 
   The R script may contain chunk headers of the form
-  \samp{## @knitr label}, which will be copied to the
+  \samp{## ---- label}, which will be copied to the
   template; if no chunk headers are found, the whole R
   script will be inserted into the template as one code
   chunk.

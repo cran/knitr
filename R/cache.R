@@ -30,7 +30,7 @@ new_cache = function() {
 
   save_objects = function(objs, label, path) {
     ## save object names
-    x = str_c(c(label, objs), collapse = '\t')
+    x = paste(c(label, objs), collapse = '\t')
     if (file.exists(path)) {
       lines = readLines(path)
       idx = substr(lines, 1L, nchar(label)) == label
@@ -63,11 +63,11 @@ new_cache = function() {
     path = valid_path(path, '__packages')
     if (save) {
       x = .packages()
-      if (file.exists(path)) x = unique(c(x, readLines(path)))
-      cat(x, file = path, sep = '\n')
+      if (file.exists(path)) x = setdiff(c(x, readLines(path)), .base.pkgs)
+      writeLines(sort(x), path)
     } else {
       if (!file.exists(path)) return()
-      for (p in setdiff(readLines(path), .base.pkgs))
+      for (p in readLines(path))
         suppressPackageStartupMessages(library(p, character.only = TRUE))
     }
   }
@@ -88,7 +88,7 @@ new_cache = function() {
 }
 # analyze code and find out global variables
 find_globals = function(code) {
-  fun = eval(parse(text = str_c(c('function(){', code, '}'), collapse='\n')))
+  fun = eval(parse_only(c('function(){', code, '}')))
   setdiff(codetools::findGlobals(fun), known_globals)
 }
 known_globals = c(
@@ -124,7 +124,7 @@ dep_auto = function(path = opts_chunk$get('cache.path')) {
   if (is.null(locals) || is.null(globals)) return(invisible(NULL))
   if (!identical(names(locals), names(globals))) {
     warning('corrupt dependency files? \ntry remove ',
-            str_c(paths, collapse = '; '))
+            paste(paths, collapse = '; '))
     return(invisible(NULL))
   }
   nms = intersect(names(knit_code$get()), names(locals)) # guarantee correct order

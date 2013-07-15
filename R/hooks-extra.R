@@ -59,6 +59,7 @@ hook_rgl = function(before, options, envir) {
          pdf = rgl.postscript(str_c(name, '.pdf'), fmt = 'pdf'),
          rgl.snapshot(str_c(name, '.png'), fmt = 'png'))
 
+  options$fig.num = 1L  # only one figure in total
   hook_plot_custom(before, options, envir)
 }
 #' @export
@@ -81,8 +82,8 @@ hook_pdfcrop = function(before, options, envir) {
   lapply(paths, function(x) {
     message('cropping ', x)
     x = shQuote(x)
-    cmd = if (ext == 'pdf') paste("pdfcrop", x, x) else paste('convert', x, '-trim', x)
-    if (.Platform$OS.type == 'windows') cmd = paste(Sys.getenv("COMSPEC"), "/c", cmd)
+    cmd = if (ext == 'pdf') paste('pdfcrop', x, x) else paste('convert', x, '-trim', x)
+    if (.Platform$OS.type == 'windows') cmd = paste(Sys.getenv('COMSPEC'), '/c', cmd)
     system(cmd)
   })
   return()
@@ -104,7 +105,7 @@ hook_optipng = function(before, options, envir) {
     message('optimizing ', x)
     x = shQuote(x)
     cmd = paste('optipng', if (is.character(options$optipng)) options$optipng, x)
-    if (.Platform$OS.type == 'windows') cmd = paste(Sys.getenv("COMSPEC"), "/c", cmd)
+    if (.Platform$OS.type == 'windows') cmd = paste(Sys.getenv('COMSPEC'), '/c', cmd)
     system(cmd)
   })
   return()
@@ -122,12 +123,13 @@ hook_plot_custom = function(before, options, envir){
                 rst = hook_plot_rst, hook_plot_md)
 
   n = options$fig.num
+  if (n == 0L) n = options$fig.num = 1L # make sure fig.num is at least 1
   if (n <= 1L) hook(c(name, ext), options) else {
     res = unlist(lapply(seq_len(n), function(i) {
       options$fig.cur = i
       hook(c(str_c(name, i), ext), reduce_plot_opts(options))
     }), use.names = FALSE)
-    str_c(res, collapse = '')
+    paste(res, collapse = '')
   }
 }
 #' @export
@@ -140,8 +142,11 @@ hook_webgl = function(before, options, envir) {
   par3d(windowRect = 100 + options$dpi * c(0, 0, options$fig.width, options$fig.height))
   Sys.sleep(.05) # need time to respond to window size change
 
-  writeLines(c('%WebGL%', '<script>webGLStart();</script>'), tpl <- tempfile())
-  writeWebGL(dir = dirname(name), filename = name, template = tpl)
+  prefix = gsub('[^[:alnum:]]', '_', options$label) # identifier for JS, better be alnum
+  prefix = sub('^([^[:alpha:]])', '_\\1', prefix) # should start with letters or _
+  writeLines(sprintf(c('%%%sWebGL%%', '<script>%swebGLStart();</script>'), prefix),
+             tpl <- tempfile())
+  writeWebGL(dir = dirname(name), filename = name, template = tpl, prefix = prefix)
   res = readLines(name)
   res = res[!grepl('^\\s*$', res)] # remove blank lines
   paste(gsub('^\\s*<', '<', res), collapse = '\n') # no spaces before HTML tags
