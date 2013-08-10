@@ -1,4 +1,4 @@
-a1bfafaa46d3640a6afa4f3be1080b58 *DESCRIPTION
+4f1c92a76bf64fba83eb1a1180dcf000 *DESCRIPTION
 766d2dd9fbe6c62e50b0ce097a58d504 *FAQ.md
 138cc0ed23538e13babf2cb53040d8e9 *Makefile
 f186a3885a08fd7018d5048297d8ca77 *NAMESPACE
@@ -38,7 +38,7 @@ f9abe071b2a979a8c192a3bf823fdf66 *R/utils-rd2html.R
 6850da9976090245d1af405e418e7078 *R/utils-upload.R
 7a61be98853d58eedd238b0feb9cc63e *R/utils-vignettes.R
 a7ab53c6e05e5898a5087cc38ad67915 *R/utils.R
-94f203de6e75cc22da6139b00910cbf2 *R/zzz.R
+8aa20ab86f8f71a080db7d70c79efce4 *R/zzz.R
 5316f6a9159a85ce9c2f86f88342a091 *README.md
 5320cec79c972798fe0eb5579eb51927 *demo/00Index
 a0d48f6ce89f9e1d39ee7248ff8c5511 *demo/gwidgets.R
