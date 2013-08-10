@@ -30,7 +30,6 @@ knit_engines = new_defaults()
 engine_output = function(options, code, out, extra = NULL) {
   if (length(code) != 1L) code = paste(code, collapse = '\n')
   if (length(out) != 1L) out = paste(out, collapse = '\n')
-  code = sub('([^\n]+)$', '\\1\n', code)
   out = sub('([^\n]+)$', '\\1\n', out)
   if (options$engine == 'Rscript') options$engine = 'r'
   txt = paste(c(
@@ -103,7 +102,7 @@ eng_Rcpp = function(options) {
   if (!is.environment(opts$env)) opts$env = knit_global() # default env is knit_global()
   if (options$eval) {
     message('Building shared library for Rcpp code chunk...')
-    do.call(Rcpp::sourceCpp, c(list(code = code), opts))
+    do.call(getFromNamespace('sourceCpp', 'Rcpp'), c(list(code = code), opts))
   }
 
   options$engine = 'cpp' # wrap up source code in cpp syntax instead of Rcpp

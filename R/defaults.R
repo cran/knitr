@@ -24,13 +24,20 @@ new_defaults = function(value = list()) {
 #' Default and current chunk options
 #'
 #' Options for R code chunks. When running R code, the object \code{opts_chunk}
-#' (default options) is not modified by chunks (local chunk options are merged
-#' with default options), whereas \code{opts_current} (current options) changes
-#' with different chunks.
+#' (default options) is not modified by chunk headers (local chunk options are
+#' merged with default options), whereas \code{opts_current} (current options)
+#' changes with different chunk headers and it always reflects the options for
+#' the current chunk.
+#'
+#' Normally we set up the global options once in the first code chunk in a
+#' document using \code{opts_chunk$set()}, so that all \emph{latter} chunks will
+#' use these options. Note the global options set in one chunk will not affect
+#' the options in this chunk itself, and that is why we often need to set global
+#' options in a separate chunk.
 #' @references Usage: \url{http://yihui.name/knitr/objects}
 #'
-#' A list of available options:
-#' \url{http://yihui.name/knitr/options#chunk_options}
+#'   A list of available options:
+#'   \url{http://yihui.name/knitr/options#chunk_options}
 #' @export
 #' @examples opts_chunk$get('prompt'); opts_chunk$get('fig.keep')
 opts_chunk = new_defaults(list(
@@ -90,12 +97,25 @@ set_alias = function(...) {
 #'
 #' Options including whether to use a progress bar when knitting a document, and
 #' the base directory of images, etc.
+#'
+#' Besides the standard usage (\code{opts_knit$set()}), we can also set package
+#' options prior to loading \code{knitr} or calling \code{knit()} using
+#' \code{\link{options}()} in base R. A global option \code{knitr.foo} in
+#' \code{options()} will be set as an option \code{foo} in \code{opts_knit},
+#' i.e. global options in base R with the prefix \code{knitr.} correspond to
+#' options in \code{opts_knit}. This can be useful to set package options in
+#' \file{~/.Rprofile} without loading \pkg{knitr}.
 #' @references Usage: \url{http://yihui.name/knitr/objects}
 #'
-#' A list of available options:
-#' \url{http://yihui.name/knitr/options#package_options}
+#'   A list of available options:
+#'   \url{http://yihui.name/knitr/options#package_options}
 #' @export
 #' @examples opts_knit$get('verbose'); opts_knit$set(verbose = TRUE)  # change it
+#' \dontrun{
+#' # for unnamed chunks, use 'fig' as the figure prefix
+#' options(knitr.unnamed.chunk.label='fig')
+#' knit('001-minimal.Rmd') # from https://github.com/yihui/knitr-examples
+#' }
 opts_knit = new_defaults(list(
   progress = TRUE, verbose = FALSE, out.format = NULL,
   base.dir = NULL, base.url = NULL, child.path = '', upload.fun = identity,
@@ -103,7 +123,7 @@ opts_knit = new_defaults(list(
   concordance = FALSE, tangle = FALSE, child = FALSE,
   parent = FALSE, documentation = FALSE, aliases = NULL, root.dir = NULL,
   self.contained = TRUE,
-  header = c(highlight = '', tikz = '', framed = ''), stop_on_error = 0L,
+  header = c(highlight = '', tikz = '', framed = ''),
   unnamed.chunk.label = 'unnamed-chunk'
 ))
 ## header should not be set by hand unless you know what you are doing
@@ -111,6 +131,18 @@ opts_knit = new_defaults(list(
 ## tangle: whether I'm in tangle mode; child: whether I'm in child
 ## document mode; parent: whether I need to add parent preamble to the
 ## child output
+
+# adjust opts_knit according to options(), e.g. options(knitr.progress) -->
+# opts_knit$get('progress'); this makes it possible to set options in
+# ~/.Rprofile without loading knitr
+adjust_opts_knit = function() {
+  opts = options()
+  nms = names(opts)
+  if (length(nms <- grep('^knitr[.]', nms, value = TRUE)) == 0) return()
+  # strip off knitr. from option names
+  opts = setNames(opts[nms], gsub('^knitr[.]', '', nms))
+  opts_knit$set(opts)
+}
 
 #' Template for creating reusable chunk options
 #'

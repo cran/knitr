@@ -94,6 +94,11 @@ status open
 
 \begin_layout Plain Layout
 
+library(knitr)
+\end_layout
+
+\begin_layout Plain Layout
+
 opts_chunk$set(fig.path='figure/twocolumn-', fig.align='center', fig.show='hold')
 \end_layout
 
@@ -149,7 +154,7 @@ status open
 
 \begin_layout Plain Layout
 
-<<chunk-hook, echo=2>>=
+<<chunk-hook, echo=2, tidy.opts=list(width.cutoff=30)>>=
 \end_layout
 
 \begin_layout Plain Layout

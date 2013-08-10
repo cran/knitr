@@ -191,7 +191,7 @@ img{display:block;margin:auto;}
 
 <h1>Demos of <code>knit_expand()</code></h1>
 
-<p>A few simple example:</p>
+<p>A few simple examples:</p>
 
 <pre><code class="r">library(knitr)
 knit_expand(text = &quot;The value of pi is {{pi}}.&quot;)
@@ -203,7 +203,7 @@ knit_expand(text = &quot;The value of pi is {{pi}}.&quot;)
 <pre><code class="r">knit_expand(text = &quot;The value of a is {{a}}, so a + 1 is {{a+1}}.&quot;, a = rnorm(1))
 </code></pre>
 
-<pre><code>## [1] &quot;The value of a is 1.21115763842331, so a + 1 is 2.21115763842331.&quot;
+<pre><code>## [1] &quot;The value of a is -0.672223797131572, so a + 1 is 0.327776202868428.&quot;
 </code></pre>
 
 <pre><code class="r">knit_expand(text = &quot;The area of a circle with radius {{r}} is {{pi*r^2}}&quot;, r = 5)
@@ -243,7 +243,7 @@ knit_expand(text = &quot;The value of pi is {{pi}}.&quot;)
 <pre><code class="r">knit_expand(text = &quot;you cannot see the value of x {{x=rnorm(1)}}but it is indeed created: x = {{x}}&quot;)
 </code></pre>
 
-<pre><code>## [1] &quot;you cannot see the value of x but it is indeed created: x = -0.643949312270182&quot;
+<pre><code>## [1] &quot;you cannot see the value of x but it is indeed created: x = 2.35056900492724&quot;
 </code></pre>
 
 <pre><code class="r">knit_expand(text = c(&quot; x | x^2&quot;, &quot;{{x=1:5;paste(sprintf(\&quot;%2d | %3d\&quot;, x, x^2), collapse = \&quot;\n\&quot;)}}&quot;))
@@ -269,7 +269,7 @@ knit_expand(text = &quot;The value of pi is {{pi}}.&quot;)
         &quot;```&quot;))
 })
 # knit the source
-cat(knit(text = unlist(src)))
+cat(knit(text = unlist(src), quiet = TRUE))
 </code></pre>
 
 <pre><code>    # Regression on cyl

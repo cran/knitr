@@ -689,8 +689,8 @@ kable(mtcars, &quot;html&quot;, table.attr = &quot;id=\&quot;mtcars_table\&quot;
 
 <p>Since this is a Markdown vignette, we need to add the JavaScript libraries as well as some additional CSS files to the HTML header, and this can be done via:</p>
 
-<pre><code class="r">options(markdown.HTML.header = paste(unlist(sapply(system.file(&quot;misc&quot;, c(&quot;vignette.css&quot;, 
-    &quot;datatables.txt&quot;), package = &quot;knitr&quot;), readLines)), collapse = &quot;\n&quot;))
+<pre><code class="r">options(markdown.HTML.header = unlist(sapply(system.file(&quot;misc&quot;, c(&quot;vignette.css&quot;, 
+    &quot;datatables.txt&quot;), package = &quot;knitr&quot;), readLines)))
 </code></pre>
 
 <p>Two files <code>vignette.css</code> and <code>datatables.txt</code> under the <code>misc</code> directory of <strong>knitr</strong> were added to the HTML output.</p>

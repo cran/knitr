@@ -203,6 +203,11 @@ fix_options = function(options) {
   # if you want to use subfloats, fig.show must be 'hold'
   if (length(options$fig.subcap)) options$fig.show = 'hold'
 
+  # cache=TRUE -> 3; FALSE -> 0
+  if (is.logical(options$cache)) options$cache = options$cache * 3
+  # non-R code should not use cache=1,2
+  if (options$engine != 'R') options$cache = (options$cache > 0) * 3
+
   ## deal with aliases: a1 is real option; a0 is alias
   if (length(a1 <- opts_knit$get('aliases')) && length(a0 <- names(a1))) {
     for (i in seq_along(a1)) {
@@ -214,10 +219,8 @@ fix_options = function(options) {
   options
 }
 
-## parse but do not keep source
-parse_only = if (getRversion() >= '3.0.0') {
-  function(code) parse(text = code, keep.source = FALSE)
-} else function(code) parse(text = code, srcfile = NULL)
+# parse but do not keep source
+parse_only = formatR:::parse_only
 
 ## try eval an option (character) to its value
 eval_opt = function(x) {
@@ -502,4 +505,16 @@ wrap_rmd = function(file, width = 80, text = NULL, backup) {
     if (!is.null(backup)) file.copy(file, backup, overwrite = TRUE)
     writeLines(txt, file)
   } else txt
+}
+
+# change the default device to an appropriate device when the output is html
+# (e.g. markdown, reST, AsciiDoc)
+set_html_dev = function() {
+  # only change if device is pdf, because pdf does not work for html
+  if (!identical(opts_chunk$get('dev'), 'pdf')) return()
+  # in some cases, png() does not work (e.g. options('bitmapType') == 'Xlib' on
+  # headless servers); use svg then
+  opts_chunk$set(dev = if (inherits(try({
+    png(tempfile()); dev.off()
+  }, silent = TRUE), 'try-error')) 'svg' else 'png')
 }

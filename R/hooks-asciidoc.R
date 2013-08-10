@@ -16,9 +16,10 @@ hook_plot_asciidoc = function(x, options) {
 #' @export
 render_asciidoc = function() {
   knit_hooks$restore()
-  opts_chunk$set(dev = 'png') # default device is png in HTML and markdown
+  set_html_dev()
   opts_knit$set(out.format = 'asciidoc')
   hook.source = function(x, options) {
+    x = paste(c(hilight_source(x, 'asciidoc', options), ''), collapse = '\n')
     sprintf('\n[source,%s]\n----\n%s----\n', tolower(options$engine), x)
   }
   hook.message = function(x, options) {

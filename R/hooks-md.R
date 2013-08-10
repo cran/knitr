@@ -27,7 +27,7 @@ hook_plot_md = function(x, options) {
 #'   \samp{sourcecode} directive (e.g. it is useful for Sphinx)
 render_markdown = function(strict = FALSE) {
   knit_hooks$restore()
-  opts_chunk$set(dev = 'png')
+  set_html_dev()
   opts_knit$set(out.format = 'markdown')
   ## four spaces lead to <pre></pre>
   hook.t = function(x, options) {
@@ -38,7 +38,10 @@ render_markdown = function(strict = FALSE) {
   hook.r = function(x, options) str_c('\n\n```', tolower(options$engine), '\n', x, '```\n\n')
   hook.o = function(x, options) if (output_asis(x, options)) x else hook.t(x, options)
   knit_hooks$set(
-    source = if (strict) hook.t else hook.r, output = hook.o,
+    source = function(x, options) {
+      x = hilight_source(x, 'markdown', options)
+      (if (strict) hook.t else hook.r)(paste(c(x, ''), collapse = '\n'), options)
+    }, output = hook.o,
     warning = hook.t, error = hook.t, message = hook.t,
     inline = function(x) .inline.hook(format_sci(x, 'html')),
     plot = hook_plot_md,
@@ -66,6 +69,7 @@ render_jekyll = function(highlight = c('pygments', 'prettify', 'none'), extra = 
   if (hi == 'none') return()
   switch(hi, pygments = {
     hook.r = function(x, options) {
+      x = paste(c(hilight_source(x, 'markdown', options), ''), collapse = '\n')
       str_c('\n\n{% highlight ', tolower(options$engine), if (extra != '') ' ', extra, ' %}\n',
             x, '{% endhighlight %}\n\n')
     }

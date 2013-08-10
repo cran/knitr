@@ -191,12 +191,15 @@ hook_plot_tex = function(x, options) {
   }
 }
 
-.verb.hook = function(x, options) str_c('\\begin{verbatim}\n', x, '\\end{verbatim}\n')
+.verb.hook = function(x, options)
+  paste(c('\\begin{verbatim}', sub('\n$', '', x), '\\end{verbatim}', ''), collapse = '\n')
 .color.block = function(color1 = '', color2 = '') {
   function(x, options) {
     x = gsub('\n*$', '', x)
-    sprintf('\n\n{\\ttfamily\\noindent%s%s%s}',
-            color1, escape_latex(x, newlines = TRUE, spaces = TRUE), color2)
+    x = escape_latex(x, newlines = TRUE, spaces = TRUE)
+    # babel might have problems with "; see http://stackoverflow.com/q/18125539/559676
+    x = gsub('"', '"{}', x)
+    sprintf('\n\n{\\ttfamily\\noindent%s%s%s}', color1, x, color2)
   }
 }
 
@@ -240,7 +243,10 @@ render_latex = function() {
   knit_hooks$restore()
   knit_hooks$set(
     source = function(x, options) {
-      if (options$engine == 'R' && options$highlight) x else .verb.hook(x)
+      x = hilight_source(x, 'latex', options)
+      if (options$highlight) {
+        paste(c('\\begin{alltt}', x, '\\end{alltt}', ''), collapse = '\n')
+      } else .verb.hook(x)
     },
     output = function(x, options) {
       if (output_asis(x, options)) {
@@ -266,7 +272,9 @@ render_sweave = function() {
   set_header(framed = '', highlight = '\\usepackage{Sweave}')
   knit_hooks$restore()
   ## wrap source code in the Sinput environment, output in Soutput
-  hook.i = function(x, options) str_c('\\begin{Sinput}\n', x, '\\end{Sinput}\n')
+  hook.i = function(x, options)
+    paste(c('\\begin{Sinput}', hilight_source(x, 'sweave', options), '\\end{Sinput}', ''),
+          collapse = '\n')
   hook.s = function(x, options) str_c('\\begin{Soutput}\n', x, '\\end{Soutput}\n')
   hook.o = function(x, options) if (output_asis(x, options)) x else hook.s(x, options)
   hook.c = function(x, options) {

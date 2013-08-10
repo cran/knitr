@@ -33,7 +33,7 @@ src = lapply(names(mtcars)[-1], function(i) {
 knit_expand(text=c("# Regression on {{i}}", '```{r lm-{{i}}}', 'lm(mpg~{{i}}, data=mtcars)', '```'))
 })
 # knit the source
-cat(knit(text = unlist(src)))
+cat(knit(text = unlist(src), quiet = TRUE))
 
 
 ## ----include=FALSE-------------------------------------------------------

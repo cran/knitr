@@ -69,8 +69,8 @@
 #'   recursively. See \code{\link{knit_child}}.
 #'
 #'   The working directory when evaluating R code chunks is the directory of the
-#'   input document by default, so if the R code involves with external files
-#'   (like \code{read.table()}), it is better to put these files under the same
+#'   input document by default, so if the R code involves external files (like
+#'   \code{read.table()}), it is better to put these files under the same
 #'   directory of the input document so that we can use relative paths. However,
 #'   it is possible to change this directory with the package option
 #'   \code{\link{opts_knit}$set(root.dir = ...)} so all paths in code chunks are
@@ -124,6 +124,7 @@ knit = function(input, output = NULL, tangle = FALSE, text = NULL, quiet = FALSE
     opts_knit$set(output.dir = getwd()) # record working directory in 1st run
     knit_log$restore()
     on.exit(chunk_counter(reset = TRUE), add = TRUE) # restore counter
+    adjust_opts_knit()
     ## turn off fancy quotes, use smaller digits/width, warn immediately
     oopts = options(
       useFancyQuotes = FALSE, digits = 4L, warn = 1L, width = getOption('KNITR_WIDTH', 75L),
@@ -136,10 +137,8 @@ knit = function(input, output = NULL, tangle = FALSE, text = NULL, quiet = FALSE
     ocode = knit_code$get(); on.exit(knit_code$restore(ocode), add = TRUE)
     if (tangle) knit_code$restore() # clean up code before tangling
     optk = opts_knit$get(); on.exit(opts_knit$set(optk), add = TRUE)
-    # use the option KNITR_PROGRESS to control the progress bar
-    opts_knit$set(
-      tangle = tangle, encoding = encoding,
-      progress = opts_knit$get('progress') && getOption('KNITR_PROGRESS', TRUE) && !quiet
+    opts_knit$set(tangle = tangle, encoding = encoding,
+                  progress = opts_knit$get('progress') && !quiet
     )
   }
 
@@ -385,8 +384,6 @@ wrap.character = function(x, options) {
 
 wrap.source = function(x, options) {
   src = sub('\n$', '', x$src)
-  src = hilight_source(src, out_format(), options)
-  src = paste(c(src, ''), collapse = '\n')
   knit_hooks$get('source')(src, options)
 }
 
