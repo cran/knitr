@@ -2,8 +2,9 @@
 \alias{spin}
 \title{Spin goat's hair into wool}
 \usage{
-spin(hair, knit = TRUE, report = TRUE, text = NULL, format = c("Rmd", "Rnw", "Rhtml", 
-    "Rtex", "Rrst"), doc = "^#+'[ ]?")
+spin(hair, knit = TRUE, report = TRUE, text = NULL, envir = parent.frame(), 
+    format = c("Rmd", "Rnw", "Rhtml", "Rtex", "Rrst"), doc = "^#+'[ ]?", 
+    comment = c("^[# ]*/[*]", "^.*[*]/ *$"))
 }
 \arguments{
   \item{hair}{the path to the R script}
@@ -19,6 +20,9 @@ spin(hair, knit = TRUE, report = TRUE, text = NULL, format = c("Rmd", "Rnw", "Rh
   \code{hair} to provide the R source; if \code{text} is
   not \code{NULL}, \code{hair} will be ignored}
 
+  \item{envir}{the environment for \code{\link{knit}()} to
+  evaluate the code}
+
   \item{format}{character: the output format (it takes five
   possible values); the default is R Markdown}
 
@@ -27,6 +31,13 @@ spin(hair, knit = TRUE, report = TRUE, text = NULL, format = c("Rmd", "Rnw", "Rh
   convention, but it can be customized, e.g.  if you want
   to use \code{##} to denote documentation, you can use
   \code{'^##\\\\s*'}}
+
+  \item{comment}{a pair of regular expressions for the
+  start and end delimiters of comments; the lines between a
+  start and an end delimiter will be ignored; by default,
+  the delimiters are \verb{/*} in the beginning and
+  \verb{*/} in the end of a line (following the convention
+  of C comments)}
 }
 \value{
   If \code{text} is \code{NULL}, the path of the final
@@ -38,7 +49,7 @@ spin(hair, knit = TRUE, report = TRUE, text = NULL, format = c("Rmd", "Rnw", "Rh
   default normal text (documentation) should be written
   after the roxygen comment (\code{#'}) and code chunk
   options are written after \code{#+} or \code{#-} or
-  \code{# @knitr}.
+  \code{# ----}.
 }
 \details{
   Obviously the goat's hair is the original R script, and
@@ -57,6 +68,11 @@ spin(hair, knit = TRUE, report = TRUE, text = NULL, format = c("Rmd", "Rnw", "Rh
 #' write normal text like this and chunk options like below
 
 # + label, opt=value
+
+# /*
+#' these lines are treated as comments in spin()
+1 + 1
+# */
 
 (s = system.file("examples", "knitr-spin.R", package = "knitr"))
 spin(s)  # default markdown

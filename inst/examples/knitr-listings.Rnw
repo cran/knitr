@@ -1,4 +1,4 @@
-%% LyX 2.0.5.1 created this file.  For more info, see http://www.lyx.org/.
+%% LyX 2.0.6 created this file.  For more info, see http://www.lyx.org/.
 %% Do not edit unless you really know what you are doing.
 \documentclass{article}
 \usepackage[sc]{mathpazo}
@@ -18,6 +18,7 @@
 \begin{document}
 
 <<setup, include=FALSE, cache=FALSE>>=
+library(knitr)
 opts_chunk$set(fig.path = 'figure/listings-')
 options(replace.assign = TRUE)
 render_listings()

@@ -20,7 +20,7 @@ This FAQ is compiled from the [issues](https://github.com/yihui/knitr/issues) an
 1. What is the working directory? Can I change my working directory in my code chunks?
   - You'd better not do this. Your working directory is always `getwd()` (all output files will be written here), but the code chunks are evaluated under the directory where your input document comes from. Changing working directories while running R code is a bad practice in general. See [#38](https://github.com/yihui/knitr/issues/38) for a discussion. You should also try to avoid absolute directories whenever possible (use relative directories instead), because it makes things less reproducible.
 1. The gray (shading) box is too narrow for my output.
-  - No, it is not because the box is too narrow (the box uses the current line width); it is because your output is too wide. Use a smaller `width` option to avoid text output exceeding the page margin, e.g. `options(width = 60)` (see [#44](https://github.com/yihui/knitr/issues/44)).
+  - No, it is not because the box is too narrow (the box uses the current line width); it is because your output is too wide. Use a smaller `width` option to avoid text output exceeding the page margin, e.g. `options(width = 60)` (see [example 038](https://github.com/yihui/knitr-examples/blob/master/038-output-width.Rnw)).
 1. How to comment out inline R code like in `\Sexpr{code}`?
   - see issue [#110](https://github.com/yihui/knitr/issues/110): you can destroy `\Sexpr` by `%\%Sexpr{code}` or comment out R code like `\Sexpr{#code}`, or just comment out the whole paragraph with `%` in the beginning of lines.
 1. How can I write a literal code chunk? i.e. write a code chunk which is not parsed and useful for tutorials?
@@ -30,3 +30,9 @@ This FAQ is compiled from the [issues](https://github.com/yihui/knitr/issues) an
 1. What can I do for you?
   - Many things, e.g. [donate zillions to me](https://www.paypal.com/cgi-bin/webscr?cmd=_donations&business=ZRJDEBSEJEUJY&lc=US&item_name=Donate%20to%20Yihui%20Xie&currency_code=USD&bn=PP%2dDonationsBF%3abtn_donateCC_LG%2egif%3aNonHosted) (well, I'm kidding), buy me a book from my [Amazon wishlist](http://amzn.com/w/2S7M0GLEC32SB), [tweet](https://twitter.com/xieyihui) my [links](http://yihui.name/knitr), mention **knitr** on [Google+](https://plus.google.com/u/0/109653178371807724268/posts) or Facebook, or fork this repository and contribute code, or just say hello to me somewhere.
   - Cite the package and the [knitr book](http://www.crcpress.com/product/isbn/9781482203530); see `citation('knitr')` in R.
+1. How can I submit a documentation fix or other minor change?
+  - Navigate to the file within the [repo](https://github.com/yihui/knitr)
+  - Click on the **edit** button
+  - Make the necessary changes.
+  - Add a descriptive commit summary and click on **propose file change**
+  - Submit the pull request

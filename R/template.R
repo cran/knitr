@@ -10,7 +10,7 @@
 #' template must have a token \samp{\%sCHUNK_LABEL_HERE}, which will be used to
 #' input all the R code from the script. See the examples below.
 #'
-#' The R script may contain chunk headers of the form \samp{## @@knitr label},
+#' The R script may contain chunk headers of the form \samp{## ---- label},
 #' which will be copied to the template; if no chunk headers are found, the
 #' whole R script will be inserted into the template as one code chunk.
 #' @param script path to the R script
@@ -61,8 +61,8 @@ stitch = function(script,
 
   out = knit(input, output, envir = envir, text = txt)
   switch(file_ext(out), tex = {
-    texi2pdf(out, clean = TRUE)
-    message('PDF output at: ', str_replace(out, '\\.tex$', '.pdf'))
+    tools::texi2pdf(out, clean = TRUE)
+    message('PDF output at: ', sub_ext(out, 'pdf'))
   }, md = {
     out.html = sub_ext(out, 'html')
     markdown::markdownToHTML(out, out.html)
@@ -79,7 +79,7 @@ stitch_rhtml = function(...) {
 #' @rdname stitch
 #' @export
 stitch_rmd = function(...) {
-  stitch(..., template = system.file('misc', 'knitr-template.Rhtml', package = 'knitr'))
+  stitch(..., template = system.file('misc', 'knitr-template.Rmd', package = 'knitr'))
 }
 
 #' A simple macro preprocessor for templating purposes
@@ -100,44 +100,23 @@ stitch_rmd = function(...) {
 #'   (\url{http://pyexpander.sourceforge.net}) and m4
 #'   (\url{http://www.gnu.org/software/m4/}), thanks to Frank Harrell.
 #' @export
-#' @examples knit_expand(text = 'The value of pi is {{pi}}.')
-#' knit_expand(text = 'The value of a is {{a}}, so a + 1 is {{a+1}}.', a = rnorm(1))
-#' knit_expand(text = 'The area of a circle with radius {{r}} is {{pi*r^2}}', r = 5)
-#' ## any number of variables
-#' knit_expand(text = 'a is {{a}} and b is {{b}}, with my own pi being {{pi}} instead of {{base::pi}}', a=1, b=2, pi=3)
-#' ## custom delimiter <% %>
-#' knit_expand(text = 'I do not like curly braces, so use % with <> instead: a is <% a %>.', a = 8, delim = c("<%", "%>"))
-#' ## the pyexpander delimiter
-#' knit_expand(text = 'hello $(LETTERS[24]) and $(pi)!', delim = c("$(", ")"))
-#' ## arbitrary R code
-#' knit_expand(text = 'you cannot see the value of x {{x=rnorm(1)}}but it is indeed created: x = {{x}}')
-#' knit_expand(text = c(' x | x^2', '{{x=1:5;paste(sprintf("%2d | %3d", x, x^2), collapse = "\n")}}'))
-#'
-#' ## the m4 example: http://en.wikipedia.org/wiki/M4_(computer_language)
-#' knit_expand(text = c('{{i=0;h2=function(x){i<<-i+1;sprintf("<h2>%d. %s</h2>", i, x)} }}<html>',
-#' '{{h2("First Section")}}', '{{h2("Second Section")}}', '{{h2("Conclusion")}}', '</html>'))
-#'
-#' ## build regression models based on a template; loop through all vars in mtcars
-#' src = lapply(names(mtcars)[-1], function(i) {
-#' knit_expand(text=c("# Regression on {{i}}", '```{r lm-{{i}}}', 'lm(mpg~{{i}}, data=mtcars)', '```'))
-#' })
-#' # knit the source
-#' cat(knit(text = unlist(src)))
+#' @examples # see the knit_expand vignette
+#' if (interactive()) browseVignettes(package='knitr')
 knit_expand = function(file, ..., text = readLines(file, warn = FALSE),
-                       delim = c("{{", "}}") ){
+                       delim = c('{{', '}}') ){
 
   # check if delim is a pair, escaping regex as necessary
   if (length(delim) != 2L) stop('"delim" must be of length 2')
   delim = gsub('([.|()\\^{}+$*?]|\\[|\\])', '\\\\\\1', delim)
   delim = str_c(delim[1L], '((.|\n)+?)', delim[2L])
 
-  txt = str_c(text, collapse = '\n'); delim = perl(delim)
+  txt = paste(text, collapse = '\n'); delim = perl(delim)
   loc = str_locate_all(txt, delim)[[1L]]
   if (nrow(loc) == 0L) return(txt) # no match
   mat = str_extract_all(txt, delim)[[1L]]
-  mat = str_replace(mat, delim, '\\1')
+  mat = sub(delim, '\\1', mat)
   env = list(...)
   env = if (length(env)) list2env(env, parent = parent.frame()) else parent.frame()
   inline_exec(list(code = mat, input = txt, location = loc),
-              eval = TRUE, envir = env, stop_on_error = 2L, hook = identity)
+              eval = TRUE, envir = env, error = FALSE, hook = identity)
 }

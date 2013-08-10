@@ -30,7 +30,7 @@ new_cache = function() {
 
   save_objects = function(objs, label, path) {
     ## save object names
-    x = str_c(c(label, objs), collapse = '\t')
+    x = paste(c(label, objs), collapse = '\t')
     if (file.exists(path)) {
       lines = readLines(path)
       idx = substr(lines, 1L, nchar(label)) == label
@@ -73,14 +73,13 @@ new_cache = function() {
   }
 
   cache_exists = function(hash) {
-    all(file.exists(str_c(cache_path(hash), c('.rdb', '.rdx'))))
+    is.character(hash) && all(file.exists(str_c(cache_path(hash), c('.rdb', '.rdx'))))
   }
 
-  ## code output is stored in .[hash], so cache=TRUE won't lose output as cacheSweave does
-  cache_output = function(hash) {
-    if (exists(str_c('.', hash), envir = knit_global(), mode = 'character')) {
-      get(str_c('.', hash), envir = knit_global(), mode = 'character')
-    } else ''
+  # when cache=3, code output is stored in .[hash], so cache=TRUE won't lose
+  # output as cacheSweave does; for cache=1,2, output is the evaluate() list
+  cache_output = function(hash, mode = 'character') {
+    get(str_c('.', hash), envir = knit_global(), mode = mode, inherits = FALSE)
   }
 
   list(purge = cache_purge, save = cache_save, load = cache_load, objects = cache_objects,
@@ -124,7 +123,7 @@ dep_auto = function(path = opts_chunk$get('cache.path')) {
   if (is.null(locals) || is.null(globals)) return(invisible(NULL))
   if (!identical(names(locals), names(globals))) {
     warning('corrupt dependency files? \ntry remove ',
-            str_c(paths, collapse = '; '))
+            paste(paths, collapse = '; '))
     return(invisible(NULL))
   }
   nms = intersect(names(knit_code$get()), names(locals)) # guarantee correct order

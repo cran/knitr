@@ -22,23 +22,27 @@ hook_plot_rst = function(x, options) {
 #' @export
 render_rst = function(strict = FALSE) {
   knit_hooks$restore()
-  opts_chunk$set(dev = 'png', highlight = FALSE)
+  set_html_dev()
   hook.s = function(x, options) {
-    str_c("\n\n::\n\n", indent_block(x), "\n")
+    str_c('\n\n::\n\n', indent_block(x), '\n')
   }
   hook.t = function(x, options) {
-    make_directive('sourcecode', tolower(options$engine), "", content = x)
+    make_directive('sourcecode', tolower(options$engine), '', content = x)
   }
   hook.o = function(x, options) {
     if (output_asis(x, options)) return(x)
     hook.s(x, options)
   }
   hook.i = function(x) {
-    .inline.hook(format_sci(x, "rst"))
+    .inline.hook(format_sci(x, 'rst'))
   }
-  knit_hooks$set(source = if (strict) hook.s else hook.t,
-                 warning = hook.s, error = hook.s, message = hook.s,
-                 output = hook.o, inline = hook.i, plot = hook_plot_rst)
+  knit_hooks$set(
+    source = function(x, options) {
+      x = paste(c(hilight_source(x, 'rst', options), ''), collapse = '\n')
+      (if (strict) hook.s else hook.t)(x, options)
+    },
+    warning = hook.s, error = hook.s, message = hook.s,
+    output = hook.o, inline = hook.i, plot = hook_plot_rst)
 }
 
 # Insert a reStructuredText directive for sphinx
@@ -58,8 +62,8 @@ render_rst = function(strict = FALSE) {
 #  .. figure:: fig.png
 #      :align: center
 #      :alt: cap
-make_directive = function(name, arg, opt, content = "") {
-  l1 = sprintf("\n.. %s:: %s\n", name, arg)
-  l2 = paste(sprintf(":%s: %s", names(opt), opt), collapse = "\n")
-  paste(l1, indent_block(l2), "\n\n", indent_block(content), sep = "")
+make_directive = function(name, arg, opt, content = '') {
+  l1 = sprintf('\n.. %s:: %s\n', name, arg)
+  l2 = paste(sprintf(':%s: %s', names(opt), opt), collapse = '\n')
+  paste(l1, indent_block(l2), '\n\n', indent_block(content), sep = '')
 }

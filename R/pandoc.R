@@ -16,26 +16,33 @@
 #' formats, write each format and relevant configurations in a block, and
 #' separate blocks with blank lines.
 #' @param input a character vector of the Markdown filenames
-#' @param format the output format (see References)
+#' @param format the output format (see References); it can be a character
+#'   vector of multiple formats
 #' @param config the Pandoc configuration file; if missing, it is assumed to be
 #'   a file with the same base name as the \code{input} file and an extension
 #'   \code{.pandoc} (e.g. for \file{foo.md} it looks for \file{foo.pandoc})
-#' @return The output filename (or an error if the conversion failed).
+#' @param ext the filename extensions; by default, the extension is inferred
+#'   from the \code{format}, e.g. \code{latex} creates \code{pdf}, and
+#'   \code{dzslides} creates \code{html}, and so on
+#' @return The output filename(s) (or an error if the conversion failed).
 #' @references Pandoc: \url{http://johnmacfarlane.net/pandoc/}; Examples and
 #'   rules of the configurations: \url{http://yihui.name/knitr/demo/pandoc}
 #' @seealso \code{\link{read.dcf}}
 #' @export
 #' @examples system('pandoc -h') # see possible output formats
-pandoc = function(input, format = 'html', config = getOption('config.pandoc')) {
+pandoc = function(input, format = 'html', config = getOption('config.pandoc'), ext = NA) {
   if (Sys.which('pandoc') == '')
     stop('Please install pandoc first: http://johnmacfarlane.net/pandoc/')
   cfg = if (is.null(config)) sub_ext(input[1L], 'pandoc') else config
-  out = sub_ext(input[1L], pandoc_ext(format))
-  cmn = NULL  # common arguments
   txt = pandoc_cfg(readLines(input[1L], warn = FALSE))
   if (file.exists(cfg)) txt = c(txt, '', readLines(cfg, warn = FALSE))
   con = textConnection(txt); on.exit(close(con))
   cfg = read.dcf(con)
+  mapply(pandoc_one, input, format, ext, MoreArgs = list(cfg = cfg), USE.NAMES = FALSE)
+}
+# format is a scalar
+pandoc_one = function(input, format, ext, cfg) {
+  cmn = NULL  # common arguments
   if (nrow(cfg) == 0L) cfg = character(0) else if (nrow(cfg) == 1L) {
     if ('format' %in% colnames(cfg)) {
       cfg = if (cfg[1L, 'format'] == format) drop(cfg) else NA
@@ -54,7 +61,9 @@ pandoc = function(input, format = 'html', config = getOption('config.pandoc')) {
     }
   }
   out = unname(if (!is.na(cfg['o'])) cfg['o'] else {
-    if (!is.na(cfg['output'])) cfg['output'] else sub_ext(input[1L], pandoc_ext(format))
+    if (!is.na(cfg['output'])) cfg['output'] else {
+      sub_ext(input, if (is.na(ext)) pandoc_ext(format) else ext)
+    }
   })
   cfg = cfg[setdiff(names(cfg), c('o', 'output', 'format'))]
   cmd = paste('pandoc', pandoc_arg(cfg), pandoc_arg(cmn), '-f markdown',
@@ -83,8 +92,9 @@ pandoc_arg = function(x) {
     nms = rep(nms, sapply(x, length))
     x = unlist(x)
   }
-  paste(ifelse(nchar(nms) == 1L, '-', '--'), nms,
-        ifelse(x == '', '', '='), x, sep = '', collapse = ' ')
+  a1 = nchar(nms) == 1L
+  paste(ifelse(a1, '-', '--'), nms,
+        ifelse(x == '', '', ifelse(a1, ' ', '=')), x, sep = '', collapse = ' ')
 }
 # identify pandoc config in markdown comments
 pandoc_cfg = function(x) {

@@ -69,11 +69,11 @@ hook_ffmpeg_html = function(x, options) {
   # set up the ffmpeg run
   ffmpeg.opts = options$aniopts
   fig.fname = str_c(sub(str_c(fig.num, '$'), '%d', x[1]), '.', x[2])
-  mov.fname = str_c(sub(paste(fig.num, '$',sep = ''), '', x[1]), ".mp4")
+  mov.fname = str_c(sub(paste(fig.num, '$',sep = ''), '', x[1]), '.ogg')
   if(is.na(ffmpeg.opts)) ffmpeg.opts = NULL
 
-  ffmpeg.cmd = paste("ffmpeg", "-y", "-r", 1/options$interval,
-                     "-i", fig.fname, mov.fname)
+  ffmpeg.cmd = paste('ffmpeg', '-y', '-r', 1/options$interval,
+                     '-i', fig.fname, mov.fname)
   message('executing: ', ffmpeg.cmd)
   system(ffmpeg.cmd, ignore.stdout = TRUE)
 
@@ -83,7 +83,7 @@ hook_ffmpeg_html = function(x, options) {
                   sprintf('height=%s', options$out.height),
                   if('controls' %in% mov.opts) 'controls="controls"',
                   if('loop' %in% mov.opts) 'loop="loop"')
-  sprintf('<video %s><source src="%s" type="video/mp4" />video of chunk %s</video>',
+  sprintf('<video %s><source src="%s" />video of chunk %s</video>',
           opt.str, str_c(opts_knit$get('base.url'), mov.fname), options$label)
 }
 
@@ -150,13 +150,16 @@ hook_r2swf = function(x, options) {
 #' @export
 render_html = function() {
   knit_hooks$restore()
-  opts_chunk$set(dev = 'png') # default device is png in HTML and markdown
+  set_html_dev()
   opts_knit$set(out.format = 'html')
   ## use div with different classes
   html.hook = function(name) {
     force(name)
     function (x, options) {
-      sprintf('<div class="%s"><pre class="knitr %s">%s</pre></div>', name, tolower(options$engine), x)
+      if (name == 'source') {
+        x = paste(c(hilight_source(x, 'html', options), ''), collapse = '\n')
+      }
+      sprintf('<div class="%s"><pre class="knitr %s">%s</pre></div>\n', name, tolower(options$engine), x)
     }
   }
   h = opts_knit$get('header')
