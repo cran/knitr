@@ -1,7 +1,7 @@
 Package: knitr
 Type: Package
 Title: A general-purpose package for dynamic report generation in R
-Version: 1.4
+Version: 1.4.1
 Date: 2013-08-10
 Authors@R: c(person("Alastair", "Andrew", role = "ctb"),
     person("Alex", "Zvoleff", role = "ctb"),
@@ -79,7 +79,7 @@ Collate: 'package.R' 'utils-upload.R' 'plot.R' 'defaults.R' 'parser.R'
         'zzz.R' 'template.R' 'utils-sweave.R' 'utils-conversion.R'
         'utils-vignettes.R' 'pandoc.R' 'hooks-asciidoc.R' 'table.R'
         'rocco.R'
-Packaged: 2013-08-10 00:12:07 UTC; yihui
+Packaged: 2013-08-12 07:22:37 UTC; ripley
 NeedsCompilation: no
 Repository: CRAN
-Date/Publication: 2013-08-10 10:51:51
+Date/Publication: 2013-08-12 09:24:01
