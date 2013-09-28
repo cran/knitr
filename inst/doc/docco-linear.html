@@ -35,9 +35,9 @@ img{display:block;margin:auto;}
 <p>To use the Docco style for Markdown vignettes in an R package, you need to</p>
 
 <ul>
-<li>add <code>*.Rmarkdown</code> files under the <code>vignettes</code> directory (in theory, we can use <code>*.Rmd</code> as well, but currently there is a bug in R 3.0.1, so we have to use a different file extension)</li>
+<li>add <code>*.Rmd</code> files under the <code>vignettes</code> directory</li>
 <li>add <code>Suggests: knitr</code> and <code>VignetteBuilder: knitr</code> to the <code>DESCRIPTION</code> file</li>
-<li>specify the vignette engine <code>\VignetteEngine{knitr::docco_linear}</code> in the <code>Rmarkdown</code> files (inside HTML comments)</li>
+<li>specify the vignette engine <code>\VignetteEngine{knitr::docco_linear}</code> in the <code>Rmd</code> files (inside HTML comments)</li>
 </ul>
 
 <p>After building and installing the package, you can view vignettes via</p>

@@ -25,8 +25,8 @@
 knit_rd = function(pkg, links = tools::findHTMLlinks(), frame = TRUE) {
   library(pkg, character.only = TRUE)
   optc = opts_chunk$get(); on.exit(opts_chunk$set(optc))
-  file.copy(system.file('misc', c('highlight.css', 'highlight.pack.js', 'R.css'), package = 'knitr'), './')
-  pkgRdDB = tools:::fetchRdDB(file.path(find.package(pkg), 'help', pkg))
+  file.copy(system.file('misc', 'R.css', package = 'knitr'), './')
+  pkgRdDB = getFromNamespace('fetchRdDB', 'tools')(file.path(find.package(pkg), 'help', pkg))
   force(links); topics = names(pkgRdDB)
   for (p in topics) {
     message('** knitting documentation of ', p)
@@ -48,8 +48,9 @@ knit_rd = function(pkg, links = tools::findHTMLlinks(), frame = TRUE) {
       }
       txt = c(txt[1:i0], res, txt[i1:length(txt)])
       txt = sub('</head>', '
-<link rel="stylesheet" href="highlight.css">
-<script src="highlight.pack.js"></script>
+<link rel="stylesheet" href="http://yandex.st/highlightjs/7.3/styles/github.min.css">
+<script src="http://yandex.st/highlightjs/7.3/highlight.min.js"></script>
+<script src="http://yandex.st/highlightjs/7.3/languages/r.min.js"></script>
 <script>hljs.initHighlightingOnLoad();</script>
 </head>', txt)
     } else message('no examples found for ', p)
@@ -60,7 +61,7 @@ knit_rd = function(pkg, links = tools::findHTMLlinks(), frame = TRUE) {
   toc = c(str_c('# ', pkg), '', toc, '',
           paste('Generated with [knitr](http://yihui.name/knitr) ', packageVersion('knitr')))
   markdown::markdownToHTML(text = paste(toc, collapse = '\n'), output = '00frame_toc.html',
-                           title = str_c('R Documentation of ', pkg),
+                           title = paste('R Documentation of', pkg),
                            options = NULL, extensions = NULL, stylesheet = 'R.css')
   txt = readLines(file.path(find.package(pkg), 'html', '00Index.html'))
   unlink('00Index.html')

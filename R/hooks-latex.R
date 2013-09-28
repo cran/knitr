@@ -100,7 +100,7 @@ hook_plot_tex = function(x, options) {
 
   # Wrap in figure environment only if user specifies a caption
   if (length(cap) && !is.na(cap)) {
-    lab = str_c(options$fig.lp, options$label)
+    lab = paste(options$fig.lp, options$label, sep = '')
     # If pic is standalone/first in set: open figure environment
     if (plot1) {
       fig1 = sprintf('\\begin{%s}[%s]\n', options$fig.env, options$fig.pos)
@@ -108,7 +108,7 @@ hook_plot_tex = function(x, options) {
     # Add subfloat code if needed
     if (usesub) {
       sub1 = sprintf('\\subfloat[%s\\label{%s}]{',
-                     subcap, str_c(lab, fig.cur))
+                     subcap, paste(lab, fig.cur, sep = ''))
       sub2 = '}'
     }
 
@@ -117,9 +117,9 @@ hook_plot_tex = function(x, options) {
     # * close figure environment
     if (plot2) {
       if (is.null(scap)) scap = str_split(cap, '\\.|;|:')[[1L]][1L]
-      scap = if(is.na(scap)) '' else str_c('[', scap, ']')
+      scap = if(is.na(scap)) '' else sprintf('[%s]', scap)
       fig2 = sprintf('\\caption%s{%s\\label{%s}}\n\\end{%s}\n', scap, cap,
-                     str_c(lab, ifelse(mcap, fig.cur, '')), options$fig.env)
+                     paste(lab, if (mcap) fig.cur, sep = ''), options$fig.env)
     }
   }
 
@@ -140,7 +140,7 @@ hook_plot_tex = function(x, options) {
       size = paste(c(size, sprintf('%s', aniopts)), collapse = ',')
       if (nzchar(size)) size = sprintf('[%s]', size)
       sprintf('\\animategraphics%s{%s}{%s}{%s}{%s}', size, 1/options$interval,
-              sub(str_c(fig.num, '$'), '', x[1]), 1L, fig.num)
+              sub(sprintf('%d$', fig.num), '', x[1]), 1L, fig.num)
     } else {
       if (nzchar(size)) size = sprintf('[%s]', size)
       sprintf('\\includegraphics%s{%s} ', size, x[1])
@@ -152,13 +152,14 @@ hook_plot_tex = function(x, options) {
 }
 
 .chunk.hook.tex = function(x, options) {
-  col = if (ai <- output_asis(x, options)) '' else
-    str_c(color_def(options$background), ifelse(is_tikz_dev(options), '', '\\color{fgcolor}'))
-  k1 = str_c(col, '\\begin{kframe}\n')
+  ai = output_asis(x, options)
+  col = if (!ai) paste(color_def(options$background),
+                       if (!is_tikz_dev(options)) '\\color{fgcolor}', sep = '')
+  k1 = paste(col, '\\begin{kframe}\n', sep = '')
   k2 = '\\end{kframe}'
-  x = .rm.empty.envir(str_c(k1, x, k2))
-  size = if (options$size == 'normalsize') '' else str_c('\\', options$size)
-  if (!ai) x = str_c('\\begin{knitrout}', size, '\n', x, '\n\\end{knitrout}')
+  x = .rm.empty.envir(paste(k1, x, k2, sep = ''))
+  size = if (options$size == 'normalsize') '' else sprintf('\\%s', options$size)
+  if (!ai) x = sprintf('\\begin{knitrout}%s\n%s\n\\end{knitrout}', size, x)
   if (options$split) {
     name = fig_path('.tex', options)
     if (!file.exists(dirname(name)))
@@ -178,17 +179,11 @@ hook_plot_tex = function(x, options) {
 .inline.hook.tex = function(x) {
   if(is.numeric(x)) {
     x = format_sci(x, 'latex')
+    i = grep('\\\\times 10\\^\\{-?\\d+\\}$', x)
+    x[i] = sprintf('\\ensuremath{%s}', x[i])
     if (getOption('OutDec') != '.') x = sprintf('\\text{%s}', x)
   }
   .inline.hook(x)
-}
-# an example of a chunk hook
-.param.hook = function(before, options, envir) {
-  if (before) {
-    'do something before the code chunk'
-  } else {
-    'do something after the code chunk'
-  }
 }
 
 .verb.hook = function(x, options)
@@ -245,12 +240,17 @@ render_latex = function() {
     source = function(x, options) {
       x = hilight_source(x, 'latex', options)
       if (options$highlight) {
-        paste(c('\\begin{alltt}', x, '\\end{alltt}', ''), collapse = '\n')
+        if (options$engine == 'R' || x[1] != '\\noindent') {
+          paste(c('\\begin{alltt}', x, '\\end{alltt}', ''), collapse = '\n')
+        } else {
+          if ((n <- length(x)) > 5) x[n - 3] = sub('\\\\\\\\$', '', x[n - 3])
+          paste(c(x, ''), collapse = '\n')
+        }
       } else .verb.hook(x)
     },
     output = function(x, options) {
       if (output_asis(x, options)) {
-        str_c('\\end{kframe}', x, '\\begin{kframe}')
+        paste('\\end{kframe}', x, '\\begin{kframe}', sep = '')
       } else .verb.hook(x)
     },
     warning = .color.block('\\color{warningcolor}{', '}'),
@@ -259,7 +259,7 @@ render_latex = function() {
     inline = .inline.hook.tex, chunk = .chunk.hook.tex,
     plot = function(x, options) {
       ## escape plot environments from kframe
-      str_c('\\end{kframe}', hook_plot_tex(x, options), '\n\\begin{kframe}')
+      paste('\\end{kframe}', hook_plot_tex(x, options), '\n\\begin{kframe}', sep = '')
     }
   )
 }
@@ -275,11 +275,11 @@ render_sweave = function() {
   hook.i = function(x, options)
     paste(c('\\begin{Sinput}', hilight_source(x, 'sweave', options), '\\end{Sinput}', ''),
           collapse = '\n')
-  hook.s = function(x, options) str_c('\\begin{Soutput}\n', x, '\\end{Soutput}\n')
+  hook.s = function(x, options) paste('\\begin{Soutput}\n', x, '\\end{Soutput}\n', sep = '')
   hook.o = function(x, options) if (output_asis(x, options)) x else hook.s(x, options)
   hook.c = function(x, options) {
     if (output_asis(x, options)) return(x)
-    str_c('\\begin{Schunk}\n', x, '\\end{Schunk}')
+    paste('\\begin{Schunk}\n', x, '\\end{Schunk}', sep = '')
   }
   knit_hooks$set(source = hook.i, output = hook.o, warning = hook.s,
                  message = hook.s, error = hook.s, inline = .inline.hook.tex,
@@ -320,6 +320,7 @@ render_listings = function() {
 #' @export
 #' @references \url{http://yihui.name/knitr/hooks}
 #' @examples \dontrun{knit_hooks$set(document = hook_movecode)}
+#' # see example 103 at https://github.com/yihui/knitr-examples
 hook_movecode = function(x) {
   x = split_lines(x)
   res = split(x, cumsum(grepl('^\\\\(begin|end)\\{figure\\}', x)))

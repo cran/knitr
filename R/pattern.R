@@ -8,7 +8,7 @@
 #' str(all_patterns)
 all_patterns = list(
   `rnw` = list(
-    chunk.begin = '^\\s*<<(.*)>>=', chunk.end = '^\\s*@\\s*(%+.*|)$',
+    chunk.begin = '^\\s*<<(.*)>>=.*$', chunk.end = '^\\s*@\\s*(%+.*|)$',
     inline.code = '\\\\Sexpr\\{([^}]+)\\}', inline.comment = '^\\s*%.*',
     ref.chunk = '^\\s*<<(.+)>>\\s*$', header.begin = '\\s*\\\\documentclass[^}]+\\}',
     document.begin = '\\s*\\\\begin\\{document\\}'),
@@ -42,7 +42,7 @@ all_patterns = list(
     inline.code = '[+]r +([^+\n]+)\\s*[+]', inline.comment = '^//.*')
 )
 
-.sep.label = '^#+\\s*(@knitr|----+)(.*?)-*$'  # pattern for code chunks in an R script
+.sep.label = '^#+\\s*(@knitr|----+)(.*?)-*\\s*$'  # pattern for code chunks in an R script
 
 ## initial pattern list
 .pat.init = list(

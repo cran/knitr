@@ -60,6 +60,7 @@ kable = function(x, format, digits = getOption('digits'), row.names = NA,
     align = ifelse(isn, 'r', 'l')
   # rounding
   x = apply(x, 2, function(z) if (is.numeric(z)) format(round(z, digits)) else z)
+  if (is.null(dim(x))) x = t(as.matrix(x))  # damn it!
   if (is.na(row.names))
     row.names = !is.null(rownames(x)) && !identical(rownames(x), as.character(seq_len(NROW(x))))
   if (row.names) {
@@ -75,19 +76,24 @@ kable = function(x, format, digits = getOption('digits'), row.names = NA,
   invisible(res)
 }
 
-kable_latex = function(x, booktabs = FALSE, longtable = FALSE) {
+kable_latex = function(
+  x, booktabs = FALSE, longtable = FALSE,
+  vline = if (booktabs) '' else '|',
+  toprule = if (booktabs) '\\toprule' else '\\hline',
+  bottomrule = if (booktabs) '\\bottomrule' else '\\hline'
+) {
   if (!is.null(align <- attr(x, 'align'))) {
-    align = paste(align, collapse = if (booktabs) '' else '|')
+    align = paste(align, collapse = vline)
     align = paste('{', align, '}', sep = '')
   }
 
   paste(c(
-    sprintf('\\begin{%s}', if (longtable) 'longtable' else 'tabular'), align,
-    sprintf('\n%s\n', if (booktabs) '\\toprule' else '\\hline'),
+    sprintf('\n\\begin{%s}', if (longtable) 'longtable' else 'tabular'), align,
+    sprintf('\n%s', toprule), '\n',
     paste(c(if (!is.null(cn <- colnames(x))) paste(cn, collapse = ' & '),
             apply(x, 1, paste, collapse = ' & ')),
           collapse = sprintf('\\\\\n%s\n', if (booktabs) '\\midrule' else '\\hline')),
-    '\\\\\n', if (booktabs) '\\bottomrule' else '\\hline',
+    sprintf('\\\\\n%s', bottomrule),
     sprintf('\n\\end{%s}', if (longtable) 'longtable' else 'tabular')
   ), collapse = '')
 }

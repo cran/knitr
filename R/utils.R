@@ -20,7 +20,7 @@ chunk_counter = knit_counter(1L)
 ## a vectorized and better version than evaluate:::line_prompt
 line_prompt = function(x, prompt = getOption('prompt'), continue = getOption('continue')) {
   # match a \n, then followed by any character (use zero width assertion)
-  str_c(prompt, gsub('(?<=\n)(?=.|\n)', continue, x, perl = TRUE))
+  paste(prompt, gsub('(?<=\n)(?=.|\n)', continue, x, perl = TRUE), sep = '')
 }
 
 ## add a prefix to output
@@ -28,7 +28,7 @@ comment_out = function(x, prefix = '##', which = TRUE, newline = TRUE) {
   x = gsub('[\n]{2,}$', '\n', x)
   if (newline) x = gsub('([^\n])$', '\\1\n', x)  # add \n if not exists
   if (is.null(prefix) || !nzchar(prefix) || is.na(prefix)) return(x)
-  prefix = str_c(prefix, ' ')
+  prefix = paste(prefix, '')
   x = gsub(' +([\n]*)$', '\\1', x)
   x[which] = line_prompt(x[which], prompt = prefix, continue = prefix)
   x
@@ -48,7 +48,7 @@ is_blank = function(x) {
 }
 valid_path = function(prefix, label) {
   if (length(prefix) == 0L || is.na(prefix) || prefix == 'NA') prefix = ''
-  str_c(prefix, label)
+  paste(prefix, label, sep = '')
 }
 
 ## define a color variable in TeX
@@ -159,8 +159,7 @@ format_sci_one = function(x, format = 'latex') {
   b[b %in% c(1, -1)] = ''
 
   switch(format, latex = {
-    s = sci_notation('%s%s10^{%s}', b, '\\times ', lx)
-    sprintf('\\ensuremath{%s}', s)
+    sci_notation('%s%s10^{%s}', b, '\\times ', lx)
   }, html = sci_notation('%s%s10<sup>%s</sup>', b, ' &times; ', lx), rst = {
     # if AsIs, use the :math: directive
     if (inherits(x, 'AsIs')) {
@@ -195,7 +194,7 @@ is_tikz_dev = function(options) {
 }
 
 tikz_dict = function(path) {
-  str_c(sans_ext(basename(path)), '-tikzDictionary')
+  paste(sans_ext(basename(path)), 'tikzDictionary', sep = '-')
 }
 
 ## compatibility with Sweave and old beta versions of knitr
@@ -222,12 +221,6 @@ fix_options = function(options) {
 # parse but do not keep source
 parse_only = formatR:::parse_only
 
-## try eval an option (character) to its value
-eval_opt = function(x) {
-  if (!is.character(x)) return(x)
-  eval(parse_only(x), envir = knit_global())
-}
-
 ## eval options as symbol/language objects
 eval_lang = function(x, envir = knit_global()) {
   if (!is.symbol(x) && !is.language(x)) return(x)
@@ -239,7 +232,7 @@ isFALSE = function(x) identical(x, FALSE)
 
 ## check latex packages; if not exist, copy them over to ./
 test_latex_pkg = function(name, path) {
-  res = try(system(sprintf('kpsewhich %s.sty', name), intern = TRUE), silent = TRUE)
+  res = try(system(sprintf('%s %s.sty', kpsewhich(), name), intern = TRUE), silent = TRUE)
   if (inherits(res, 'try-error') || !length(res)) {
     warning("unable to find LaTeX package '", name, "'; will use a copy from knitr")
     file.copy(path, '.')
@@ -378,13 +371,7 @@ escape_latex = function(x, newlines = FALSE, spaces = FALSE) {
 }
 
 # escape special HTML chars
-escape_html = function(x) {
-  x = gsub('&', '&amp;', x)
-  x = gsub('<', '&lt;', x)
-  x = gsub('>', '&gt;', x)
-  x = gsub('"', '&quot;', x)
-  x
-}
+escape_html = highr:::escape_html
 
 #' Read source code from R-Forge
 #'
@@ -517,4 +504,11 @@ set_html_dev = function() {
   opts_chunk$set(dev = if (inherits(try({
     png(tempfile()); dev.off()
   }, silent = TRUE), 'try-error')) 'svg' else 'png')
+}
+
+# locate kpsewhich especially for Mac OS because /usr/texbin may not be in PATH
+kpsewhich = function() {
+  if (Sys.info()['sysname'] != 'Darwin' || !file.exists(x <- '/usr/texbin/kpsewhich')
+      || nzchar(Sys.which('kpsewhich')))
+    'kpsewhich' else x
 }

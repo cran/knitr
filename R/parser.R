@@ -53,7 +53,7 @@ parse_block = function(input, patterns) {
   params = parse_params(params.src)
   if (nzchar(spaces <- gsub('^(\\s*).*', '\\1', block[1]))) {
     params$indent = spaces
-    block = gsub(str_c('^', spaces), '', block) # remove indent for the whole chunk
+    block = gsub(sprintf('^%s', spaces), '', block) # remove indent for the whole chunk
   }
 
   label = params$label; .knitEnv$labels = c(.knitEnv$labels, label)
@@ -78,8 +78,8 @@ parse_block = function(input, patterns) {
 }
 
 ## autoname for unnamed chunk
-unnamed_chunk = function()
-  paste(opts_knit$get('unnamed.chunk.label'), chunk_counter(), sep = '-')
+unnamed_chunk = function(i = chunk_counter())
+  paste(opts_knit$get('unnamed.chunk.label'), i, sep = '-')
 
 ## parse params from chunk header
 parse_params = function(params) {
@@ -232,7 +232,7 @@ print.inline = function(x, ...) {
 #'
 #' ## the 2nd approach
 #' code = c("#@@a", '1+1', "#@@b", "#@@a", 'rnorm(10)', "#@@b")
-#' read_chunk(lines = code, labels = 'foo') # put all code into one chun named foo
+#' read_chunk(lines = code, labels = 'foo') # put all code into one chunk named foo
 #' read_chunk(lines = code, labels = 'foo', from = 2, to = 2) # line 2 into chunk foo
 #' read_chunk(lines = code, labels = c('foo', 'bar'), from = c(1, 4), to = c(3, 6))
 #' # automatically figure out 'to'
@@ -267,11 +267,14 @@ read_chunk = function(path, lines = readLines(path, warn = FALSE),
     return(invisible())
   }
   idx = cumsum(grepl(lab, lines))
-  if (all(idx == 0)) return(invisible())
-  groups = unname(split(lines[idx != 0], idx[idx != 0]))
+  if (idx[1] == 0) {
+    idx = c(0, idx); lines = c('', lines)  # no chunk header in the beginning
+  }
+  groups = unname(split(lines, idx))
   labels = str_trim(gsub(lab, '\\2', sapply(groups, `[`, 1)))
+  labels = gsub(',.*', '', labels)  # strip off possible chunk options
   code = lapply(groups, strip_chunk)
-  idx = nzchar(labels); code = code[idx]; labels = labels[idx]
+  if (any(idx <- !nzchar(labels))) labels[idx] = unnamed_chunk(seq_len(sum(idx)))
   knit_code$set(setNames(code, labels))
 }
 #' @rdname read_chunk

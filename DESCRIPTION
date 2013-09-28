@@ -1,8 +1,8 @@
 Package: knitr
 Type: Package
 Title: A general-purpose package for dynamic report generation in R
-Version: 1.4.1
-Date: 2013-08-10
+Version: 1.5
+Date: 2013-09-28
 Authors@R: c(person("Alastair", "Andrew", role = "ctb"),
     person("Alex", "Zvoleff", role = "ctb"),
     person("Brian", "Diggs", role = "ctb"),
@@ -23,6 +23,7 @@ Authors@R: c(person("Alastair", "Andrew", role = "ctb"),
     person("Noam", "Ross", role = "ctb"),
     person("Ramnath", "Vaidyanathan", role = "ctb"),
     person("Richard", "Cotton", role = "ctb"),
+    person("Romain", "Francois", role = "ctb"),
     person("Sietse", "Brouwer", role = "ctb"),
     person("Simon", "de Bernard", role = "ctb"),
     person("Taiyun", "Wei", role = "ctb"),
@@ -32,7 +33,6 @@ Authors@R: c(person("Alastair", "Andrew", role = "ctb"),
     person("Weicheng", "Zhu", role = "ctb"),
     person("Wush", "Wu", role = "ctb"),
     person("Yihui", "Xie", email = "xie@yihui.name", role = c("aut", "cre")))
-Author: Yihui Xie
 Maintainer: Yihui Xie <xie@yihui.name>
 Description: This package provides a general-purpose tool for dynamic report
     generation in R, which can be used to deal with any type of (plain text)
@@ -65,7 +65,7 @@ Description: This package provides a general-purpose tool for dynamic report
 Depends: R (>= 2.14.1)
 Imports: evaluate (>= 0.4.7), digest, formatR (>= 0.9), highr (>= 0.2),
         markdown (>= 0.6.3), stringr (>= 0.6), tools
-Suggests: testit, rgl, codetools, R2SWF (>= 0.4), XML, RCurl
+Suggests: testit, rgl, codetools, XML, RCurl
 License: GPL
 URL: http://yihui.name/knitr/
 BugReports: https://github.com/yihui/knitr/issues
@@ -79,7 +79,37 @@ Collate: 'package.R' 'utils-upload.R' 'plot.R' 'defaults.R' 'parser.R'
         'zzz.R' 'template.R' 'utils-sweave.R' 'utils-conversion.R'
         'utils-vignettes.R' 'pandoc.R' 'hooks-asciidoc.R' 'table.R'
         'rocco.R'
-Packaged: 2013-08-12 07:22:37 UTC; ripley
+Packaged: 2013-09-28 07:05:43 UTC; yihui
+Author: Alastair Andrew [ctb],
+  Alex Zvoleff [ctb],
+  Brian Diggs [ctb],
+  Cassio Pereira [ctb],
+  Hadley Wickham [ctb],
+  Heewon Jeon [ctb],
+  Jeff Arnold [ctb],
+  Jeremy Stephens [ctb],
+  Jim Hester [ctb],
+  Joe Cheng [ctb],
+  Jonathan Keane [ctb],
+  J.J. Allaire [ctb],
+  Johan Toloe [ctb],
+  Kohske Takahashi [ctb],
+  Michel Kuhlmann [ctb],
+  Nacho Caballero [ctb],
+  Nick Salkowski [ctb],
+  Noam Ross [ctb],
+  Ramnath Vaidyanathan [ctb],
+  Richard Cotton [ctb],
+  Romain Francois [ctb],
+  Sietse Brouwer [ctb],
+  Simon de Bernard [ctb],
+  Taiyun Wei [ctb],
+  Thibaut Lamadon [ctb],
+  Tom Torsney-Weir [ctb],
+  Trevor Davis [ctb],
+  Weicheng Zhu [ctb],
+  Wush Wu [ctb],
+  Yihui Xie [aut, cre]
 NeedsCompilation: no
 Repository: CRAN
-Date/Publication: 2013-08-12 09:24:01
+Date/Publication: 2013-09-28 11:56:45

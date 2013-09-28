@@ -115,7 +115,7 @@ knit = function(input, output = NULL, tangle = FALSE, text = NULL, quiet = FALSE
     setwd(opts_knit$get('output.dir')) # always restore original working dir
     # in child mode, input path needs to be adjusted
     if (in.file && !is_abs_path(input)) {
-      input = str_c(opts_knit$get('child.path'), input)
+      input = paste(opts_knit$get('child.path'), input, sep = '')
       input = file.path(input_dir(), input)
     }
   } else {
@@ -127,7 +127,7 @@ knit = function(input, output = NULL, tangle = FALSE, text = NULL, quiet = FALSE
     adjust_opts_knit()
     ## turn off fancy quotes, use smaller digits/width, warn immediately
     oopts = options(
-      useFancyQuotes = FALSE, digits = 4L, warn = 1L, width = getOption('KNITR_WIDTH', 75L),
+      useFancyQuotes = FALSE, digits = 4L, warn = 1L, width = opts_knit$get('width'),
       knitr.in.progress = TRUE,
       device = function(width = 7, height = 7, ...) pdf(NULL, width, height, ...)
     )
@@ -268,13 +268,13 @@ process_file = function(text, output) {
 
 auto_out_name = function(input, ext = tolower(file_ext(input))) {
   base = sans_ext(input)
-  if (opts_knit$get('tangle')) return(str_c(base, '.R'))
-  if (ext %in% c('rnw', 'snw')) return(str_c(base, '.tex'))
-  if (ext %in% c('rmd', 'rmarkdown', 'rhtml', 'rhtm', 'rtex', 'stex', 'rrst'))
-    return(str_c(base, '.', substring(ext, 2L)))
-  if (grepl('_knit_', input)) return(sub('_knit_', '', input))
-  if (ext != 'txt') return(str_c(base, '.txt'))
-  str_c(base, '-out.', ext)
+  name = if (opts_knit$get('tangle')) c(base, '.R') else
+    if (ext %in% c('rnw', 'snw')) c(base, '.tex') else
+      if (ext %in% c('rmd', 'rmarkdown', 'rhtml', 'rhtm', 'rtex', 'stex', 'rrst'))
+        c(base, '.', substring(ext, 2L)) else
+          if (grepl('_knit_', input)) sub('_knit_', '', input) else
+            if (ext != 'txt') c(base, '.txt') else c(base, '-out.', ext)
+  paste(name, collapse = '')
 }
 
 ## decide output format based on file extension
@@ -325,8 +325,14 @@ knit_child = function(..., options = NULL) {
   on.exit(opts_knit$set(child = child)) # restore child status
   if (is.list(options)) {
     options$label = options$child = NULL  # do not need to pass the parent label on
-    optc = opts_chunk$get(); opts_chunk$set(options)
-    on.exit(opts_chunk$restore(optc), add = TRUE)
+    if (length(options)) {
+      optc = opts_chunk$get(names(options), drop = FALSE); opts_chunk$set(options)
+      # if user did not touch opts_chunk$set() in child, restore the chunk option
+      on.exit({
+        for (i in names(options)) if (identical(options[[i]], opts_chunk$get(i)))
+          opts_chunk$set(optc[i])
+      }, add = TRUE)
+    }
   }
   res = knit(..., tangle = opts_knit$get('tangle'),
              encoding = opts_knit$get('encoding') %n% getOption('encoding'))
@@ -389,7 +395,7 @@ wrap.source = function(x, options) {
 
 msg_wrap = function(message, type, options) {
   # when output format is latex, do not wrap messages (let latex deal with wrapping)
-  if (!out_format(c('latex', 'listings', 'sweave')))
+  if (!length(grep('\n', message)) && !out_format(c('latex', 'listings', 'sweave')))
     message = str_wrap(message, width = getOption('width'))
   knit_log$set(setNames(
     list(c(knit_log$get(type), str_c('Chunk ', options$label, ':\n  ', message))),

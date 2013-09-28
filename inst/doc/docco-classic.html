@@ -156,9 +156,9 @@ div.handler{
 <p>To use the Docco style for Markdown vignettes in an R package, you need to</p>
 
 <ul>
-<li>add <code>*.Rmkd</code> files under the <code>vignettes</code> directory (in theory, we can use <code>*.Rmd</code> as well, but currently there is a bug in R 3.0.1, so we have to use a different file extension)</li>
+<li>add <code>*.Rmd</code> files under the <code>vignettes</code> directory</li>
 <li>add <code>Suggests: knitr</code> and <code>VignetteBuilder: knitr</code> to the <code>DESCRIPTION</code> file</li>
-<li>specify the vignette engine <code>\VignetteEngine{knitr::docco_classic}</code> in the <code>Rmkd</code> files (inside HTML comments)</li>
+<li>specify the vignette engine <code>\VignetteEngine{knitr::docco_classic}</code> in the <code>Rmd</code> files (inside HTML comments)</li>
 </ul>
 
 </td><td class="code"></td></tr><tr id="row2"><td class="docs"><div class="pilwrap"><a class="pilcrow" href="#row2">&para;</a></div><p>After building and installing the package, you can view vignettes via</p></td><td class="code"><pre><code class="r">browseVignettes(package = &#39;Your_Package&#39;)
@@ -209,6 +209,10 @@ plot(rnorm(n), rnorm(n), pch = 21, cex = 5 * runif(n), col = &quot;white&quot;, 
 </code></pre></td></tr><tr id="row11"><td class="docs"><div class="pilwrap"><a class="pilcrow" href="#row11">&para;</a></div>
 
 <p>That is it.</p>
+
+<p>You probably have noticed that you can adjust the widths of the two columns
+using your cursor. What is more, press <code>T</code> on your keyboard, and see what
+happens.</p>
 </td><td class="code"></td></tr>
       </table><!--table end-->
     </div>
