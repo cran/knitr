@@ -60,8 +60,13 @@ save_plot = function(plot, name, dev, width, height, ext, dpi, options) {
 
   path = paste(name, ext, sep = '.')
   # when cache=2 and plot file exists, just return the filename
-  if (options$cache == 2 && file.exists(path) && cache$exists(options$hash))
+  if (options$cache == 2 && cache$exists(options$hash)) {
+    if (!file.exists(path)) {
+      purge_cache(options)
+      stop('cannot find ', path, '; the cache has been purged; please re-compile')
+    }
     return(c(name, if (dev == 'tikz' && options$external) 'pdf' else ext))
+  }
 
   ## built-in devices
   device = switch(
@@ -231,4 +236,21 @@ fix_evaluate = function(list, fix = TRUE) {
   lapply(list, function(x) {
     if (is.recordedplot(x)) fix_recordedPlot(x) else x
   })
+}
+
+# remove the plots from the evaluate results for the case of cache=2; if we only
+# want to keep high-level plots, we need MD5 digests of the plot components so
+# that we will be able to filter out low-level changes later
+remove_plot = function(list, keep.high = TRUE) {
+  lapply(list, function(x) {
+    if (is.recordedplot(x)) structure(
+      if (keep.high) digest_plot(x) else NULL, class = 'recordedplot'
+    ) else x
+  })
+}
+# replace the content of the recorded plot with MD5 digests so that merge_plot()
+# will still work, and this will also save disk space for the case of cache=2
+digest_plot = function(x, level = 1) {
+  if (!is.list(x) || level >= 3) return(digest::digest(x))
+  lapply(x, digest_plot, level = level + 1)
 }

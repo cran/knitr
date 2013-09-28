@@ -1,17 +1,17 @@
 new_defaults = function(value = list()) {
   defaults = value
 
-  get = function(name, default = FALSE) {
+  get = function(name, default = FALSE, drop = TRUE) {
     if (default) defaults = value  # this is only a local version
     if (missing(name)) defaults else {
-      if (length(name) == 1) defaults[[name]] else defaults[name]
+      if (drop && length(name) == 1) defaults[[name]] else defaults[name]
     }
   }
   set = function(...) {
     dots = list(...)
     if (length(dots) == 0) return()
     if (is.null(names(dots)) && length(dots) == 1 && is.list(dots[[1]]))
-      dots = dots[[1]]
+      if (length(dots <- dots[[1]]) == 0) return()
     defaults <<- merge(dots)
     invisible(NULL)
   }
@@ -66,7 +66,7 @@ opts_current = new_defaults()
 opts_chunk_attr = (function() {
   opts = lapply(opts_chunk$get(), class)
   opts[opts == 'NULL'] = 'character'
-  opts$results = list('markup', 'asis', 'hide')
+  opts$results = list('markup', 'asis', 'hold', 'hide')
   opts$fig.show = list('asis', 'hold', 'animate', 'hide')
   opts$fig.keep = list('high', 'none', 'all', 'first', 'last')
   opts$fig.align = list('default', 'left', 'right', 'center')
@@ -117,7 +117,7 @@ set_alias = function(...) {
 #' knit('001-minimal.Rmd') # from https://github.com/yihui/knitr-examples
 #' }
 opts_knit = new_defaults(list(
-  progress = TRUE, verbose = FALSE, out.format = NULL,
+  progress = TRUE, verbose = FALSE, out.format = NULL, width = 75L,
   base.dir = NULL, base.url = NULL, child.path = '', upload.fun = identity,
   animation.fun = NULL, global.device = FALSE, eval.after = NULL,
   concordance = FALSE, tangle = FALSE, child = FALSE,

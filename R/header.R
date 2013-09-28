@@ -36,10 +36,10 @@ insert_header_latex = function(doc, b) {
     }
     i = i[1L]; l = str_locate(doc[i], b)
     tmp = str_sub(doc[i], l[, 1], l[, 2])
-    str_sub(doc[i], l[,1], l[,2]) = str_c(tmp, make_header_latex())
+    str_sub(doc[i], l[,1], l[,2]) = paste(tmp, make_header_latex(), sep = '')
   } else if (parent_mode() && !child_mode()) {
     # in parent mode, we fill doc to be a complete document
-    doc[1L] = str_c(c(getOption('tikzDocumentDeclaration'), make_header_latex(),
+    doc[1L] = paste(c(getOption('tikzDocumentDeclaration'), make_header_latex(),
                       .knitEnv$tikzPackages, '\\begin{document}', doc[1L]), collapse = '\n')
     doc[length(doc)] = paste(doc[length(doc)], '\\end{document}', sep = '\n')
   }
@@ -47,9 +47,11 @@ insert_header_latex = function(doc, b) {
 }
 
 make_header_html = function() {
-  h = opts_knit$get('header')[['highlight']]
+  h = opts_knit$get('header')
+  h = h[setdiff(names(h), c('tikz', 'framed'))]
   if (opts_knit$get('self.contained')){
-    str_c('<style type="text/css">', h, '</style>', collapse = '\n')
+    paste(c('<style type="text/css">', h[['highlight']], '</style>',
+            unlist(h[setdiff(names(h), 'highlight')])), collapse = '\n')
   } else {
     writeLines(h, 'knitr.css')
     '<link rel="stylesheet" href="knitr.css" type="text/css" />'
@@ -68,7 +70,7 @@ insert_header_html = function(doc, b) {
 
 #' Set the header information
 #'
-#' Some output documents may need appropriate header information, for example,
+#' Some output documents may need appropriate header information. For example,
 #' for LaTeX output, we need to write \samp{\\usepackage{tikz}} into the
 #' preamble if we use tikz graphics; this function sets the header information
 #' to be written into the output.
@@ -90,8 +92,8 @@ insert_header_html = function(doc, b) {
 #' @param ... the header components; currently possible components are
 #'   \code{highlight}, \code{tikz} and \code{framed}, which contain the
 #'   necessary commands to be used in the HTML header or LaTeX preamble; note
-#'   HTML output only uses the \code{highlight} component (the other two are
-#'   ignored)
+#'   HTML output does not use the \code{tikz} and \code{framed} components (they
+#'   do not make sense to HTML)
 #' @return The header vector in \code{opts_knit} is set.
 #' @export
 #' @examples set_header(tikz = '\\usepackage{tikz}')
