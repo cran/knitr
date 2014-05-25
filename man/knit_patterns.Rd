@@ -2,20 +2,21 @@
 \name{knit_patterns}
 \alias{knit_patterns}
 \title{Patterns to match and extract R code in a document}
-\format{List of 4
+\format{\preformatted{List of 4
  $ get    :function (name, default = FALSE, drop = TRUE)  
  $ set    :function (...)  
  $ merge  :function (values)  
- $ restore:function (target = value)}
+ $ restore:function (target = value)  
+}}
 \usage{
 knit_patterns
 }
 \description{
-  Patterns are regular expressions and will be used in
-  functions like \code{\link[base]{grep}} to extract R code
-  and chunk options. The object \code{knit_patterns}
-  controls the patterns currently used; see the references
-  and examples for usage.
+Patterns are regular expressions and will be used in functions like
+\code{\link[base]{grep}} to extract R code and chunk options. The object
+\code{knit_patterns} controls the patterns currently used; see the references
+and examples for usage.  All built-in patterns are available in the list
+\link{all_patterns}.
 }
 \examples{
 library(knitr)
@@ -36,9 +37,11 @@ str(knit_patterns$get())
 knit_patterns$set(opat)  # put the old patterns back
 }
 \references{
-  Usage: \url{http://yihui.name/knitr/objects}
+Usage: \url{http://yihui.name/knitr/objects}
 
-  Components in \code{knit_patterns}:
-  \url{http://yihui.name/knitr/patterns}
+Components in \code{knit_patterns}: \url{http://yihui.name/knitr/patterns}
+}
+\seealso{
+\code{\link{all_patterns}}
 }
 \keyword{datasets}

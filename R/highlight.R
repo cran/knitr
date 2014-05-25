@@ -44,9 +44,9 @@ css.parse.color = function(txt, default = '#000000') {
 
   # next we try an rgb() specification
   if (grepl('rgb', txt)) {
-    p = try(parse(text = txt), silent = TRUE)
+    p = try_silent(parse(text = txt))
     if (!inherits(p, 'try-error')) {
-      res = try(eval(p), silent = TRUE)
+      res = try_silent(eval(p))
       if (!inherits(res, 'try-error')) return(res)
     }
   }
@@ -120,6 +120,8 @@ styler_assistant_latex = function(x) {
 }
 
 col2latexrgb = function(hex) {
+  # as.character(0.123) -> 0,123 when "OutDec = ,", so make sure . is used
+  outdec = options(OutDec = '.'); on.exit(options(outdec))
   col = col2rgb(hex)[, 1]/255
   paste(round(col, 3), collapse = ',')
 }

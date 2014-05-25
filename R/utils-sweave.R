@@ -24,10 +24,10 @@
 #' \code{results=tex/verbatim/hide} are changed to
 #' \code{results='asis'/'markup'/'hide'}; \code{width/height} are changed to
 #' \code{fig.width/fig.height}; \code{prefix.string} is changed to
-#' \code{fig.path}; \code{print/term/strip.white/prefix=TRUE/FALSE} are removed;
-#' most of the character options (e.g. \code{engine} and \code{out.width}) are
-#' quoted; \code{keep.source=TRUE/FALSE} is changed to \code{tidy=FALSE/TRUE}
-#' (note the order of values).
+#' \code{fig.path}; \code{print/term/prefix=TRUE/FALSE} are removed; most of the
+#' character options (e.g. \code{engine} and \code{out.width}) are quoted;
+#' \code{keep.source=TRUE/FALSE} is changed to \code{tidy=FALSE/TRUE} (note the
+#' order of values).
 #'
 #' If a line \code{@@} (it closes a chunk) directly follows a previous
 #' \code{@@}, it is removed; if a line \code{@@} appears before a code chunk and
@@ -80,8 +80,9 @@ Sweave2knitr = function(file, output = gsub('[.]([^.]+)$', '-knitr.\\1', file),
     opts = fix_sweave(gsub(s, '\\1', x[i]))
     x[i] = gsub_msg('changing \\SweaveOpts{} to opts_chunk$set()', s, '@_@_@', x[i])
     for (j in seq_along(i))
-      x[i[j]] = gsub('@_@_@', str_c('\n<<include=FALSE>>=\nopts_chunk$set(',
-                                  opts[j], ')\n@\n'), x[i[j]])
+      x[i[j]] = gsub('@_@_@', paste(c(
+        '\n<<include=FALSE>>=', 'library(knitr)', 'opts_chunk$set(', opts[j], ')', '@\n'
+      ), collapse = '\n'), x[i[j]])
   }
   # remove the extra @
   i1 = grepl(all_patterns$rnw$chunk.begin, x)
@@ -137,17 +138,17 @@ fix_sweave = function(x) {
   x = gsub_msg("replacing prefix.string=foo with fig.path='foo'",
                'prefix.string\\s*=\\s*([^,]+)', "fig.path='\\1'", x)
 
-  x = gsub_msg("removing options 'print', 'term', 'stripe.white', 'prefix'",
-               '(print|term|strip.white|prefix)\\s*=\\s*(TRUE|FALSE)', '', x)
+  x = gsub_msg("removing options 'print', 'term', 'prefix'",
+               '(print|term|prefix)\\s*=\\s*(TRUE|FALSE|T|F)', '', x)
 
   x = gsub_msg('quoting options engine, fig.path, cache.path, fig.keep, fig.show, dev, out.width, out.height, fig.align',
                "(engine|fig\\.path|cache\\.path|fig\\.keep|fig\\.show|dev|out\\.width|out\\.height|fig\\.align)\\s*=\\s*([^,'\"]+)",
                "\\1='\\2'", x)
 
   x = gsub_msg('changing keep.source=TRUE to tidy=FALSE',
-               'keep\\.source\\s*=\\s*TRUE', 'tidy=FALSE', x)
+               'keep\\.source\\s*=\\s*(TRUE|T)', 'tidy=FALSE', x)
   x = gsub_msg('changing keep.source=FALSE to tidy=TRUE',
-               'keep\\.source\\s*=\\s*FALSE', 'tidy=TRUE', x)
+               'keep\\.source\\s*=\\s*(FALSE|F)', 'tidy=TRUE', x)
 
   x = gsub_msg('doubling backslashes', '\\', '\\\\', x, fixed = TRUE)
   # after we remove some options, there might be , ,
@@ -157,25 +158,28 @@ fix_sweave = function(x) {
 }
 
 # check the source code to see if it is an Sweave document
-is_sweave = function(x) {
-  any(grepl('^\\s*\\\\(usepackage(\\[.*\\])?\\{Sweave|SweaveInput\\{|SweaveOpts\\{)', x)) ||
-    any(grepl('^<<.*(echo|eval|split|include)\\s*=\\s*(true|false).*>>=', x)) ||
-    any(grepl('^<<.*results\\s*=\\s*(tex|verbatim|hide)).*>>=', x)) ||
-    any(grepl('^<<.*(fig|pdf|eps|jpeg|png|tikz)\\s*=\\s*(true|false|T|F).*>>=', x)) ||
-    any(grepl('^<<.*([, ])(width|height)\\s*=\\s*(\\d+).*>>=', x)) ||
-    any(grepl('^<<.*(keep.source|print|term|strip.white|prefix)\\s*=\\s*(true|false|T|F).*>>=', x))
+which_sweave = function(x) {
+  unique(c(
+    grep('^\\s*\\\\(usepackage(\\[.*\\])?\\{Sweave|SweaveInput\\{|SweaveOpts\\{)', x),
+    grep('^<<.*(echo|eval|split|include)\\s*=\\s*(true|false).*>>=', x),
+    grep('^<<.*results\\s*=\\s*(tex|verbatim|hide)).*>>=', x),
+    grep('^<<.*(fig|pdf|eps|jpeg|png|tikz)\\s*=\\s*(true|false|T|F).*>>=', x),
+    grep('^<<.*([, ])(width|height)\\s*=\\s*(\\d+).*>>=', x),
+    grep('^<<.*(keep.source|print|term|prefix)\\s*=\\s*(true|false|T|F).*>>=', x)
+  ))
 }
 
-remind_sweave = function(file) {
-  msg = sprintf('It seems you are using the Sweave-specific syntax; you may need
-                Sweave2knitr("%s") to convert it to knitr', file)
+remind_sweave = function(file, sweave_lines) {
+  msg = sprintf('It seems you are using the Sweave-specific syntax in line(s) %s; you may need Sweave2knitr("%s") to convert it to knitr',
+                paste(sweave_lines, collapse = ', '), file)
   # throw a normal warning when R CMD check or tcltk not available
-  if ('CheckExEnv' %in% search() || '_R_CHECK_TIMINGS_' %in% names(Sys.getenv()) ||
-        !capabilities('tcltk') || !capabilities('X11') || !has_package('tcltk') ||
-        !getFromNamespace('.TkUp', 'tcltk')) {
-    warning(msg)
-  } else do.call(
-    getFromNamespace('tkmessageBox', 'tcltk'),
-    list(title = 'Sweave Noweb syntax?', icon = 'info', message = msg)
-  )
+  warning(msg)
+  if (!('CheckExEnv' %in% search()) && !('_R_CHECK_TIMINGS_' %in% names(Sys.getenv())) &&
+        capabilities('tcltk') && capabilities('X11') && has_package('tcltk') &&
+        getFromNamespace('.TkUp', 'tcltk')) {
+    do.call(
+      getFromNamespace('tkmessageBox', 'tcltk'),
+      list(title = 'Sweave Noweb syntax?', icon = 'info', message = msg)
+    )
+  }
 }

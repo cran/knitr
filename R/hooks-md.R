@@ -6,16 +6,21 @@ hook_plot_md = function(x, options) {
   base = opts_knit$get('base.url') %n% ''
   cap = .img.cap(options)
 
-  if(is.null(w <- options$out.width) & is.null(h <- options$out.height) &
+  if (is.null(w <- options$out.width) & is.null(h <- options$out.height) &
     is.null(s <- options$out.extra) & options$fig.align == 'default') {
     return(sprintf('![%s](%s%s) ', cap, base, .upload.url(x)))
   }
   # use HTML syntax <img src=...>
-  .img.tag(.upload.url(x), w, h, cap, c(s, sprintf(
-    'style="display: block; margin: %s;"', switch(
-      options$fig.align, left = 'auto auto auto 0', center = 'auto',
-      right = 'auto 0 auto auto')
-  )))
+  .img.tag(
+    .upload.url(x), w, h, cap,
+    c(s, sprintf('style="%s"', css_align(options$fig.align)))
+  )
+}
+
+css_align = function(align) {
+  sprintf('display: block; margin: %s;', switch(
+    align, left = 'auto auto auto 0', center = 'auto', right = 'auto 0 auto auto'
+  ))
 }
 
 #' @rdname output_hooks
@@ -26,31 +31,42 @@ hook_plot_md = function(x, options) {
 #'   put under two colons and indented by 4 spaces, otherwise is put under the
 #'   \samp{sourcecode} directive (e.g. it is useful for Sphinx)
 render_markdown = function(strict = FALSE) {
-  knit_hooks$restore()
   set_html_dev()
   opts_knit$set(out.format = 'markdown')
   ## four spaces lead to <pre></pre>
   hook.t = function(x, options) {
     if (strict) {
       paste('\n', indent_block(x), '', sep = '\n')
-    } else paste('\n\n```\n', x, '```\n\n', sep = '')
+    } else {
+      x = paste(c('', x), collapse = '\n')
+      fence = '```'
+      if (grepl('\n`{3,}', x)) {
+        print(gregexpr('\n`{3,}', x))
+        l = attr(gregexpr('\n`{3,}', x)[[1]], 'match.length', exact = TRUE)
+        print(l)
+        l = max(l)
+        if (l >= 4) fence = paste(rep('`', l), collapse = '')
+      }
+      paste('\n\n', fence, x, fence, '\n\n', sep = '')
+    }
   }
   hook.r = function(x, options) {
     paste('\n\n```', tolower(options$engine), '\n', x, '```\n\n', sep = '')
   }
-  hook.o = function(x, options) if (output_asis(x, options)) x else hook.t(x, options)
   knit_hooks$set(
     source = function(x, options) {
       x = hilight_source(x, 'markdown', options)
       (if (strict) hook.t else hook.r)(paste(c(x, ''), collapse = '\n'), options)
-    }, output = hook.o,
-    warning = hook.t, error = hook.t, message = hook.t,
+    }, output = hook.t, warning = hook.t, error = hook.t, message = hook.t,
     inline = function(x) .inline.hook(format_sci(x, 'html')),
     plot = hook_plot_md,
     chunk = function(x, options) {
       x = gsub('[\n]{2,}(```|    )', '\n\n\\1', x)
       x = gsub('[\n]+$', '', x)
       x = gsub('^[\n]+', '\n', x)
+      if (isTRUE(options$collapse)) {
+        x = gsub(paste('\n([`]{3,})\n+\\1(', tolower(options$engine), ')?\n', sep = ''), "\n", x)
+      }
       if (is.null(s <- options$indent)) return(x)
       line_prompt(x, prompt = s, continue = s)
     }
@@ -82,9 +98,8 @@ render_jekyll = function(highlight = c('pygments', 'prettify', 'none'), extra = 
     }
     hook.t = function(x, options) str_c('\n\n<pre><code>', escape_html(x), '</code></pre>\n\n')
   })
-  hook.o = function(x, options) if (output_asis(x, options)) x else hook.t(x, options)
   knit_hooks$set(source = function(x, options) {
     x = paste(hilight_source(x, 'markdown', options), collapse = '\n')
     hook.r(x, options)
-  }, output = hook.o, warning = hook.t, error = hook.t, message = hook.t)
+  }, output = hook.t, warning = hook.t, error = hook.t, message = hook.t)
 }

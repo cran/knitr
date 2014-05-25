@@ -150,7 +150,16 @@ input_dir = function() .knitEnv$input.dir %n% '.'
 ## scientific notation in TeX, HTML and reST
 format_sci_one = function(x, format = 'latex') {
 
-  if (!is.double(x) || is.na(x) || x == 0) return(as.character(x))
+  if (!is.numeric(x) || !is.double(x) || is.na(x) || x == 0) return(as.character(x))
+
+  if (is.infinite(x)) {
+    return(
+      switch(format, latex = {
+        sprintf("%s\\infty{}", ifelse(x < 0, "-", ""))
+      }, html = {
+        sprintf("%s&infin;", ifelse(x < 0, "-", ""))
+      }, as.character(x)))
+  }
 
   if (abs(lx <- floor(log10(abs(x)))) < getOption('scipen') + 4L)
     return(as.character(round(x, getOption('digits')))) # no need sci notation
@@ -184,7 +193,7 @@ format_sci = function(x, ...) {
 
 ## absolute path?
 is_abs_path = function(x) {
-  if (.Platform$OS.type == 'windows')
+  if (is_windows())
     grepl(':', x, fixed = TRUE) || grepl('^\\\\', x) else grepl('^[/~]', x)
 }
 
@@ -201,11 +210,28 @@ tikz_dict = function(path) {
 fix_options = function(options) {
   # if you want to use subfloats, fig.show must be 'hold'
   if (length(options$fig.subcap)) options$fig.show = 'hold'
+  # the default device NULL is not valid; use pdf is not set
+  if (is.null(options$dev)) options$dev = 'pdf'
 
   # cache=TRUE -> 3; FALSE -> 0
   if (is.logical(options$cache)) options$cache = options$cache * 3
   # non-R code should not use cache=1,2
   if (options$engine != 'R') options$cache = (options$cache > 0) * 3
+
+  # out.[width|height].px: unit in pixels for sizes
+  for (i in c('width', 'height')) {
+    options[[sprintf('out.%s.px', i)]] = options[[sprintf('out.%s', i)]] %n%
+      (options[[sprintf('fig.%s', i)]] * options$dpi)
+  }
+  # for Retina displays, increase physical size, and decrease output size
+  if (is.numeric(r <- options$fig.retina) && r != 1) {
+    if (is.null(options$out.width)) {
+      options$out.width = options$fig.width * options$dpi
+    } else {
+      warning('You must not set both chunk options out.width and fig.retina')
+    }
+    options$dpi = options$dpi * r
+  }
 
   ## deal with aliases: a1 is real option; a0 is alias
   if (length(a1 <- opts_knit$get('aliases')) && length(a0 <- names(a1))) {
@@ -232,7 +258,7 @@ isFALSE = function(x) identical(x, FALSE)
 
 ## check latex packages; if not exist, copy them over to ./
 test_latex_pkg = function(name, path) {
-  res = try(system(sprintf('%s %s.sty', kpsewhich(), name), intern = TRUE), silent = TRUE)
+  res = try_silent(system(sprintf('%s %s.sty', kpsewhich(), name), intern = TRUE))
   if (inherits(res, 'try-error') || !length(res)) {
     warning("unable to find LaTeX package '", name, "'; will use a copy from knitr")
     file.copy(path, '.')
@@ -246,6 +272,12 @@ parent_mode = function() opts_knit$get('parent')
 # return the output format, or if current format is in specified formats
 out_format = function(x) {
   fmt = opts_knit$get('out.format')
+  if (missing(x)) fmt else !is.null(fmt) && (fmt %in% x)
+}
+
+# rmarkdown sets an option for the Pandoc output format from markdown
+pandoc_to = function(x) {
+  fmt = opts_knit$get('rmarkdown.pandoc.to')
   if (missing(x)) fmt else !is.null(fmt) && (fmt %in% x)
 }
 
@@ -271,7 +303,7 @@ out_format = function(x) {
 #' fig_path(1:10, list(fig.path='foo-', label='bar'))
 fig_path = function(suffix = '', options = opts_current$get()) {
   path = valid_path(options$fig.path, options$label)
-  (if (out_format(c('latex', 'sweave', 'listings', 'markdown'))) sanitize_fn else
+  (if (out_format(c('latex', 'sweave', 'listings'))) sanitize_fn else
     str_c)(path, suffix)
 }
 # sanitize filename for LaTeX
@@ -313,17 +345,19 @@ knit_global = function() {
 #          qplot(wt, mpg, data  = mtcars)
 indent_block = function(block, spaces = '    ') {
   if (is.null(block) || !nzchar(block)) return(spaces)
+  if (spaces == '') return(block)
   line_prompt(block, spaces, spaces)
 }
 
 # print knitr logs
 print_knitlog = function() {
-  if (!opts_knit$get('verbose') || child_mode() || !length(klog <- knit_log$get()))
+  if (!opts_knit$get('verbose') || child_mode() || !length(klog <- knit_log$get(drop = FALSE)))
     return()
+
   for (i in unlist(klog, use.names = FALSE)) {
-    cat(i, '\n\n')
-    cat(knit_code$get(sub('^Chunk ([^:]+):\n.*', '\\1', i)), sep = '\n')
-    cat('\n')
+    cat(sub('\n+$', '', i), '\n\n')
+    if (length(code <- knit_code$get(sub('^Chunk ([^:]+):\n.*', '\\1', i))))
+      cat(code, sep = '\n')
   }
   cat('\nNumber of messages:\n')
   print(sapply(klog, length))
@@ -423,6 +457,17 @@ correct_encode = function(encoding) {
   } else iconvlist()[idx]
 }
 
+# re-encode an input file to UTF-8
+encode_utf8 = function(input, encoding = getOption('encoding'), output = input) {
+  if (encoding == 'UTF-8') {
+    if (input != output) file.copy(input, output)
+    return()
+  }
+  con = file(input, encoding = encoding)
+  tryCatch(txt <- readLines(con), finally = close(con))
+  writeLines(enc2utf8(txt), output, useBytes = TRUE)
+}
+
 # import functions from tools
 file_ext = tools::file_ext
 sans_ext = tools::file_path_sans_ext
@@ -497,13 +542,13 @@ wrap_rmd = function(file, width = 80, text = NULL, backup) {
 # change the default device to an appropriate device when the output is html
 # (e.g. markdown, reST, AsciiDoc)
 set_html_dev = function() {
-  # only change if device is pdf, because pdf does not work for html
-  if (!identical(opts_chunk$get('dev'), 'pdf')) return()
+  # only change if device has not been set
+  if (!is.null(opts_chunk$get('dev'))) return()
   # in some cases, png() does not work (e.g. options('bitmapType') == 'Xlib' on
   # headless servers); use svg then
-  opts_chunk$set(dev = if (inherits(try({
+  opts_chunk$set(dev = if (inherits(try_silent({
     png(tempfile()); dev.off()
-  }, silent = TRUE), 'try-error')) 'svg' else 'png')
+  }), 'try-error')) 'svg' else 'png')
 }
 
 # locate kpsewhich especially for Mac OS because /usr/texbin may not be in PATH
@@ -511,4 +556,39 @@ kpsewhich = function() {
   if (Sys.info()['sysname'] != 'Darwin' || !file.exists(x <- '/usr/texbin/kpsewhich')
       || nzchar(Sys.which('kpsewhich')))
     'kpsewhich' else x
+}
+
+# call try with silent = TRUE
+try_silent = function(expr) try(expr, silent = TRUE)
+
+# check if a utility exists; if it does, save its availability in opts_knit
+has_utility = function(name, package = name) {
+  name2 = paste('util', name, sep = '_')  # e.g. util_pdfcrop
+  if (is.logical(yes <- opts_knit$get(name2))) return(yes)
+  yes = nzchar(Sys.which(name))
+  if (!yes) warning(package, ' not installed or not in PATH')
+  opts_knit$set(setNames(list(yes), name2))
+  yes
+}
+
+is_windows = function() .Platform$OS.type == 'windows'
+
+#' Query the current input filename
+#'
+#' Returns the name of the input file passed to \code{\link{knit}()}.
+#' @return A character string, if this function is called inside an input
+#'   document (otherwise \code{NULL}).
+#' @export
+current_input = function() knit_concord$get('infile')
+
+# import output handlers from evaluate
+default_handlers = evaluate:::default_output_handler
+# change the value handler in evaluate default handlers
+knit_handlers = function(fun, options) {
+  if (!is.function(fun)) fun = knit_print
+  if (length(formals(fun)) < 1)
+    stop("the chunk option 'render' must be a function with at least one argument")
+  merge_list(default_handlers, list(value = function(x, visible) {
+    if (visible) fun(x, options = options)
+  }))
 }

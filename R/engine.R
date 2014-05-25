@@ -8,8 +8,8 @@
 #'
 #' The engine function has one argument \code{options}: the source code of the
 #' current chunk is in \code{options$code}. Usually we can call external
-#' programs to run the code via \code{\link[base]{system}}. Other chunk options
-#' are also contained in this argument, e.g. \code{options$echo} and
+#' programs to run the code via \code{\link{system}}. Other chunk options are
+#' also contained in this argument, e.g. \code{options$echo} and
 #' \code{options$eval}, etc.
 #'
 #' In most cases, \code{options$engine} can be directly used in command line to
@@ -19,8 +19,14 @@
 #' engine.path='/usr/bin/ruby1.9.1'}. Additional command line arguments can be
 #' passed through \code{options$engine.opts}, e.g. \code{engine='ruby',
 #' engine.opts='-v'}.
+#'
+#' Below is a list of built-in language engines, retrieved via
+#' \code{knit_engines$get()}:
+#'
+#' \Sexpr[results=verbatim]{str(knitr::knit_engines$get())}
 #' @export
-#' @references Usage: \url{http://yihui.name/knitr/objects}
+#' @references Usage: \url{http://yihui.name/knitr/objects}; examples:
+#'   \url{http://yihui.name/knitr/demo/engines/}
 #' @examples knit_engines$get('python'); knit_engines$get('awk')
 #' names(knit_engines$get())
 knit_engines = new_defaults()
@@ -32,41 +38,36 @@ engine_output = function(options, code, out, extra = NULL) {
   if (length(out) != 1L) out = paste(out, collapse = '\n')
   out = sub('([^\n]+)$', '\\1\n', out)
   if (options$engine == 'Rscript') options$engine = 'r'
-  txt = paste(c(
+  paste(c(
     if (options$echo) knit_hooks$get('source')(code, options),
     if (options$results != 'hide' && !is_blank(out)) {
-      if (!output_asis(out, options)) out = comment_out(out, options$comment)
-      knit_hooks$get('output')(out, options)
+      if (options$engine == 'highlight') out else wrap.character(out, options)
     },
     extra
   ), collapse = '\n')
-  if (options$include) knit_hooks$get('chunk')(txt, options) else ''
 }
 
 ## TODO: how to emulate the console?? e.g. for Python
 
 eng_interpreted = function(options) {
   engine = options$engine
-  code = if (engine %in% c('highlight', 'Rscript', 'sas')) {
+  code = if (engine %in% c('highlight', 'Rscript', 'sas', 'haskell')) {
     f = basename(tempfile(engine, '.', switch(engine, sas = '.sas', Rscript = '.R', '.txt')))
     # SAS runs code in example.sas and creates 'listing' file example.lst and log file example.log
-    writeLines(c(
-      if (engine == 'sas')
-        "OPTIONS NONUMBER NODATE PAGESIZE = MAX FORMCHAR = '|----|+|---+=|-/<>*' FORMDLIM=' ';",
-        options$code
-    ), f)
+    writeLines(c(switch(
+      engine,
+      sas = "OPTIONS NONUMBER NODATE PAGESIZE = MAX FORMCHAR = '|----|+|---+=|-/<>*' FORMDLIM=' ';",
+      haskell = ':set +m'
+    ), options$code), f)
     on.exit(unlink(f))
-    if (engine == 'sas') {
+    switch(engine, sas = {
       saslst = sub('[.]sas$', '.lst', f)
       on.exit(unlink(c(saslst, sub('[.]sas$', '.log', f))), add = TRUE)
-    }
-    f
-  } else if (engine %in% c('haskell')) {
-    # need multiple -e because the engine does not accept \n in code
-    paste('-e', shQuote(options$code), collapse = ' ')
+      f
+    }, haskell = paste('-e', shQuote(paste(':script', f))), f)
   } else paste(switch(
     engine, bash = '-c', coffee = '-p -e', perl = '-e', python = '-c',
-    ruby = '-e', sh = '-c', zsh = '-c', NULL
+    ruby = '-e', scala = '-e', sh = '-c', zsh = '-c', NULL
   ), shQuote(paste(options$code, collapse = '\n')))
   # FIXME: for these engines, the correct order is options + code + file
   code = if (engine %in% c('awk', 'gawk', 'sed', 'sas'))
@@ -128,6 +129,7 @@ eng_tikz = function(options) {
   unlink(texf)
 
   fig = fig_path('', options)
+  dir.create(dirname(fig), showWarnings = FALSE)
   file.rename(outf, str_c(fig, '.pdf'))
   # convert to the desired output-format, calling `convert`
   ext = tolower(options$fig.ext %n% dev2ext(options$dev))
@@ -136,7 +138,7 @@ eng_tikz = function(options) {
     if (conv != 0) stop('problems with `convert`; probably not installed?')
   }
   options$fig.num = 1L; options$fig.cur = 1L
-  extra = knit_hooks$get('plot')(c(fig, ext), options)
+  extra = knit_hooks$get('plot')(paste(fig, ext, sep = '.'), options)
   options$engine = 'tex'  # for output hooks to use the correct language class
   engine_output(options, options$code, '', extra)
 }
@@ -165,14 +167,14 @@ eng_dot = function(options) {
 
   # generate output
   dir.create(dirname(fig), showWarnings = FALSE)
-  outf = str_c(fig, '.', ext)
+  outf = paste(fig, ext, sep = '.')
   unlink(outf)
   extra = if (options$eval) {
     message('running: ', cmd)
     system(cmd)
     if (!file.exists(outf)) stop('failed to compile content');
     options$fig.num = 1L; options$fig.cur = 1L
-    knit_hooks$get('plot')(c(fig, ext), options)
+    knit_hooks$get('plot')(outf, options)
   }
 
   # wrap
@@ -191,8 +193,7 @@ eng_highlight = function(options) {
     set_header(highlight.extra = paste(c(sprintf(
       '\\let\\hl%s\\hlstd', c('esc', 'pps', 'lin')
     ), '\\let\\hlslc\\hlcom'), collapse = ' '))
-    paste(color_def(options$background), '\\begin{kframe}',
-          sub('(.*)\\\\\\\\(.*)', '\\1\\2', res), '\\end{kframe}', sep = '')
+    sub('(.*)\\\\\\\\(.*)', '\\1\\2', res)
   } else res
 }
 
@@ -202,9 +203,14 @@ eng_cat = function(options) {
   ''
 }
 
+## output the code without processing it
+eng_asis = function(options) {
+  if (options$echo && options$eval) options$code
+}
+
 # set engines for interpreted languages
 for (i in c('awk', 'bash', 'coffee', 'gawk', 'haskell', 'perl', 'python',
-            'Rscript', 'ruby', 'sas', 'sed', 'sh', 'zsh')) {
+            'Rscript', 'ruby', 'sas', 'scala', 'sed', 'sh', 'zsh')) {
   knit_engines$set(setNames(list(eng_interpreted), i))
 }
 rm(i)
@@ -212,7 +218,7 @@ rm(i)
 # additional engines
 knit_engines$set(
   highlight = eng_highlight, Rcpp = eng_Rcpp, tikz = eng_tikz, dot = eng_dot,
-  c = eng_c, asy = eng_dot, cat = eng_cat
+  c = eng_c, asy = eng_dot, cat = eng_cat, asis = eng_asis
 )
 
 # possible values for engines (for auto-completion in RStudio)

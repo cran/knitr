@@ -86,7 +86,7 @@ knit2html = function(input, output = NULL, ..., envir = parent.frame(), text = N
                      quiet = FALSE, encoding = getOption('encoding')) {
   out = knit(input, output, text = text, envir = envir, encoding = encoding, quiet = quiet)
   if (is.null(text)) {
-    markdown::markdownToHTML(out, outfile <- sub_ext(out, 'html'), ...)
+    markdown::markdownToHTML(out, outfile <- sub_ext(out, 'html'), encoding = encoding, ...)
     invisible(outfile)
   } else markdown::markdownToHTML(text = out, ...)
 }
@@ -99,9 +99,11 @@ knit2html = function(input, output = NULL, ..., envir = parent.frame(), text = N
 #' @param title the post title
 #' @param ... other meta information of the post, e.g. \code{categories = c('R',
 #'   'Stats')} and \code{mt_keywords = c('knitr', 'wordpress')}, etc
-#' @param shortcode whether to use the shortcode \samp{[sourcecode lang='lang']}
-#'   which can be useful to WordPress.com users for syntax highlighting of
-#'   source code
+#' @param shortcode a logical vector of length 2: whether to use the shortcode
+#'   \samp{[sourcecode lang='lang']} which can be useful to WordPress.com users
+#'   for syntax highlighting of source code and output; the first element
+#'   applies to source code, and the second applies to text output (by default,
+#'   both are \code{FALSE})
 #' @param publish whether to publish the post immediately
 #' @inheritParams knit
 #' @export
@@ -120,11 +122,16 @@ knit2wp = function(input, title = 'A post from knitr', ..., shortcode = FALSE,
   content = native_encode(readLines(con, warn = FALSE))
   content = paste(content, collapse = '\n')
   content = markdown::markdownToHTML(text = content, fragment.only = TRUE)
-  if (shortcode) {
-    content = gsub('<pre><code class="([[:alpha:]]+)">', '[sourcecode language="\\1"]', content)
-    content = gsub('<pre><code( class="no-highlight"|)>', '[sourcecode]', content)
-    content = gsub('</code></pre>', '[/sourcecode]', content)
+  shortcode = rep(shortcode, length.out = 2L)
+  if (shortcode[1]) {
+    content = gsub('<pre><code class="([[:alpha:]]+)">(.+?)</code></pre>',
+                   '[sourcecode language="\\1"]\\2[/sourcecode]', content)
   }
+  content = gsub(
+    '<pre><code( class="no-highlight"|)>(.+?)</code></pre>',
+    if (shortcode[2]) '[sourcecode]\\2[/sourcecode]' else '<pre>\\2</pre>', content
+  )
+
   content = native_encode(content, 'UTF-8')
   title = native_encode(title, 'UTF-8')
   do.call('library', list(package = 'RWordPress', character.only = TRUE))

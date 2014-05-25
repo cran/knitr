@@ -21,10 +21,16 @@
 #'   default it follows the roxygen convention, but it can be customized, e.g.
 #'   if you want to use \code{##} to denote documentation, you can use
 #'   \code{'^##\\\\s*'}
+#' @param inline a regular expression to identify inline R expressions; by
+#'   default, code of the form \code{((code))} on its own line is treated as an
+#'   inline expression
 #' @param comment a pair of regular expressions for the start and end delimiters
 #'   of comments; the lines between a start and an end delimiter will be
 #'   ignored; by default, the delimiters are \verb{/*} in the beginning and
 #'   \verb{*/} in the end of a line (following the convention of C comments)
+#' @param precious logical: whether intermediate files (e.g., \code{.Rmd} files
+#'   when \code{format} is \code{"Rmd"}) should be removed; default \code{TRUE}
+#'   if \code{knit == TRUE} and input is a file
 #' @author Yihui Xie, with the original idea from Richard FitzJohn (who named it
 #'   as \code{sowsear()} which meant to make a silk purse out of a sow's ear)
 #' @return If \code{text} is \code{NULL}, the path of the final output document,
@@ -56,9 +62,12 @@
 #' spin(s, FALSE, format='Rhtml')
 #' spin(s, FALSE, format='Rtex')
 #' spin(s, FALSE, format='Rrst')
-spin = function(hair, knit = TRUE, report = TRUE, text = NULL, envir = parent.frame(),
-                format = c('Rmd', 'Rnw', 'Rhtml', 'Rtex', 'Rrst'), doc = "^#+'[ ]?",
-                comment = c("^[# ]*/[*]", "^.*[*]/ *$")) {
+spin = function(
+  hair, knit = TRUE, report = TRUE, text = NULL, envir = parent.frame(),
+  format = c('Rmd', 'Rnw', 'Rhtml', 'Rtex', 'Rrst'),
+  doc = "^#+'[ ]?", inline = '^[{][{](.+)[}][}][ ]*$',
+  comment = c("^[# ]*/[*]", "^.*[*]/ *$"), precious = !knit && is.null(text)
+) {
 
   format = match.arg(format)
   x = if (nosrc <- is.null(text)) readLines(hair, warn = FALSE) else split_lines(text)
@@ -69,9 +78,12 @@ spin = function(hair, knit = TRUE, report = TRUE, text = NULL, envir = parent.fr
   # remove comments
   if (length(c1)) x = x[-unique(unlist(mapply(seq, c1, c2, SIMPLIFY = FALSE)))]
 
-  r = rle(grepl(doc, x))
-  n = length(r$lengths); txt = vector('list', n); idx = c(0L, cumsum(r$lengths))
   p = .fmt.pat[[tolower(format)]]
+  # turn ((expr)) into inline expressions, e.g. `r expr` or \Sexpr{expr}
+  if (any(i <- grepl(inline, x))) x[i] = gsub(inline, p[4], x[i])
+
+  r = rle(grepl(doc, x) | i)  # inline expressions are treated as doc instead of code
+  n = length(r$lengths); txt = vector('list', n); idx = c(0L, cumsum(r$lengths))
   p1 = gsub('\\{', '\\\\{', str_c('^', p[1L], '.*', p[2L], '$'))
 
   for (i in seq_len(n)) {
@@ -104,15 +116,23 @@ spin = function(hair, knit = TRUE, report = TRUE, text = NULL, envir = parent.fr
     txt = NULL
   } else outsrc = NULL
   if (!knit) return(txt %n% outsrc)
-  if (report) {
-    if (format == 'Rmd') return(knit2html(outsrc, text = txt, envir = envir))
-    if (!nosrc && (format %in% c('Rnw', 'Rtex'))) return(knit2pdf(outsrc, envir = envir))
-  }
-  knit(outsrc, text = txt, envir = envir)
+
+  out = if (report) {
+    if (format == 'Rmd') {
+      knit2html(outsrc, text = txt, envir = envir)
+    } else if (!is.null(outsrc) && (format %in% c('Rnw', 'Rtex'))) {
+      knit2pdf(outsrc, envir = envir)
+    }
+  } else knit(outsrc, text = txt, envir = envir)
+
+  if (!precious && !is.null(outsrc)) file.remove(outsrc)
+  invisible(out)
 }
 
 .fmt.pat = list(
-  rmd = c('```{r ', '}', '```'), rnw = c('<<', '>>=', '@'),
-  rhtml = c('<!--begin.rcode ', '', 'end.rcode-->'),
-  rtex = c('% begin.rcode ', '', '% end.rcode'), rrst = c('.. {r ', '}', '.. ..')
+  rmd = c('```{r ', '}', '```', '`r \\1`'),
+  rnw = c('<<', '>>=', '@', '\\\\Sexpr{\\1}'),
+  rhtml = c('<!--begin.rcode ', '', 'end.rcode-->', '<!--rinline \\1 -->'),
+  rtex = c('% begin.rcode ', '', '% end.rcode', '\\\\rinline{\\1}'),
+  rrst = c('.. {r ', '}', '.. ..', ':r:`\\1`')
 )

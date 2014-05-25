@@ -15,28 +15,31 @@ for (i in list.files(pattern = '\\.lyx$')) {
   flush.console()
 }
 
-call_knit = function(cmd) {
+knit_script = normalizePath('../bin/knit', mustWork = TRUE)
+knit_cmd = function(file) {
+  paste('Rscript', shQuote(knit_script), shQuote(file))
+}
+test_cmd = function(cmd) {
   stopifnot(identical(system(cmd, ignore.stdout = TRUE), 0L))
 }
+
 for (i in list.files(pattern = '\\.Rmd')) {
   message(i)
   cmd = if (i == 'knitr-minimal.Rmd') {
     sprintf("Rscript -e 'library(knitr);opts_knit$set(base.url=\"http://animation.r-forge.r-project.org/ideas/\");knit(\"%s\")'", i)
-  } else {
-    sprintf('knit %s', i)
-  }
-  call_knit(cmd)
+  } else knit_cmd(i)
+  test_cmd(cmd)
   flush.console()
 }
 
-call_knit(sprintf("Rscript -e 'library(knitr);spin(\"knitr-spin.R\")'"))
+test_cmd(sprintf("Rscript -e 'library(knitr);spin(\"knitr-spin.R\", precious=TRUE)'"))
 
 setwd('child')
 for (i in c('knitr-main.Rnw', 'knitr-parent.Rnw')) {
-  call_knit(sprintf('knit %s', i))
+  test_cmd(knit_cmd(i))
 }
 unlink('*.tex')
-call_knit(sprintf('knit %s', 'knitr-main.Rmd'))
+test_cmd(knit_cmd('knitr-main.Rmd'))
 setwd('..')
 
 file.remove('child/knitr-main.html')

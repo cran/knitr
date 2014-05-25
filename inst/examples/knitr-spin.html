@@ -13,19 +13,21 @@
    }
 
    pre .literal {
-     color: rgb(88, 72, 246)
+     color: #990073
    }
 
    pre .number {
-     color: rgb(0, 0, 205);
+     color: #099;
    }
 
    pre .comment {
-     color: rgb(76, 136, 107);
+     color: #998;
+     font-style: italic
    }
 
    pre .keyword {
-     color: rgb(0, 0, 255);
+     color: #900;
+     font-weight: bold
    }
 
    pre .identifier {
@@ -33,7 +35,7 @@
    }
 
    pre .string {
-     color: rgb(3, 106, 7);
+     color: #d14;
    }
 </style>
 
@@ -44,7 +46,7 @@ hljs.initHighlightingOnLoad();
 </script>
 
 <!-- MathJax scripts -->
-<script type="text/javascript" src="https://c328740.ssl.cf1.rackcdn.com/mathjax/2.0-latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML">
+<script type="text/javascript" src="https://c328740.ssl.cf1.rackcdn.com/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML">
 </script>
 
 
@@ -52,55 +54,63 @@ hljs.initHighlightingOnLoad();
 body, td {
    font-family: sans-serif;
    background-color: white;
-   font-size: 12px;
-   margin: 8px;
+   font-size: 13px;
+}
+
+body {
+  max-width: 800px;
+  margin: auto;
+  padding: 1em;
+  line-height: 20px;
 }
 
 tt, code, pre {
    font-family: 'DejaVu Sans Mono', 'Droid Sans Mono', 'Lucida Console', Consolas, Monaco, monospace;
 }
 
-h1 { 
-   font-size:2.2em; 
+h1 {
+   font-size:2.2em;
 }
 
-h2 { 
-   font-size:1.8em; 
+h2 {
+   font-size:1.8em;
 }
 
-h3 { 
-   font-size:1.4em; 
+h3 {
+   font-size:1.4em;
 }
 
-h4 { 
-   font-size:1.0em; 
+h4 {
+   font-size:1.0em;
 }
 
-h5 { 
-   font-size:0.9em; 
+h5 {
+   font-size:0.9em;
 }
 
-h6 { 
-   font-size:0.8em; 
+h6 {
+   font-size:0.8em;
 }
 
 a:visited {
    color: rgb(50%, 0%, 50%);
 }
 
-pre {	
-   margin-top: 0;
-   max-width: 95%;
-   border: 1px solid #ccc;
-   white-space: pre-wrap;
+pre, img {
+  max-width: 100%;
 }
 
 pre code {
    display: block; padding: 0.5em;
 }
 
-code.r, code.cpp {
-   background-color: #F8F8F8;
+code {
+  font-size: 92%;
+  border: 1px solid #ccc;
+}
+
+code[class] {
+  background-color: #F8F8F8;
 }
 
 table, td, th {
@@ -123,54 +133,54 @@ hr {
 }
 
 @media print {
-   * { 
-      background: transparent !important; 
-      color: black !important; 
-      filter:none !important; 
-      -ms-filter: none !important; 
+   * {
+      background: transparent !important;
+      color: black !important;
+      filter:none !important;
+      -ms-filter: none !important;
    }
 
-   body { 
-      font-size:12pt; 
-      max-width:100%; 
-   }
-       
-   a, a:visited { 
-      text-decoration: underline; 
+   body {
+      font-size:12pt;
+      max-width:100%;
    }
 
-   hr { 
+   a, a:visited {
+      text-decoration: underline;
+   }
+
+   hr {
       visibility: hidden;
       page-break-before: always;
    }
 
-   pre, blockquote { 
-      padding-right: 1em; 
-      page-break-inside: avoid; 
+   pre, blockquote {
+      padding-right: 1em;
+      page-break-inside: avoid;
    }
 
-   tr, img { 
-      page-break-inside: avoid; 
+   tr, img {
+      page-break-inside: avoid;
    }
 
-   img { 
-      max-width: 100% !important; 
+   img {
+      max-width: 100% !important;
    }
 
-   @page :left { 
-      margin: 15mm 20mm 15mm 10mm; 
-   }
-     
-   @page :right { 
-      margin: 15mm 10mm 15mm 20mm; 
+   @page :left {
+      margin: 15mm 20mm 15mm 10mm;
    }
 
-   p, h2, h3 { 
-      orphans: 3; widows: 3; 
+   @page :right {
+      margin: 15mm 10mm 15mm 20mm;
    }
 
-   h2, h3 { 
-      page-break-after: avoid; 
+   p, h2, h3 {
+      orphans: 3; widows: 3;
+   }
+
+   h2, h3 {
+      page-break-after: avoid;
    }
 }
 </style>
@@ -196,13 +206,20 @@ mean(x)
 <pre><code>## [1] 0.1936
 </code></pre>
 
+<p>You can use the special syntax {{code}} to embed inline expressions, e.g.
+2.1936
+is the mean of x plus 2.
+The code itself may contain braces, but these are not checked.  Thus,
+perfectly valid (though very strange) R code such as <code>{{2 + 3}} - {{4 - 5}}</code>
+can lead to errors because <code>2 + 3}} - {{4 - 5</code> will be treated as inline code.</p>
+
 <p>Now we continue writing the report. We can draw plots as well.</p>
 
 <pre><code class="r">par(mar = c(4, 4, 0.1, 0.1))
 plot(x)
 </code></pre>
 
-<p><img src="data:image/png;base64,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" alt="plot of chunk test-b"/> </p>
+<p><img src="data:image/png;base64,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" alt="plot of chunk test-b"/> </p>
 
 <p>Actually you do not have to write chunk options, in which case knitr will use
 default options. For example, the code below has no options attached:</p>

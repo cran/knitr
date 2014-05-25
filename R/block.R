@@ -1,10 +1,10 @@
 # S3 method to deal with chunks and inline text respectively
-#' @S3method process_group block
-#' @S3method process_group inline
 process_group = function(x) {
   UseMethod('process_group', x)
 }
+#' @export
 process_group.block = function(x) call_block(x)
+#' @export
 process_group.inline = function(x) call_inline(x)
 
 
@@ -23,7 +23,7 @@ call_block = function(block) {
 
   label = ref.label = params$label
   if (!is.null(params$ref.label)) ref.label = sc_split(params$ref.label)
-  params$code = unlist(knit_code$get(ref.label), use.names = FALSE)
+  params$code = params$code %n% unlist(knit_code$get(ref.label), use.names = FALSE)
   if (opts_knit$get('progress')) print(block)
 
   if (!is.null(params$child)) {
@@ -38,14 +38,17 @@ call_block = function(block) {
   # Check cache
   if (params$cache > 0) {
     content = c(
-      params[if (params$cache < 3) cache1.opts else setdiff(names(params), 'include')],
+      params[if (params$cache < 3) cache1.opts else setdiff(names(params), cache0.opts)],
       getOption('width'), if (params$cache == 2) params[cache2.opts]
     )
+    if (params$engine == 'R' && isFALSE(params$cache.comments)) {
+      content[['code']] = formatR:::parse_only(content[['code']])
+    }
     hash = paste(valid_path(params$cache.path, label), digest::digest(content), sep = '_')
     params$hash = hash
     if (cache$exists(hash)) {
       if (opts_knit$get('verbose')) message('  loading cache from ', hash)
-      cache$load(hash)
+      cache$load(hash, lazy = params$cache.lazy)
       if (!params$include) return('')
       if (params$cache == 3) return(cache$output(hash))
     }
@@ -58,6 +61,11 @@ call_block = function(block) {
   params$params.src = block$params.src
   opts_current$restore(params)  # save current options
 
+  # set local options() for the current R chunk
+  if (is.list(params$R.options)) {
+    op = options(params$R.options); on.exit(options(op), add = TRUE)
+  }
+
   block_exec(params)
 }
 
@@ -65,6 +73,8 @@ call_block = function(block) {
 cache1.opts = c('code', 'eval', 'cache', 'cache.path', 'message', 'warning', 'error')
 # more options affecting cache level 2
 cache2.opts = c('fig.keep', 'fig.path', 'fix.ext', 'dev', 'dpi', 'dev.args', 'fig.width', 'fig.height')
+# options that should not affect cache
+cache0.opts = c('include', 'out.width.px', 'out.height.px')
 
 block_exec = function(options) {
   # when code is not R language
@@ -74,8 +84,9 @@ block_exec = function(options) {
                     knit_engines$get(options$engine)(options))
     res.after = run_hooks(before = FALSE, options)
     output = paste(c(res.before, output, res.after), collapse = '')
+    output = if (is_blank(output)) '' else knit_hooks$get('chunk')(output, options)
     if (options$cache) block_cache(options, output, character(0))
-    return(output)
+    return(if (options$include) output else '')
   }
 
   # eval chunks (in an empty envir if cache)
@@ -84,7 +95,8 @@ block_exec = function(options) {
 
   keep = options$fig.keep
   # open a device to record plots
-  if (chunk_device(options$fig.width[1L], options$fig.height[1L], keep != 'none')) {
+  if (chunk_device(options$fig.width[1L], options$fig.height[1L], keep != 'none',
+                   options$dev, options$dev.args)) {
     dv = dev.cur(); on.exit(dev.off(dv))
   }
 
@@ -93,9 +105,9 @@ block_exec = function(options) {
   code = options$code
   echo = options$echo  # tidy code if echo
   if (!isFALSE(echo) && options$tidy && length(code)) {
-    res = try(do.call(
+    res = try_silent(do.call(
       tidy.source, c(list(text = code, output = FALSE), options$tidy.opts)
-    ), silent = TRUE)
+    ))
     if (!inherits(res, 'try-error')) {
       code = native_encode(res$text.tidy)
     } else warning('failed to tidy R code in chunk <', options$label, '>\n',
@@ -126,7 +138,8 @@ block_exec = function(options) {
     evaluate(code, envir = env, new_device = FALSE,
              keep_warning = !isFALSE(options$warning),
              keep_message = !isFALSE(options$message),
-             stop_on_error = if (options$error && options$include) 0L else 2L)
+             stop_on_error = if (options$error && options$include) 0L else 2L,
+             output_handler = knit_handlers(options$render, options))
   )
   if (options$cache %in% 1:2 && !cache.exists) {
     # make a copy for cache=1,2; when cache=2, we do not really need plots
@@ -220,27 +233,36 @@ block_cache = function(options, output, objects) {
   assign(outname, output, envir = knit_global())
   purge_cache(options)
   cache$library(options$cache.path, save = TRUE)
-  cache$save(objects, outname, hash)
+  cache$save(objects, outname, hash, lazy = options$cache.lazy)
 }
 
 purge_cache = function(options) {
   # purge my old cache and cache of chunks dependent on me
   cache$purge(paste(valid_path(
     options$cache.path, c(options$label, dep_list$get(options$label))
-  ), '_*', sep = ''))
+  ), '_????????????????????????????????', sep = ''))
 }
 
 # open a device for a chunk; depending on the option global.device, may or may
 # not need to close the device on exit
-chunk_device = function(width, height, record = TRUE) {
+chunk_device = function(width, height, record = TRUE, dev, dev.args) {
+  dev_new = function() {
+    if (identical(getOption('device'), pdf_null)) {
+      if (!is.null(dev.args)) {
+        dev.args = get_dargs(dev.args, 'pdf')
+        dev.args = dev.args[intersect(names(dev.args), names(formals(pdf)))]
+      }
+      do.call(pdf_null, c(list(width = width, height = height), dev.args))
+    } else dev.new(width = width, height = height)
+  }
   if (!opts_knit$get('global.device')) {
-    dev.new(width = width, height = height)
+    dev_new()
     dev.control(displaylist = if (record) 'enable' else 'inhibit')  # enable recording
     # if returns TRUE, we need to close this device after code is evaluated
     return(TRUE)
   } else if (is.null(dev.list())) {
     # want to use a global device but not open yet
-    dev.new(width = width, height = height)
+    dev_new()
     dev.control('enable')
   }
   FALSE
@@ -285,7 +307,7 @@ call_inline = function(block) {
 
 inline_exec = function(
   block, eval = eval_lang(opts_chunk$get('eval')), envir = knit_global(),
-  error = eval_lang(opts_chunk$get('error')), hook = knit_hooks$get('inline')
+  hook = knit_hooks$get('inline')
 ) {
 
   # run inline code and substitute original texts
@@ -295,19 +317,14 @@ inline_exec = function(
   loc = block$location
   for (i in 1:n) {
     res = if (eval) {
-      (if (error) try else identity)(
-        {
-          v = withVisible(eval(parse_only(code[i]), envir = envir))
-          if (v$visible) v$value
-        }
-      )
+      v = withVisible(eval(parse_only(code[i]), envir = envir))
+      if (v$visible) knit_print(v$value, inline = TRUE)
     } else '??'
+    if (inherits(res, 'knit_asis')) res = wrap.knit_asis(res)
     d = nchar(input)
     # replace with evaluated results
     str_sub(input, loc[i, 1], loc[i, 2]) = if (length(res)) {
-      if (inherits(res, 'try-error')) {
-        knit_hooks$get('error')(str_c('\n', res, '\n'), opts_chunk$get())
-      } else hook(res)
+      paste(hook(res), collapse = '')
     } else ''
     if (i < n) loc[(i + 1):n, ] = loc[(i + 1):n, ] - (d - nchar(input))
     # may need to move back and forth because replacement may be longer or shorter
@@ -315,11 +332,10 @@ inline_exec = function(
   input
 }
 
-#' @S3method process_tangle block
-#' @S3method process_tangle inline
 process_tangle = function(x) {
   UseMethod('process_tangle', x)
 }
+#' @export
 process_tangle.block = function(x) {
   params = opts_chunk$merge(x$params)
   for (o in c('purl', 'eval', 'child'))
@@ -338,6 +354,7 @@ process_tangle.block = function(x) {
   if (isFALSE(ev)) code = comment_out(code, params$comment, newline = FALSE)
   label_code(code, x$params.src)
 }
+#' @export
 process_tangle.inline = function(x) {
   if (opts_knit$get('documentation') == 2L) {
     return(paste(line_prompt(x$input.src, "#' ", "#' "), collapse = '\n'))

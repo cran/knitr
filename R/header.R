@@ -1,3 +1,6 @@
+#' @include themes.R
+#' @include highlight.R
+
 ## doc is the output of processed document
 insert_header = function(doc) {
   if (is.null(b <- knit_patterns$get('header.begin'))) return(doc)
@@ -31,8 +34,8 @@ insert_header_latex = function(doc, b) {
     # it is safer to add usepackage{upquote} before begin{document} than after
     # documentclass{article} because it must appear after usepackage{fontenc};
     # see this weird problem: http://stackoverflow.com/q/12448507/559676
-    if (!out_format('listings') && length(j <- grep(p <- '(\\s*\\\\begin\\{document\\})', doc)[1L])) {
-      doc[j] = sub(p, '\n\\\\IfFileExists{upquote.sty}{\\\\usepackage{upquote}}{}\\1', doc[j])
+    if (!out_format('listings') && length(j <- grep(p <- '(\\s*)(\\\\begin\\{document\\})', doc)[1L])) {
+      doc[j] = sub(p, '\n\\\\IfFileExists{upquote.sty}{\\\\usepackage{upquote}}{}\n\\2', doc[j])
     }
     i = i[1L]; l = str_locate(doc[i], b)
     tmp = str_sub(doc[i], l[, 1], l[, 2])

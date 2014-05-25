@@ -15,6 +15,19 @@ assert(
             alist(label='abc-function', fig.path="foo/bar-"))
 )
 
+res = split_file(
+  c('abc', '```{r foo}', '1+1', '```{r bar}', '2+2', '```', 'def'),
+  patterns = all_patterns$md
+)
+assert(
+  'split_file() treats ``` as part of code chunk instead of beginning of text chunk',
+  # the foo chunk does not have a closing mark
+  identical(knit_code$get('foo'), '1+1'),
+  identical(knit_code$get('bar'), '2+2'),
+  # before knitr v1.6, the text chunk was c('', 'def')
+  identical(res[[4]][['input']], 'def')
+)
+knit_code$restore(); knit_concord$restore()
 
 res = parse_inline(c('aaa \\Sexpr{x}', 'bbb \\Sexpr{NA} and \\Sexpr{1+2}',
                      'another expression \\Sexpr{rnorm(10)}'), all_patterns$rnw)
@@ -26,6 +39,13 @@ assert(
   identical(parse_inline('\\Sexpr{}', all_patterns$rnw)$code, character(0)),
   # can use > in HTML inline code
   identical(parse_inline('<!--rinline "<a>" -->', all_patterns$html)$code, ' "<a>" ')
+)
+
+res = parse_inline('inline expressions `r pi+1`, +r cos(0)+ in AsciiDoc',
+                   all_patterns$asciidoc)
+assert(
+  'both `r expression` and +r expression+ work for AsciiDoc',
+  identical(res$code, c('pi+1', 'cos(0)'))
 )
 
 knit_code$restore()
@@ -42,6 +62,22 @@ read_chunk(lines = c('# ---- foo ----', '1+1'))
 assert(
   'read_chunk() can identify chunk labels',
    identical(knit_code$get(), list(foo = '1+1'))
+)
+
+knit_code$restore()
+
+# chunk references with <<>> --------------------------------------------------
+
+knit_code$restore(list(
+  a = '1+1', b = '2-2', c = c('if (T)', '  <<a>>'), d = c('function() {', '  <<c>>', '}')
+))
+pc = function(x) parse_chunk(x, all_patterns$rnw$ref.chunk)
+
+assert(
+  'parse_chunk() preserves indentation',
+  identical(pc(c('3*3', '<<a>>', ' <<b>>', 'if (T)', '  <<a>>')),
+            c("3*3", "1+1", " 2-2", "if (T)", "  1+1" )),
+  identical(pc('<<d>>'), "function() {\n  if (T)\n    1+1\n}")
 )
 
 knit_code$restore()

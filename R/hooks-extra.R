@@ -38,6 +38,16 @@
 #' we save the plots to files manually via other functions (e.g. \pkg{rgl}
 #' plots), we can use the chunk hook \code{hook_plot_custom} to help write code
 #' for graphics output into the output document.
+#'
+#' The hook \code{hook_purl} can be used to write the code chunks to an R
+#' script. It is an alternative approach to \code{\link{purl}}, and can be more
+#' reliable when the code chunks depend on the execution of them (e.g.
+#' \code{\link{read_chunk}()}, or \code{\link{opts_chunk}$set(eval = FALSE)}).
+#' To enable this hook, it is recommended to associate it with the chunk option
+#' \code{purl}, i.e. \code{knit_hooks$set(purl = hook_purl)}. When this hook is
+#' enabled, an R script will be written while the input document is being
+#' \code{\link{knit}}. Currently the code chunks that are not R code or have the
+#' chunk option \code{purl=FALSE} are ignored.
 #' @rdname chunk_hook
 #' @param before,options,envir see references
 #' @references \url{http://yihui.name/knitr/hooks#chunk_hooks}
@@ -54,10 +64,12 @@ hook_rgl = function(before, options, envir) {
   Sys.sleep(.05) # need time to respond to window size change
 
   ## support 3 formats: eps, pdf and png (default)
-  switch(options$dev,
-         postscript = rgl.postscript(str_c(name, '.eps'), fmt = 'eps'),
-         pdf = rgl.postscript(str_c(name, '.pdf'), fmt = 'pdf'),
-         rgl.snapshot(str_c(name, '.png'), fmt = 'png'))
+  for (dev in options$dev) switch(
+    dev,
+    postscript = rgl.postscript(str_c(name, '.eps'), fmt = 'eps'),
+    pdf = rgl.postscript(str_c(name, '.pdf'), fmt = 'pdf'),
+    rgl.snapshot(str_c(name, '.png'), fmt = 'png')
+  )
 
   options$fig.num = 1L  # only one figure in total
   hook_plot_custom(before, options, envir)
@@ -69,24 +81,8 @@ hook_pdfcrop = function(before, options, envir) {
   ext = options$fig.ext
   if (options$dev == 'tikz' && options$external) ext = 'pdf'
   if (before || (fig.num <- options$fig.num) == 0L) return()
-  if (ext == 'pdf' && !nzchar(Sys.which('pdfcrop'))) {
-    warning('pdfcrop not installed or not in PATH')
-    return()
-  }
-  if (ext != 'pdf' && !nzchar(Sys.which('convert'))) {
-    warning('ImageMagick not installed or not in PATH')
-    return()
-  }
   paths = all_figs(options, ext, fig.num)
-
-  lapply(paths, function(x) {
-    message('cropping ', x)
-    x = shQuote(x)
-    cmd = if (ext == 'pdf') paste('pdfcrop', x, x) else paste('convert', x, '-trim', x)
-    if (.Platform$OS.type == 'windows') cmd = paste(Sys.getenv('COMSPEC'), '/c', cmd)
-    system(cmd)
-  })
-  return()
+  for (f in paths) plot_crop(f)
 }
 #' @export
 #' @rdname chunk_hook
@@ -105,29 +101,26 @@ hook_optipng = function(before, options, envir) {
     message('optimizing ', x)
     x = shQuote(x)
     cmd = paste('optipng', if (is.character(options$optipng)) options$optipng, x)
-    if (.Platform$OS.type == 'windows') cmd = paste(Sys.getenv('COMSPEC'), '/c', cmd)
-    system(cmd)
+    (if (is_windows()) shell else system)(cmd)
   })
   return()
 }
 #' @export
 #' @rdname chunk_hook
 hook_plot_custom = function(before, options, envir){
-  if(before) return() # run hook after the chunk
+  if (before) return() # run hook after the chunk
+  if (options$fig.show == 'hide') return() # do not show figures
 
   ext = options$fig.ext %n% dev2ext(options$dev)
-  name = fig_path()
-  fmt = out_format()
-  if (fmt %in% c('sweave', 'listings')) fmt = 'latex'
-  hook = switch(fmt, latex = hook_plot_tex, html = hook_plot_html,
-                rst = hook_plot_rst, hook_plot_md)
+  name = fig_path('', options)
+  hook = knit_hooks$get('plot')
 
   n = options$fig.num
   if (n == 0L) n = options$fig.num = 1L # make sure fig.num is at least 1
-  if (n <= 1L) hook(c(name, ext), options) else {
+  if (n <= 1L) hook(paste(name[1], ext[1], sep = '.'), options) else {
     res = unlist(lapply(seq_len(n), function(i) {
       options$fig.cur = i
-      hook(c(str_c(name, i), ext), reduce_plot_opts(options))
+      hook(sprintf('%s%s.%s', name, i, ext), reduce_plot_opts(options))
     }), use.names = FALSE)
     paste(res, collapse = '')
   }
@@ -146,8 +139,33 @@ hook_webgl = function(before, options, envir) {
   prefix = sub('^([^[:alpha:]])', '_\\1', prefix) # should start with letters or _
   writeLines(sprintf(c('%%%sWebGL%%', '<script>%swebGLStart();</script>'), prefix),
              tpl <- tempfile())
-  writeWebGL(dir = dirname(name), filename = name, template = tpl, prefix = prefix)
+  writeWebGL(dir = dirname(name), filename = name, template = tpl, prefix = prefix,
+             snapshot = FALSE)
   res = readLines(name)
   res = res[!grepl('^\\s*$', res)] # remove blank lines
-  paste(gsub('^\\s*<', '<', res), collapse = '\n') # no spaces before HTML tags
+  # remove <script src="CanvasMatrix.js" type="text/javascript"></script> (bug #755)
+  res = grep('CanvasMatrix\\.js.+</script>\\s*$', res, invert = TRUE, value = TRUE)
+  unlink('CanvasMatrix.js')
+  # TODO: pandoc standalone mode has a bug (https://github.com/jgm/pandoc/issues/1248)
+  paste(gsub('^\\s+', '', res), collapse = '\n') # no indentation at all (for Pandoc)
+}
+
+#" a hook function to write out code from chunks
+#' @export
+#' @rdname chunk_hook
+hook_purl = function(before, options, envir) {
+  # at the moment, non-R chunks are ignored; it is unclear what I should do
+  if (before || !options$purl || options$engine != 'R') return()
+
+  output = .knitEnv$tangle.file
+  if (isFALSE(.knitEnv$tangle.start)) {
+    .knitEnv$tangle.start = TRUE
+    unlink(output)
+  }
+
+  code = options$code
+  if (isFALSE(options$eval)) code = comment_out(code, '# ', newline = FALSE)
+  if (is.character(output)) {
+    cat(label_code(code, options$params.src), file = output, sep = '\n', append = TRUE)
+  }
 }

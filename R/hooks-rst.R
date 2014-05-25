@@ -21,7 +21,6 @@ hook_plot_rst = function(x, options) {
 #' @rdname output_hooks
 #' @export
 render_rst = function(strict = FALSE) {
-  knit_hooks$restore()
   set_html_dev()
   hook.s = function(x, options) {
     paste(c('\n\n::\n', indent_block(x), ''), collapse = '\n')
@@ -29,20 +28,14 @@ render_rst = function(strict = FALSE) {
   hook.t = function(x, options) {
     make_directive('sourcecode', tolower(options$engine), '', content = x)
   }
-  hook.o = function(x, options) {
-    if (output_asis(x, options)) return(x)
-    hook.s(x, options)
-  }
-  hook.i = function(x) {
-    .inline.hook(format_sci(x, 'rst'))
-  }
+  hook.i = function(x) .inline.hook(format_sci(x, 'rst'))
   knit_hooks$set(
     source = function(x, options) {
       x = paste(c(hilight_source(x, 'rst', options), ''), collapse = '\n')
       (if (strict) hook.s else hook.t)(x, options)
     },
     warning = hook.s, error = hook.s, message = hook.s,
-    output = hook.o, inline = hook.i, plot = hook_plot_rst)
+    output = hook.s, inline = hook.i, plot = hook_plot_rst)
 }
 
 # Insert a reStructuredText directive for sphinx

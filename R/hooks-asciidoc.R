@@ -15,7 +15,6 @@ hook_plot_asciidoc = function(x, options) {
 #' @rdname output_hooks
 #' @export
 render_asciidoc = function() {
-  knit_hooks$restore()
   set_html_dev()
   opts_knit$set(out.format = 'asciidoc')
   hook.source = function(x, options) {
@@ -31,9 +30,7 @@ render_asciidoc = function() {
   hook.error = function(x, options) {
     sprintf('\n[CAUTION]\n====\n.Error\n%s\n====\n', gsub('^.*Error: ', '', x))
   }
-  hook.output = function(x, options) {
-    if (output_asis(x, options)) x else sprintf('\n----\n%s----\n', x)
-  }
+  hook.output = function(x, options) sprintf('\n----\n%s----\n', x)
   knit_hooks$set(
     source = hook.source, output = hook.output, message = hook.message,
     warning = hook.warning, error = hook.error, plot = hook_plot_asciidoc

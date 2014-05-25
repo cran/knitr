@@ -1,10 +1,14 @@
+#' @include utils.R
+
 new_defaults = function(value = list()) {
   defaults = value
 
   get = function(name, default = FALSE, drop = TRUE) {
     if (default) defaults = value  # this is only a local version
     if (missing(name)) defaults else {
-      if (drop && length(name) == 1) defaults[[name]] else defaults[name]
+      if (drop && length(name) == 1) defaults[[name]] else {
+        setNames(defaults[name], name)
+      }
     }
   }
   set = function(...) {
@@ -34,6 +38,11 @@ new_defaults = function(value = list()) {
 #' use these options. Note the global options set in one chunk will not affect
 #' the options in this chunk itself, and that is why we often need to set global
 #' options in a separate chunk.
+#'
+#' Below is a list of default chunk options, retrieved via
+#' \code{opts_chunk$get()}:
+#'
+#' \Sexpr[results=verbatim]{str(knitr::opts_chunk$get())}
 #' @references Usage: \url{http://yihui.name/knitr/objects}
 #'
 #'   A list of available options:
@@ -41,29 +50,36 @@ new_defaults = function(value = list()) {
 #' @export
 #' @examples opts_chunk$get('prompt'); opts_chunk$get('fig.keep')
 opts_chunk = new_defaults(list(
-  eval = TRUE, echo = TRUE, results = 'markup', tidy = TRUE,
-  cache = FALSE, dependson = NULL, cache.path = 'cache/', cache.vars = NULL,
-  ref.label = NULL, child = NULL, engine = 'R',
-  prompt = FALSE, comment = '##', autodep = FALSE,
-  fig.keep = 'high', fig.show = 'asis', fig.align = 'default',
-  fig.path = 'figure/', fig.ext = NULL, dev = 'pdf', dpi = 72,
-  dev.args = NULL, fig.width = 7, fig.height = 7,
-  fig.env = 'figure', fig.cap = NULL, fig.scap = NULL, fig.lp = 'fig:',
-  fig.pos = '', out.width = NULL, out.height = NULL, out.extra = NULL,
-  resize.width = NULL, resize.height = NULL,
-  external = TRUE, sanitize = FALSE, purl = TRUE,
-  highlight = TRUE, size = 'normalsize',
+
+  eval = TRUE, echo = TRUE, results = 'markup', tidy = FALSE, tidy.opts = NULL,
+  collapse = FALSE, prompt = FALSE, comment = '##', highlight = TRUE,
+  strip.white = TRUE, size = 'normalsize', background = '#F7F7F7',
+
+  cache = FALSE, cache.path = 'cache/', cache.vars = NULL, cache.lazy = TRUE,
+  dependson = NULL, autodep = FALSE,
+
+  fig.keep = 'high', fig.show = 'asis', fig.align = 'default', fig.path = 'figure/',
+  dev = NULL, dev.args = NULL, dpi = 72, fig.ext = NULL, fig.width = 7, fig.height = 7,
+  fig.env = 'figure', fig.cap = NULL, fig.scap = NULL, fig.lp = 'fig:', fig.subcap = NULL,
+  fig.pos = '', out.width = NULL, out.height = NULL, out.extra = NULL, fig.retina = 1,
+  external = TRUE, sanitize = FALSE, interval = 1, aniopts = 'controls,loop',
+
   warning = TRUE, error = TRUE, message = TRUE,
-  background = '#F7F7F7', split = FALSE, include = TRUE,
-  interval = 1, aniopts = 'controls,loop'
+
+  render = NULL,
+
+  ref.label = NULL, child = NULL, engine = 'R', split = FALSE, include = TRUE, purl = TRUE
+
 ))
 
 #' @rdname opts_chunk
 #' @export
 opts_current = new_defaults()
 
+#' @include plot.R
+
 ## a list of options attributes for RStudio
-opts_chunk_attr = (function() {
+opts_chunk_attr = local({
   opts = lapply(opts_chunk$get(), class)
   opts[opts == 'NULL'] = 'character'
   opts$results = list('markup', 'asis', 'hold', 'hide')
@@ -72,11 +88,12 @@ opts_chunk_attr = (function() {
   opts$fig.align = list('default', 'left', 'right', 'center')
   opts$dev = as.list(names(auto_exts))
   opts$fig.ext = as.list(unique(auto_exts))
-  opts$tidy.opts = 'list'
-  opts$fig.subcap = 'character'
   opts$external = opts$sanitize = NULL  # hide these two rare options
+  opts$fig.process = 'function'
+  opts$R.options = 'list'
+  opts$cache.comments = 'logical'
   opts
-})()
+})
 
 #' Set aliases for chunk options
 #'
@@ -100,11 +117,16 @@ set_alias = function(...) {
 #'
 #' Besides the standard usage (\code{opts_knit$set()}), we can also set package
 #' options prior to loading \code{knitr} or calling \code{knit()} using
-#' \code{\link{options}()} in base R. A global option \code{knitr.foo} in
-#' \code{options()} will be set as an option \code{foo} in \code{opts_knit},
-#' i.e. global options in base R with the prefix \code{knitr.} correspond to
-#' options in \code{opts_knit}. This can be useful to set package options in
-#' \file{~/.Rprofile} without loading \pkg{knitr}.
+#' \code{\link{options}()} in base R. A global option \code{knitr.package.foo}
+#' in \code{options()} will be set as an option \code{foo} in \code{opts_knit},
+#' i.e. global options in base R with the prefix \code{knitr.package.}
+#' correspond to options in \code{opts_knit}. This can be useful to set package
+#' options in \file{~/.Rprofile} without loading \pkg{knitr}.
+#'
+#'  Below is a list of default package options, retrieved via
+#' \code{opts_knit$get()}:
+#'
+#' \Sexpr[results=verbatim]{str(knitr::opts_knit$get())}
 #' @references Usage: \url{http://yihui.name/knitr/objects}
 #'
 #'   A list of available options:
@@ -121,7 +143,7 @@ opts_knit = new_defaults(list(
   base.dir = NULL, base.url = NULL, child.path = '', upload.fun = identity,
   animation.fun = NULL, global.device = FALSE, eval.after = NULL,
   concordance = FALSE, tangle = FALSE, child = FALSE,
-  parent = FALSE, documentation = FALSE, aliases = NULL, root.dir = NULL,
+  parent = FALSE, documentation = 1L, aliases = NULL, root.dir = NULL,
   self.contained = TRUE,
   header = c(highlight = '', tikz = '', framed = ''),
   unnamed.chunk.label = 'unnamed-chunk'
@@ -132,16 +154,44 @@ opts_knit = new_defaults(list(
 ## document mode; parent: whether I need to add parent preamble to the
 ## child output
 
-# adjust opts_knit according to options(), e.g. options(knitr.progress) -->
-# opts_knit$get('progress'); this makes it possible to set options in
-# ~/.Rprofile without loading knitr
+# you may modify these options in options(knitr.package.foo)
+opts_knit_names = c(
+  'progress', 'verbose', 'width', 'upload.fun', 'animation.fun', 'global.device',
+  'eval.after', 'concordance', 'documentation', 'aliases', 'self.contained',
+  'unnamed.chunk.label'
+)
+# adjust opts_chunk and opts_knit according to options(), e.g.
+# options(knitr.package.progress = FALSE) --> opts_knit$set(progress = FALSE),
+# and options(knitr.chunk.tidy) --> opts_chunk$set(tidy = TRUE); this makes it
+# possible to set options in ~/.Rprofile without loading knitr
 adjust_opts_knit = function() {
+  # begin_hack: R CMD build does not evaluate .Rprofile, but I need a way to
+  # modify opts_chunk just for myself
+  if (nzchar(opts <- Sys.getenv('R_KNITR_OPTIONS')))
+    eval(parse_only(sprintf('base::options(%s)', opts)), envir = globalenv())
+  # end_hack
   opts = options()
   nms = names(opts)
   if (length(nms <- grep('^knitr[.]', nms, value = TRUE)) == 0) return()
-  # strip off knitr. from option names
-  opts = setNames(opts[nms], gsub('^knitr[.]', '', nms))
-  opts_knit$set(opts)
+  opts = opts[nms]
+  # for backward compatibility
+  i = grep('^knitr[.](package|chunk)[.]', nms, invert = TRUE)
+  i = intersect(i, which(nms[i] %in% paste('knitr', opts_knit_names, sep = '.')))
+  if (length(i)) {
+    nms.pkg = sub('^knitr.', 'knitr.package.', nms[i])
+    warning(
+      'These options must be renamed (from left to right):\n',
+      formatUL(sprintf('%s => %s', nms[i], nms.pkg)), call. = FALSE, immediate. = TRUE
+    )
+    Sys.sleep(10)
+    names(opts)[i] = nms[i] = nms.pkg
+  }
+  # strip off knitr.chunk from option names and set chunk options
+  i = grep('^knitr[.]chunk[.]', nms)
+  opts_chunk$set(setNames(opts[i], sub('^knitr[.]chunk[.]', '', nms[i])))
+  # similarly for knitr.package.options
+  i = grep('^knitr[.]package[.]', nms)
+  opts_knit$set(setNames(opts[i], sub('^knitr[.]package[.]', '', nms[i])))
 }
 
 #' Template for creating reusable chunk options

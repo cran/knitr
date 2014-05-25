@@ -24,7 +24,7 @@ dev2ext = function(x) {
          "; please use chunk option 'fig.ext' (http://yihui.name/knitr/options)",
          call. = FALSE)
   }
-  res
+  unname(res)
 }
 
 check_dev = function(dev) {
@@ -65,7 +65,7 @@ save_plot = function(plot, name, dev, width, height, ext, dpi, options) {
       purge_cache(options)
       stop('cannot find ', path, '; the cache has been purged; please re-compile')
     }
-    return(c(name, if (dev == 'tikz' && options$external) 'pdf' else ext))
+    return(paste(name, if (dev == 'tikz' && options$external) 'pdf' else ext, sep = '.'))
   }
 
   ## built-in devices
@@ -112,11 +112,7 @@ save_plot = function(plot, name, dev, width, height, ext, dpi, options) {
     check_dev(dev)
   )
 
-  dargs = options$dev.args
-  if (is.list(dargs) && length(options$dev) > 1L) {
-    # dev.args is list(dev1 = list(arg1 = val1, ...), dev2 = list(arg2, ...))
-    if (all(options$dev %in% names(dargs))) dargs = dargs[[dev]]
-  }
+  dargs = get_dargs(options$dev.args, dev)
   ## re-plot the recorded plot to an off-screen device
   do.call(device, c(list(path, width = width, height = height), dargs))
   print(plot)
@@ -140,9 +136,20 @@ save_plot = function(plot, name, dev, width, height, ext, dpi, options) {
     if (file.exists(pdf.plot)) ext = 'pdf' else {
       stop('failed to compile ', path, ' to PDF', call. = FALSE)
     }
+    path = pdf.plot
   }
 
-  c(name, ext)
+  fig_process(options$fig.process, path)
+}
+
+# filter the dev.args option
+get_dargs = function(dargs, dev) {
+  if (length(dargs) == 0) return()
+  if (is.list(dargs) && all(sapply(dargs, is.list))) {
+    # dev.args is list(dev1 = list(arg1 = val1, ...), dev2 = list(arg2, ...))
+    dargs = dargs[[dev]]
+  }
+  dargs
 }
 
 ## this is mainly for Cairo and cairoDevice
@@ -191,7 +198,7 @@ recycle_plot_opts = function(options) {
 reduce_plot_opts = function(options) {
   if (options$fig.show == 'animate' || options$fig.num <= 1L) return(options)
   fig.cur = options$fig.cur
-  for (i in .recyle.opts) options[[i]] = options[[i]][fig.cur]
+  for (i in .recyle.opts) options[i] = list(options[[i]][fig.cur])
   options
 }
 
@@ -216,6 +223,7 @@ fix_recordedPlot = function(plot) {
         plot[[1]][[i]][[2]][[1]] <- nativeSymbol
       }
     }
+    attr(plot, 'pid') = Sys.getpid()
   } else if (Rversion >= '2.14') {
     # restore native symbols for R >= 2.14
     try({
@@ -253,4 +261,45 @@ remove_plot = function(list, keep.high = TRUE) {
 digest_plot = function(x, level = 1) {
   if (!is.list(x) || level >= 3) return(digest::digest(x))
   lapply(x, digest_plot, level = level + 1)
+}
+
+# a null device
+pdf_null = function(width = 7, height = 7, ...) pdf(NULL, width, height, ...)
+
+fig_process = function(FUN, path) {
+  if (is.function(FUN)) {
+    path2 = FUN(path)
+    if (!is.character(path2) || length(path2) != 1L)
+      stop("'fig.process' must be a function that returns a character string")
+    path = path2
+  }
+  path
+}
+
+#' Crop a plot (remove the edges) using PDFCrop or ImageMagick
+#'
+#' The command \command{pdfcrop x x} is executed on a PDF plot file, and
+#' \command{convert x -trim x} is executed for other types of plot files, where
+#' \code{x} is the plot filename.
+#'
+#' The utility \command{pdfcrop} is often shipped with a LaTeX distribution, and
+#' \command{convert} is a command in ImageMagick (Windows users may have to put
+#' the bin path of ImageMagick into the \var{PATH} variable).
+#' @param x the plot filename
+#' @export
+#' @references PDFCrop: \url{http://pdfcrop.sourceforge.net}; the
+#'   \command{convert} command in ImageMagick:
+#'   \url{http://www.imagemagick.org/script/convert.php}
+#' @return The original filename.
+plot_crop = function(x) {
+  ext = tolower(file_ext(x))
+  if (ext == 'pdf') {
+    if (!has_utility('pdfcrop')) return(x)
+  } else if (!has_utility('convert', 'ImageMagick')) return(x)
+
+  message('cropping ', x)
+  x = shQuote(x)
+  cmd = if (ext == 'pdf') paste('pdfcrop', x, x) else paste('convert', x, '-trim', x)
+  (if (is_windows()) shell else system)(cmd)
+  x
 }

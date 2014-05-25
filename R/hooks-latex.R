@@ -16,8 +16,7 @@
 #' plots using \code{\link[grDevices]{recordPlot}}, and we can make use of these
 #' hooks to insert graphics output in the output document; see
 #' \code{\link{hook_plot_custom}} for details.
-#' @param x a character vector of length 2 ; \code{x[1]} is the plot base
-#'   filename, and \code{x[2]} is the file extension
+#' @param x the plot filename (a character string)
 #' @param options a list of the current chunk options
 #' @rdname hook_plot
 #' @return A character string (code with plot filenames wrapped)
@@ -27,15 +26,15 @@
 #' @examples ## this is what happens for a chunk like this
 #'
 #' ## <<foo-bar-plot, dev='pdf', fig.align='right'>>=
-#' hook_plot_tex(c('foo-bar-plot', 'pdf'), opts_chunk$merge(list(fig.align='right')))
+#' hook_plot_tex('foo-bar-plot.pdf', opts_chunk$merge(list(fig.align='right')))
 #'
 #' ## <<bar, dev='tikz'>>=
-#' hook_plot_tex(c('bar', 'tikz'), opts_chunk$merge(list(dev='tikz')))
+#' hook_plot_tex('bar.tikz', opts_chunk$merge(list(dev='tikz')))
 #'
 #' ## <<foo, dev='pdf', fig.show='animate', interval=.1>>=
 #'
 #' ## 5 plots are generated in this chunk
-#' hook_plot_tex(c('foo5', 'pdf'), opts_chunk$merge(list(fig.show='animate',interval=.1,fig.cur=5, fig.num=5)))
+#' hook_plot_tex('foo5.pdf', opts_chunk$merge(list(fig.show='animate',interval=.1,fig.cur=5, fig.num=5)))
 hook_plot_tex = function(x, options) {
   ## This function produces the image inclusion code for LaTeX.
   ## optionally wrapped in code that resizes it, aligns it, handles it
@@ -44,12 +43,12 @@ hook_plot_tex = function(x, options) {
   ## as needed), and an impression of their (possible) contents.
   ##
   ##     fig1,                   # \begin{...}[...]
-  ##       sub1,                 #   \subfloat{...}
+  ##       sub1,                 #   \subfloat[...]{
   ##         align1,             #     {\centering
   ##           resize1,          #       \resizebox{...}{...}{
   ##             tikz code       #         '\\input{chunkname.tikz}'
   ##             or animate code #         or '\\animategraphics[size]{1/interval}{chunkname}{1}{fig.num}'
-  ##             or plain code   #         or '\\includegraphics[size]{chunkname}}'
+  ##             or plain code   #         or '\\includegraphics[size]{chunkname}'
   ##           resize2,          #       }
   ##         align2,             #     }
   ##       sub2,                 #   }
@@ -132,7 +131,7 @@ hook_plot_tex = function(x, options) {
   paste(
     fig1, sub1, align1, resize1,
     if (tikz) {
-      sprintf('\\input{%s.tikz}', x[1])
+      sprintf('\\input{%s}', x)
     } else if (animate) {
       ## \animategraphics{} should be inserted only *once*!
       aniopts = options$aniopts
@@ -140,10 +139,10 @@ hook_plot_tex = function(x, options) {
       size = paste(c(size, sprintf('%s', aniopts)), collapse = ',')
       if (nzchar(size)) size = sprintf('[%s]', size)
       sprintf('\\animategraphics%s{%s}{%s}{%s}{%s}', size, 1/options$interval,
-              sub(sprintf('%d$', fig.num), '', x[1]), 1L, fig.num)
+              sub(sprintf('%d$', fig.num), '', sans_ext(x)), 1L, fig.num)
     } else {
       if (nzchar(size)) size = sprintf('[%s]', size)
-      sprintf('\\includegraphics%s{%s} ', size, x[1])
+      sprintf('\\includegraphics%s{%s} ', size, sans_ext(x))
     },
 
     resize2, align2, sub2, fig2,
@@ -177,9 +176,9 @@ hook_plot_tex = function(x, options) {
 
 ## inline hook for tex
 .inline.hook.tex = function(x) {
-  if(is.numeric(x)) {
+  if (is.numeric(x)) {
     x = format_sci(x, 'latex')
-    i = grep('\\\\times 10\\^\\{-?\\d+\\}$', x)
+    i = grep('[^0-9.,]', x)
     x[i] = sprintf('\\ensuremath{%s}', x[i])
     if (getOption('OutDec') != '.') x = sprintf('\\text{%s}', x)
   }
@@ -201,7 +200,7 @@ hook_plot_tex = function(x, options) {
 #' Set output hooks for different output formats
 #'
 #' These functions set built-in output hooks for LaTeX, HTML, Markdown,
-#' reStructuredText and AsciiDoc.
+#' reStructuredText, AsciiDoc and Textile.
 #'
 #' There are three variants of markdown documents: ordinary markdown
 #' (\code{render_markdown(strict = TRUE)}), extended markdown (e.g. GitHub
@@ -231,11 +230,11 @@ hook_plot_tex = function(x, options) {
 #'   prettify.js: \url{http://code.google.com/p/google-code-prettify/}
 render_latex = function() {
   test_latex_pkg('framed', system.file('misc', 'framed.sty', package = 'knitr'))
-  opts_chunk$set(out.width = '\\maxwidth')
+  opts_chunk$set(out.width = '\\maxwidth', dev = 'pdf')
+  opts_knit$set(out.format = 'latex')
   h = opts_knit$get('header')
   if (!nzchar(h['framed'])) set_header(framed = .header.framed)
   if (!nzchar(h['highlight'])) set_header(highlight = .header.hi.tex)
-  knit_hooks$restore()
   knit_hooks$set(
     source = function(x, options) {
       x = hilight_source(x, 'latex', options)
@@ -270,18 +269,16 @@ render_sweave = function() {
   opts_knit$set(out.format = 'sweave')
   test_latex_pkg('Sweave', file.path(R.home('share'), 'texmf', 'tex', 'latex', 'Sweave.sty'))
   set_header(framed = '', highlight = '\\usepackage{Sweave}')
-  knit_hooks$restore()
   ## wrap source code in the Sinput environment, output in Soutput
   hook.i = function(x, options)
     paste(c('\\begin{Sinput}', hilight_source(x, 'sweave', options), '\\end{Sinput}', ''),
           collapse = '\n')
   hook.s = function(x, options) paste('\\begin{Soutput}\n', x, '\\end{Soutput}\n', sep = '')
-  hook.o = function(x, options) if (output_asis(x, options)) x else hook.s(x, options)
   hook.c = function(x, options) {
     if (output_asis(x, options)) return(x)
     paste('\\begin{Schunk}\n', x, '\\end{Schunk}', sep = '')
   }
-  knit_hooks$set(source = hook.i, output = hook.o, warning = hook.s,
+  knit_hooks$set(source = hook.i, output = hook.s, warning = hook.s,
                  message = hook.s, error = hook.s, inline = .inline.hook.tex,
                  plot = hook_plot_tex, chunk = hook.c)
 }
