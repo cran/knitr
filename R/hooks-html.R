@@ -30,10 +30,12 @@ hook_plot_html = function(x, options) {
 }
 
 .img.cap = function(options) {
-  options$fig.cap %n% sprintf('plot of chunk %s', options$label)
+  options$fig.cap %n% {
+    if (is.null(pandoc_to())) sprintf('plot of chunk %s', options$label) else ''
+  }
 }
 
-## a wrapper to upload an image and return the URL
+# a wrapper to upload an image and return the URL
 .upload.url = function(x) {
   opts_knit$get('upload.fun')(x)
 }
@@ -44,7 +46,7 @@ hook_plot_html = function(x, options) {
               options$label, x)
   x = gsub('<div class="rcode">\\s*</div>', '', x) # rm empty rcode layers
   if (options$split) {
-    name = fig_path('.html', options)
+    name = fig_path('.html', options, NULL)
     if (!file.exists(dirname(name)))
       dir.create(dirname(name))
     cat(x, file = name)
@@ -68,7 +70,7 @@ hook_ffmpeg_html = function(x, options) {
   fig.num = options$fig.num
   # set up the ffmpeg run
   fig.fname = str_c(sub(str_c(fig.num, '$'), '%d', x[1]), '.', x[2])
-  mov.fname = str_c(sub(paste(fig.num, '$',sep = ''), '', x[1]), '.ogg')
+  mov.fname = str_c(sub(paste(fig.num, '$',sep = ''), '', x[1]), '.webm')
 
   ffmpeg.cmd = paste('ffmpeg', '-y', '-r', 1/options$interval,
                      '-i', fig.fname, mov.fname)
@@ -87,7 +89,7 @@ hook_ffmpeg_html = function(x, options) {
 
 opts_knit$set(animation.fun = hook_ffmpeg_html)
 
-## use SciAnimator to create animations
+# use SciAnimator to create animations
 #' @rdname hook_animation
 #' @export
 hook_scianimator = function(x, options) {
@@ -125,7 +127,7 @@ hook_scianimator = function(x, options) {
 }
 
 
-## use the R2SWF package to create Flash animations
+# use the R2SWF package to create Flash animations
 #' @rdname hook_animation
 #' @export
 hook_r2swf = function(x, options) {
@@ -133,7 +135,7 @@ hook_r2swf = function(x, options) {
   fig.num = options$fig.num
   # set up the R2SWF run
   fig.name = str_c(sub(str_c(fig.num, '$'), '', x[1]), 1:fig.num, '.', x[2])
-  swf.name = fig_path('.swf', options)
+  swf.name = fig_path('.swf', options, NULL)
 
   w = options$out.width %n% (options$fig.width * options$dpi)
   h = options$out.height %n% (options$fig.height * options$dpi)
@@ -151,7 +153,7 @@ hook_r2swf = function(x, options) {
 render_html = function() {
   set_html_dev()
   opts_knit$set(out.format = 'html')
-  ## use div with different classes
+  # use div with different classes
   html.hook = function(name) {
     force(name)
     function (x, options) {

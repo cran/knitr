@@ -8,7 +8,7 @@
 #'
 #' The engine function has one argument \code{options}: the source code of the
 #' current chunk is in \code{options$code}. Usually we can call external
-#' programs to run the code via \code{\link{system}}. Other chunk options are
+#' programs to run the code via \code{\link{system2}}. Other chunk options are
 #' also contained in this argument, e.g. \code{options$echo} and
 #' \code{options$eval}, etc.
 #'
@@ -37,7 +37,11 @@ engine_output = function(options, code, out, extra = NULL) {
   if (length(code) != 1L) code = paste(code, collapse = '\n')
   if (length(out) != 1L) out = paste(out, collapse = '\n')
   out = sub('([^\n]+)$', '\\1\n', out)
-  if (options$engine == 'Rscript') options$engine = 'r'
+  # replace the engine names for markup later, e.g. ```Rscript should be ```r
+  options$engine = switch(
+    options$engine, 'Rscript' = 'r', node = 'javascript',
+    options$engine
+  )
   paste(c(
     if (options$echo) knit_hooks$get('source')(code, options),
     if (options$results != 'hide' && !is_blank(out)) {
@@ -48,6 +52,7 @@ engine_output = function(options, code, out, extra = NULL) {
 }
 
 ## TODO: how to emulate the console?? e.g. for Python
+#  see some experiments at https://github.com/yihui/runr
 
 eng_interpreted = function(options) {
   engine = options$engine
@@ -66,33 +71,40 @@ eng_interpreted = function(options) {
       f
     }, haskell = paste('-e', shQuote(paste(':script', f))), f)
   } else paste(switch(
-    engine, bash = '-c', coffee = '-p -e', perl = '-e', python = '-c',
+    engine, bash = '-c', coffee = '-e', node = '-e', perl = '-e', python = '-c',
     ruby = '-e', scala = '-e', sh = '-c', zsh = '-c', NULL
   ), shQuote(paste(options$code, collapse = '\n')))
   # FIXME: for these engines, the correct order is options + code + file
   code = if (engine %in% c('awk', 'gawk', 'sed', 'sas'))
     paste(code, options$engine.opts) else paste(options$engine.opts, code)
-  cmd = paste(shQuote(options$engine.path %n% engine), code)
+  cmd = options$engine.path %n% engine
   out = if (options$eval) {
-    message('running: ', cmd); system(cmd, intern = TRUE)
+    message('running: ', cmd, ' ', code)
+    system2(cmd, code, stdout = TRUE, stderr = TRUE)
   } else ''
+  # chunk option error=FALSE means we need to signal the error
+  if (!options$error && !is.null(attr(out, 'status')))
+    stop(paste(out, collapse = '\n'))
   if (options$eval && engine == 'sas' && file.exists(saslst))
     out = c(readLines(saslst), out)
   engine_output(options, options$code, out)
 }
 
-## C (via R CMD SHLIB)
-eng_c = function(options) {
-  writeLines(options$code, f <- basename(tempfile('c', '.', '.c')))
+## C and Fortran (via R CMD SHLIB)
+eng_shlib = function(options) {
+  n = switch(options$engine, c = 'c', fortran = 'f')
+  f = basename(tempfile(n, '.', paste('.', n, sep = '')))
+  writeLines(options$code, f)
   on.exit(unlink(c(f, sub_ext(f, c('o', 'so', 'dll')))))
   if (options$eval) {
     out = system(paste('R CMD SHLIB', f), intern = TRUE)
-    dyn.load(sub('[.]c$', .Platform$dynlib.ext, f))
+    dyn.load(sub(sprintf('[.]%s$', n), .Platform$dynlib.ext, f))
   } else out = ''
   engine_output(options, options$code, out)
 }
 
 ## Java
+#  e.g. see http://cran.rstudio.com/package=jvmr
 
 ## Rcpp
 eng_Rcpp = function(options) {
@@ -190,17 +202,19 @@ eng_highlight = function(options) {
   options$echo = FALSE; options$results = 'asis'  # do not echo source code
   res = eng_interpreted(options)
   if (out_format('latex')) {
-    set_header(highlight.extra = paste(c(sprintf(
-      '\\let\\hl%s\\hlstd', c('esc', 'pps', 'lin')
-    ), '\\let\\hlslc\\hlcom'), collapse = ' '))
+    highlight_header()
     sub('(.*)\\\\\\\\(.*)', '\\1\\2', res)
   } else res
 }
 
 ## save the code
 eng_cat = function(options) {
+  lang = options$engine.opts$lang
+  if (!is.null(lang)) options$engine.opts$lang = NULL
   do.call(cat, c(list(options$code, sep = '\n'), options$engine.opts))
-  ''
+  if (is.null(lang)) return('')
+  options$engine = lang
+  engine_output(options, options$code, NULL)
 }
 
 ## output the code without processing it
@@ -209,7 +223,7 @@ eng_asis = function(options) {
 }
 
 # set engines for interpreted languages
-for (i in c('awk', 'bash', 'coffee', 'gawk', 'haskell', 'perl', 'python',
+for (i in c('awk', 'bash', 'coffee', 'gawk', 'haskell', 'node', 'perl', 'python',
             'Rscript', 'ruby', 'sas', 'scala', 'sed', 'sh', 'zsh')) {
   knit_engines$set(setNames(list(eng_interpreted), i))
 }
@@ -218,7 +232,8 @@ rm(i)
 # additional engines
 knit_engines$set(
   highlight = eng_highlight, Rcpp = eng_Rcpp, tikz = eng_tikz, dot = eng_dot,
-  c = eng_c, asy = eng_dot, cat = eng_cat, asis = eng_asis
+  c = eng_shlib, fortran = eng_shlib, asy = eng_dot, cat = eng_cat,
+  asis = eng_asis
 )
 
 # possible values for engines (for auto-completion in RStudio)

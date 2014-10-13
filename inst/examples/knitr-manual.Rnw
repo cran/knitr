@@ -41,7 +41,7 @@ library(knitr)
 ## set global chunk options
 opts_chunk$set(fig.path='figure/manual-', cache.path='cache/manual-', fig.align='center', fig.show='hold', par=TRUE)
 ## I use = but I can replace it with <-; set code/output width to be 68
-options(replace.assign=TRUE, width=68)
+options(formatR.arrow=TRUE, width=68, digits=4)
 ## tune details of base graphics (http://yihui.name/knitr/hooks)
 knit_hooks$set(par=function(before, options, envir){
 if (before && options$fig.show!='none') par(mar=c(4,4,.1,.1),cex.lab=.95,cex.axis=.9,mgp=c(2,.7,0),tcl=-.3)
@@ -203,26 +203,25 @@ which are motivated from my everyday use of Sweave. For example, a
 progress bar is provided when knitting a file so we roughly know how
 long we still need to wait; output from inline R code (e.g. \texttt{\textbackslash{}Sexpr\{x{[}1{]}\}})
 is automatically formatted in \TeX{} math notation (like \Sexpr{123456789})
-if the result is numeric, and we will not get too many digits by default.
-You may check out a number of specific manuals dedicated to specific
-features such as graphics in the website: \url{http://yihui.name/knitr/demos}.
+if the result is numeric. You may check out a number of specific manuals
+dedicated to specific features such as graphics in the website: \url{http://yihui.name/knitr/demos}.
 
 
 \subsection{Code Decoration}
 
-An internal syntax highlighter is used to highlight R code, and the
-\textbf{formatR} package \citep{R-formatR} is used to reformat R
-code (like \texttt{keep.source=FALSE} in Sweave but will also try
-to retain comments). For \LaTeX{} output, the \textbf{framed} package
-is used to decorate code chunks with a light gray background. If this
-\LaTeX{} package is not found in the system, a version will be copied
-directly from \textbf{knitr}. The prompt characters are removed by
-default because they mangle the R source code in the output and make
-it difficult to copy R code. The R output is masked in comments by
-default based on the same rationale. It is easy to revert to the output
-with prompts (set option \texttt{prompt=TRUE}), and you will quickly
-realize the inconvenience to the readers if they want to copy and
-run the code in the output document:
+The \textbf{highr} package \citep{R-highr} is used to highlight R
+code, and the \textbf{formatR} package \citep{R-formatR} is used
+to reformat R code (like \texttt{keep.source=FALSE} in Sweave but
+will also try to retain comments). For \LaTeX{} output, the \textbf{framed}
+package is used to decorate code chunks with a light gray background.
+If this \LaTeX{} package is not found in the system, a version will
+be copied directly from \textbf{knitr}. The prompt characters are
+removed by default because they mangle the R source code in the output
+and make it difficult to copy R code. The R output is masked in comments
+by default based on the same rationale. It is easy to revert to the
+output with prompts (set option \texttt{prompt=TRUE}), and you will
+quickly realize the inconvenience to the readers if they want to copy
+and run the code in the output document:
 
 <<stupid-prompts, prompt=TRUE, comment=NA, highlight=FALSE>>=
 x=rnorm(5)
@@ -241,7 +240,7 @@ for(k in 1:10){j=cos(sin(k)*k^2)+3;print(j-5)}
 for(k in 1:10){j=cos(sin(k)*k^2)+3;print(j-5)}
 @
 
-Note \texttt{=} is replaced by \texttt{<-} because \texttt{options('replace.assign')}
+Note \texttt{=} is replaced by \texttt{<-} because \texttt{options('formatR.arrow')}
 was set to be \texttt{TRUE} in this document; see the documentation
 of \emph{tidy.source()} in \textbf{formatR} for details.
 
@@ -651,7 +650,7 @@ head(hook_rgl)  # the hook function is defined as this
 
 Then we only have to set the chunk option \texttt{rgl=TRUE}:
 
-<<fancy-rgl, rgl=TRUE, dev='png', fig.width=5, fig.height=5, out.width='2in', message=FALSE, cache=TRUE>>=
+<<fancy-rgl, rgl=TRUE, dev='png', fig.width=5, fig.height=5, out.width='2in', message=FALSE, warning=FALSE, cache=TRUE>>=
 library(rgl)
 demo('bivar', package='rgl', echo=FALSE) 
 par3d(zoom=.7)
@@ -707,7 +706,7 @@ and questions can be delivered to the \href{mailto:knitr@googlegroups.com}{maili
 % when knitr is updated, this chunk will be updated; why?
 <<auto-bib, version=packageVersion('knitr'), echo=FALSE, cache=TRUE, message=FALSE, warning=FALSE>>=
 # write all packages in the current session to a bib file
-write_bib(c(.packages(), 'evaluate', 'formatR'), file = 'knitr-packages.bib')
+write_bib(c(.packages(), 'evaluate', 'formatR', 'highr'), file = 'knitr-packages.bib')
 @
 
 \bibliographystyle{jss}

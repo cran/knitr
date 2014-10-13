@@ -2,16 +2,13 @@
 title: "Custom Print Methods"
 author: "Yihui Xie"
 date: '`r Sys.Date()`'
+vignette: >
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteIndexEntry{Custom Print Methods}
 output:
-  html_document:
-    css: assets/fix-bootstrap.css
+  knitr:::html_vignette:
     toc: yes
 ---
-
-<!--
-%\VignetteEngine{knitr::rmarkdown}
-%\VignetteIndexEntry{Custom Print Methods}
--->
 
 Before **knitr** v1.6, printing objects in R code chunks basically emulates the R console. For example, a data frame is printed like this^[Note R prints an object without an explicit `print()` call when it is _visible_; see `?invisible`]:
 
@@ -23,7 +20,7 @@ The text representation of the data frame above may look very familiar with most
 
 ## Customize Printing
 
-After we evaluate each R expression in a code chunk, there is an object returned. For example, `1 + 1` returns `2`. This object is passed to the chunk option `render`, which is a function with one argument. The default value for the `render` option is `knit_print`, an S3 function in **knitr**:
+After we evaluate each R expression in a code chunk, there is an object returned. For example, `1 + 1` returns `2`. This object is passed to the chunk option `render`, which is a function with two arguments, `x` and `options`, or `x` and `...`. The default value for the `render` option is `knit_print`, an S3 function in **knitr**:
 
 ```{r}
 library(knitr)
@@ -46,7 +43,7 @@ S3 generic functions are extensible in the sense that we can define custom metho
 library(knitr)
 # define a method for objects of the class data.frame
 knit_print.data.frame = function(x, ...) {
-  res = paste(c('', '', kable(x, output = FALSE)), collapse = '\n')
+  res = paste(c('', '', kable(x)), collapse = '\n')
   asis_output(res)
 }
 ```

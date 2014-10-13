@@ -1,5 +1,14 @@
-## ----show-off------------------------------------------------------------
-rnorm(5)
-df=data.frame(y=rnorm(100), x=1:100)
-summary(lm(y~x, data=df))
+## ----show-off, tidy=TRUE-------------------------------------------------
+options(digits=4)
+rnorm(20)
+fit=lm(dist~speed, data=cars)
+b=coef(fit)
+
+## ----results='asis', echo=FALSE------------------------------------------
+knitr::kable(summary(fit)$coefficients, caption='Regression coefficients.')
+
+## ----graphics, fig.cap='A scatterplot with a regression line.'-----------
+par(mar=c(4, 4, 1, .1))
+plot(cars, pch = 20)
+abline(fit, col = 'red')
 

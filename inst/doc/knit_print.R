@@ -16,7 +16,7 @@ knit_print(head(mtcars))
 library(knitr)
 # define a method for objects of the class data.frame
 knit_print.data.frame = function(x, ...) {
-  res = paste(c('', '', kable(x, output = FALSE)), collapse = '\n')
+  res = paste(c('', '', kable(x)), collapse = '\n')
   asis_output(res)
 }
 

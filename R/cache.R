@@ -32,7 +32,7 @@ new_cache = function() {
 
   save_objects = function(objs, label, path) {
     if (length(objs) == 0L) objs = ''
-    ## save object names
+    # save object names
     x = paste(c(label, objs), collapse = '\t')
     if (file.exists(path)) {
       lines = readLines(path)
@@ -46,7 +46,7 @@ new_cache = function() {
   }
   cache_objects = function(keys, code, label, path) {
     save_objects(keys, label, valid_path(path, '__objects'))
-    ## find globals in code; may not be reliable
+    # find globals in code; may not be reliable
     save_objects(find_globals(code), label, valid_path(path, '__globals'))
   }
 
@@ -63,7 +63,7 @@ new_cache = function() {
   }
 
   cache_library = function(path, save = TRUE) {
-    ## save or load R packages
+    # save or load R packages
     path = valid_path(path, '__packages')
     if (save) {
       x = .packages()
@@ -76,9 +76,11 @@ new_cache = function() {
     }
   }
 
-  cache_exists = function(hash) {
+  cache_exists = function(hash, lazy = TRUE) {
     is.character(hash) &&
-      all(file.exists(paste(cache_path(hash), c('rdb', 'rdx'), sep = '.')))
+      all(file.exists(paste(
+        cache_path(hash), if (lazy) c('rdb', 'rdx') else 'RData', sep = '.'
+      )))
   }
 
   # when cache=3, code output is stored in .[hash], so cache=TRUE won't lose
@@ -137,7 +139,7 @@ dep_auto = function(path = opts_chunk$get('cache.path')) {
   for (i in 2:length(nms)) {
     if (length(g <- globals[[nms[i]]]) == 0) next
     for (j in 1:(i - 1L)) {
-      ## check if current globals are in old locals
+      # check if current globals are in old locals
       if (any(g %in% locals[[nms[j]]]))
         dep_list$set(setNames(list(unique(c(dep_list$get(nms[j]), nms[i]))), nms[j]))
     }
@@ -168,6 +170,7 @@ parse_objects = function(path) {
 dep_prev = function() {
   labs = names(knit_code$get())
   if ((n <- length(labs)) < 2L) return() # one chunk or less; no sense of deps
+  opts_knit$set(warn.uncached.dep = FALSE)
   for (i in 1L:(n - 1L)) {
     dep_list$set(setNames(list(labs[(i + 1L):n]), labs[i]))
   }

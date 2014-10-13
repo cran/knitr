@@ -33,7 +33,7 @@ css_align = function(align) {
 render_markdown = function(strict = FALSE) {
   set_html_dev()
   opts_knit$set(out.format = 'markdown')
-  ## four spaces lead to <pre></pre>
+  # four spaces lead to <pre></pre>
   hook.t = function(x, options) {
     if (strict) {
       paste('\n', indent_block(x), '', sep = '\n')
@@ -51,14 +51,21 @@ render_markdown = function(strict = FALSE) {
     }
   }
   hook.r = function(x, options) {
-    paste('\n\n```', tolower(options$engine), '\n', x, '```\n\n', sep = '')
+    language = tolower(options$engine)
+    if (language == 'node')
+        language = 'javascript'
+    paste('\n\n```', language, '\n', x, '```\n\n', sep = '')
   }
   knit_hooks$set(
     source = function(x, options) {
       x = hilight_source(x, 'markdown', options)
       (if (strict) hook.t else hook.r)(paste(c(x, ''), collapse = '\n'), options)
     }, output = hook.t, warning = hook.t, error = hook.t, message = hook.t,
-    inline = function(x) .inline.hook(format_sci(x, 'html')),
+    inline = function(x) {
+      fmt = pandoc_to()
+      fmt = if (length(fmt) == 1L) 'latex' else 'html'
+      .inline.hook(format_sci(x, fmt))
+    },
     plot = hook_plot_md,
     chunk = function(x, options) {
       x = gsub('[\n]{2,}(```|    )', '\n\n\\1', x)

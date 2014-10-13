@@ -5,7 +5,10 @@ process_group = function(x) {
 #' @export
 process_group.block = function(x) call_block(x)
 #' @export
-process_group.inline = function(x) call_inline(x)
+process_group.inline = function(x) {
+  x = call_inline(x)
+  knit_hooks$get('text')(x)
+}
 
 
 call_block = function(block) {
@@ -13,17 +16,18 @@ call_block = function(block) {
   af = opts_knit$get('eval.after'); al = opts_knit$get('aliases')
   if (!is.null(al) && !is.null(af)) af = c(af, names(al[af %in% al]))
   params = opts_chunk$merge(block$params)
+  opts_current$restore(params)
   for (o in setdiff(names(params), af)) params[o] = list(eval_lang(params[[o]]))
 
   params = fix_options(params)  # for compatibility
 
   # expand parameters defined via template
-  if(!is.null(params$opts.label))
+  if (!is.null(params$opts.label))
     params = merge_list(params, opts_template$get(params$opts.label))
 
   label = ref.label = params$label
   if (!is.null(params$ref.label)) ref.label = sc_split(params$ref.label)
-  params$code = params$code %n% unlist(knit_code$get(ref.label), use.names = FALSE)
+  params[["code"]] = params[["code"]] %n% unlist(knit_code$get(ref.label), use.names = FALSE)
   if (opts_knit$get('progress')) print(block)
 
   if (!is.null(params$child)) {
@@ -46,7 +50,7 @@ call_block = function(block) {
     }
     hash = paste(valid_path(params$cache.path, label), digest::digest(content), sep = '_')
     params$hash = hash
-    if (cache$exists(hash)) {
+    if (cache$exists(hash, params$cache.lazy)) {
       if (opts_knit$get('verbose')) message('  loading cache from ', hash)
       cache$load(hash, lazy = params$cache.lazy)
       if (!params$include) return('')
@@ -54,7 +58,7 @@ call_block = function(block) {
     }
     if (params$engine == 'R')
       cache$library(params$cache.path, save = FALSE) # load packages
-  } else if (label %in% names(dep_list$get()))
+  } else if (label %in% names(dep_list$get()) && !isFALSE(opts_knit$get('warn.uncached.dep')))
     warning('code chunks must not depend on the uncached chunk "', label, '"',
             call. = FALSE)
 
@@ -97,7 +101,15 @@ block_exec = function(options) {
   # open a device to record plots
   if (chunk_device(options$fig.width[1L], options$fig.height[1L], keep != 'none',
                    options$dev, options$dev.args)) {
-    dv = dev.cur(); on.exit(dev.off(dv))
+    # preserve par() settings from the last code chunk
+    if (keep.pars <- opts_knit$get('global.par'))
+      par(opts_knit$get('global.pars'))
+    showtext(options$fig.showtext)  # showtext support
+    dv = dev.cur()
+    on.exit({
+      if (keep.pars) opts_knit$set(global.pars = par(no.readonly = TRUE))
+      dev.off(dv)
+    }, add = TRUE)
   }
 
   res.before = run_hooks(before = TRUE, options, env) # run 'before' hooks
@@ -106,7 +118,7 @@ block_exec = function(options) {
   echo = options$echo  # tidy code if echo
   if (!isFALSE(echo) && options$tidy && length(code)) {
     res = try_silent(do.call(
-      tidy.source, c(list(text = code, output = FALSE), options$tidy.opts)
+      tidy_source, c(list(text = code, output = FALSE), options$tidy.opts)
     ))
     if (!inherits(res, 'try-error')) {
       code = native_encode(res$text.tidy)
@@ -127,7 +139,7 @@ block_exec = function(options) {
             ' use the chunk option error = ', err.code != 2L, ' instead')
     options$error = err.code != 2L
   }
-  cache.exists = cache$exists(options$hash)
+  cache.exists = cache$exists(options$hash, options$cache.lazy)
   # return code with class 'source' if not eval chunks
   res = if (is_blank(code)) list() else if (isFALSE(ev)) {
     list(structure(list(src = code), class = 'source'))
@@ -165,7 +177,7 @@ block_exec = function(options) {
   if (options$results == 'hide') res = Filter(Negate(is.character), res)
   if (options$results == 'hold') {
     i = sapply(res, is.character)
-    res = c(res[!i], res[i])
+    if (any(i)) res = c(res[!i], list(paste(unlist(res[i]), collapse = '')))
   }
   res = filter_evaluate(res, options$warning, is.warning)
   res = filter_evaluate(res, options$message, is.message)
@@ -193,17 +205,15 @@ block_exec = function(options) {
     options$fig.num = if (length(res)) sum(sapply(res, is.recordedplot)) else 0L
 
   # merge neighbor elements of the same class into one element
-  for (cls in c('source', 'warning', 'message'))
-    res = merge_class(res, cls)
+  for (cls in c('source', 'message')) res = merge_class(res, cls)
 
   on.exit(plot_counter(reset = TRUE), add = TRUE)  # restore plot number
   if (options$fig.show != 'animate' && options$fig.num > 1) {
     options = recycle_plot_opts(options)
   }
-  in_dir(opts_knit$get('base.dir'), {
-    output = unlist(wrap(res, options)) # wrap all results together
-    res.after = run_hooks(before = FALSE, options, env) # run 'after' hooks
-  })
+
+  output = unlist(wrap(res, options)) # wrap all results together
+  res.after = run_hooks(before = FALSE, options, env) # run 'after' hooks
 
   output = paste(c(res.before, output, res.after), collapse = '')  # insert hook results
   output = if (is_blank(output)) '' else knit_hooks$get('chunk')(output, options)
@@ -250,7 +260,7 @@ chunk_device = function(width, height, record = TRUE, dev, dev.args) {
     if (identical(getOption('device'), pdf_null)) {
       if (!is.null(dev.args)) {
         dev.args = get_dargs(dev.args, 'pdf')
-        dev.args = dev.args[intersect(names(dev.args), names(formals(pdf)))]
+        dev.args = dev.args[intersect(names(dev.args), c('pointsize', 'bg'))]
       }
       do.call(pdf_null, c(list(width = width, height = height), dev.args))
     } else dev.new(width = width, height = height)
@@ -278,20 +288,22 @@ filter_evaluate = function(res, opt, test) {
 }
 
 # merge neighbor elements of the same class in a list returned by evaluate()
-merge_class = function(res, class = c('source', 'warning', 'message')) {
+merge_class = function(res, class) {
 
-  class = match.arg(class)
   idx = if (length(res)) which(sapply(res, inherits, what = class))
   if ((n <- length(idx)) <= 1) return(res)
 
   k1 = idx[1]; k2 = NULL
+  el = switch(
+    class, `source` = 'src', `message` = 'message',
+    stop("`class` must be either 'source' or 'message'")
+  )
   for (i in 1:(n - 1)) {
     if (idx[i + 1] - idx[i] == 1) {
-      res[[k1]] = if (class == 'source') {
-        structure(list(src = c(res[[k1]]$src, res[[idx[i + 1]]]$src)), class = class)
-      } else {
-        structure(list(message = c(res[[k1]]$message, res[[idx[i + 1]]]$message)), class = class)
-      }
+      res[[k1]] = structure(
+        list(c(res[[k1]][[el]], res[[idx[i + 1]]][[el]])),
+        class = class, .Names = el
+      )
       k2 = c(k2, idx[i + 1])
     } else k1 = idx[i + 1]
   }

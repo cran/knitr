@@ -10,13 +10,15 @@
 #' @param digits the maximum number of digits for numeric columns (passed to
 #'   \code{round()}); it can also be a vector of length \code{ncol(x)} to set
 #'   the number of digits for individual columns
-#' @param row.names whether to include row names; by default, row names are
-#'   included if they are neither \code{NULL} nor identical to \code{1:nrow(x)}
+#' @param row.names a logical value indicating whether to include row names; by
+#'   default, row names are included if \code{rownames(x)} is neither
+#'   \code{NULL} nor identical to \code{1:nrow(x)}
+#' @param col.names a character vector of column names to be used in the table
 #' @param align the alignment of columns: a character vector consisting of
 #'   \code{'l'} (left), \code{'c'} (center) and/or \code{'r'} (right); by
 #'   default, numeric columns are right-aligned, and other columns are
 #'   left-aligned; if \code{align = NULL}, the default alignment is used
-#' @param output whether to write out the output in the console
+#' @param caption the table caption
 #' @param ... other arguments (see examples)
 #' @return A character vector of the table source code. When \code{output =
 #'   TRUE}, the results are also written into the console as a side-effect.
@@ -56,19 +58,22 @@
 #' # Pandoc tables
 #' kable(head(mtcars), format = 'pandoc', caption = 'Title of the table')
 #' # save the value
-#' x = kable(mtcars, format = 'html', output = FALSE)
+#' x = kable(mtcars, format = 'html')
 #' cat(x, sep = '\n')
 #' # can also set options(knitr.table.format = 'html') so that the output is HTML
-kable = function(x, format, digits = getOption('digits'), row.names = NA,
-                 align, output = getOption('knitr.table.output', TRUE), ...) {
-  if (missing(format)) format = getOption('knitr.table.format', switch(
-    out_format() %n% 'markdown', latex = 'latex', listings = 'latex', sweave = 'latex',
+kable = function(
+  x, format, digits = getOption('digits'), row.names = NA, col.names = colnames(x),
+  align, caption = NULL, ...
+) {
+  if (missing(format) || is.null(format)) format = getOption('knitr.table.format')
+  if (is.null(format)) format = if (is.null(pandoc_to())) switch(
+    out_format() %n% 'markdown',
+    latex = 'latex', listings = 'latex', sweave = 'latex',
     html = 'html', markdown = 'markdown', rst = 'rst',
     stop('table format not implemented yet!')
-  ))
-  # if the original object does not have colnames, we need to remove them later
-  ncn = is.null(colnames(x))
-  if (!is.matrix(x) && !is.data.frame(x)) x = as.data.frame(x)
+  ) else 'pandoc'
+  col.names # evaluate it now! no lazy evaluation because colnames(x) may change
+  if (!is.matrix(x)) x = as.data.frame(x)
   m = ncol(x)
   # numeric columns
   isn = if (is.matrix(x)) rep(is.numeric(x), m) else sapply(x, is.numeric)
@@ -79,23 +84,39 @@ kable = function(x, format, digits = getOption('digits'), row.names = NA,
   for (j in seq_len(m)) {
     if (is.numeric(x[, j])) x[, j] = round(x[, j], digits[j])
   }
-  if (any(isn)) x[, isn] = format(x[, isn], trim = TRUE)
+  if (any(isn)) {
+    if (is.matrix(x)) {
+      if (is.table(x) && length(dim(x)) == 2) class(x) = 'matrix'
+      x = format(as.data.frame(x), trim = TRUE)
+    } else x[, isn] = format(x[, isn], trim = TRUE)
+  }
   if (is.na(row.names))
     row.names = !is.null(rownames(x)) && !identical(rownames(x), as.character(seq_len(NROW(x))))
   if (!is.null(align)) align = rep(align, length.out = m)
   if (row.names) {
     x = cbind(' ' = rownames(x), x)
+    if (!is.null(col.names)) col.names = c(' ', col.names)
     if (!is.null(align)) align = c('l', align)  # left align row names
   }
   x = format(as.matrix(x), trim = TRUE, justify = 'none')
-  if (ncn) colnames(x) = NULL
+  colnames(x) = col.names
   attr(x, 'align') = align
-  res = do.call(paste('kable', format, sep = '_'), list(x = x, ...))
-  if (output) {
-    if (!(format %in% c('html', 'latex'))) cat('\n\n')
-    cat(res, sep = '\n')
-  }
-  invisible(res)
+  res = do.call(paste('kable', format, sep = '_'), list(x = x, caption = caption, ...))
+  structure(res, format = format, class = 'knitr_kable')
+}
+
+#' @export
+print.knitr_kable = function(x, ...) {
+  if (!(attr(x, 'format') %in% c('html', 'latex'))) cat('\n\n')
+  cat(x, sep = '\n')
+}
+
+#' @export
+knit_print.knitr_kable = function(x, ...) {
+  x = paste(c(
+    if (!(attr(x, 'format') %in% c('html', 'latex'))) c('', ''), x, ''
+  ), collapse = '\n')
+  asis_output(x)
 }
 
 kable_latex = function(
@@ -133,12 +154,12 @@ kable_latex = function(
   ), collapse = '')
 }
 
-kable_html = function(x, table.attr = '', caption = NULL) {
+kable_html = function(x, table.attr = '', caption = NULL, ...) {
   table.attr = gsub('^\\s+|\\s+$', '', table.attr)
   # need a space between <table and attributes
   if (nzchar(table.attr)) table.attr = paste('', table.attr)
   align = if (is.null(align <- attr(x, 'align', exact = TRUE))) '' else {
-    sprintf(' align="%s"', c(l = 'left', c = 'center', r = 'right')[align])
+    sprintf(' style="text-align:%s;"', c(l = 'left', c = 'center', r = 'right')[align])
   }
   cap = if (is.null(caption)) '' else sprintf('\n<caption>%s</caption>', caption)
   paste(c(
@@ -170,7 +191,7 @@ kable_html = function(x, table.attr = '', caption = NULL) {
 #' @return A character vector of the table content.
 #' @noRd
 kable_mark = function(x, sep.row = c('=', '=', '='), sep.col = '  ', padding = 0,
-                      align.fun = function(s, a) s, rownames.name = '') {
+                      align.fun = function(s, a) s, rownames.name = '', ...) {
   # when the column separator is |, replace existing | with its HTML entity
   if (sep.col == '|') for (j in seq_len(ncol(x))) {
     x[, j] = gsub('\\|', '&#124;', x[, j])
@@ -192,12 +213,12 @@ kable_mark = function(x, sep.row = c('=', '=', '='), sep.col = '  ', padding = 0
   apply(mat_pad(res, l, align), 1, paste, collapse = sep.col)
 }
 
-kable_rst = function(x, rownames.name = '\\') {
+kable_rst = function(x, rownames.name = '\\', ...) {
   kable_mark(x, rownames.name = rownames.name)
 }
 
 # actually R Markdown
-kable_markdown = function(x, padding = 1) {
+kable_markdown = function(x, padding = 1, ...) {
   if (is.null(colnames(x))) stop('the table must have a header (column names)')
   res = kable_mark(x, c(NA, '-', NA), '|', padding, align.fun = function(s, a) {
     if (is.null(a)) return(s)
@@ -206,12 +227,13 @@ kable_markdown = function(x, padding = 1) {
       s[i] = gsub(r[a[i]], ':', s[i])
     }
     s
-  })
+  }, ...)
   sprintf('|%s|', res)
 }
 
-kable_pandoc = function(x, caption = NULL, padding = 1) {
-  tab = kable_mark(x, c(NA, '-', if (is.null(colnames(x))) '-' else NA), padding = padding)
+kable_pandoc = function(x, caption = NULL, padding = 1, ...) {
+  tab = kable_mark(x, c(NA, '-', if (is.null(colnames(x))) '-' else NA),
+                   padding = padding, ...)
   if (is.null(caption)) tab else c(paste('Table:', caption), "", tab)
 }
 

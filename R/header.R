@@ -1,7 +1,7 @@
 #' @include themes.R
 #' @include highlight.R
 
-## doc is the output of processed document
+# doc is the output of processed document
 insert_header = function(doc) {
   if (is.null(b <- knit_patterns$get('header.begin'))) return(doc)
 
@@ -12,7 +12,7 @@ insert_header = function(doc) {
   doc
 }
 
-## Makes latex header with macros required for highlighting, tikz and framed
+# Makes latex header with macros required for highlighting, tikz and framed
 make_header_latex = function() {
   h = paste(c(
     sprintf('\\usepackage[%s]{graphicx}\\usepackage[%s]{color}',
@@ -44,7 +44,9 @@ insert_header_latex = function(doc, b) {
     # in parent mode, we fill doc to be a complete document
     doc[1L] = paste(c(getOption('tikzDocumentDeclaration'), make_header_latex(),
                       .knitEnv$tikzPackages, '\\begin{document}', doc[1L]), collapse = '\n')
-    doc[length(doc)] = paste(doc[length(doc)], '\\end{document}', sep = '\n')
+    doc[length(doc)] = paste(
+      c(doc[length(doc)], .knitEnv$bibliography, '\\end{document}'), collapse = '\n'
+    )
   }
   doc
 }

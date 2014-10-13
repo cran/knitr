@@ -6,13 +6,27 @@ hilight_source = function(x, format, options) {
       res = try(highr::hi_andre(x, options$engine, format))
       if (inherits(res, 'try-error')) {
         if (format == 'html') highr:::escape_html(x) else highr:::escape_latex(x)
-      } else res
+      } else {
+        highlight_header()
+        res
+      }
     }
-  } else if (options$prompt) line_prompt(x) else x
+  } else if (options$prompt) {
+    # if you did not reformat or evaluate the code, I have to figure out which
+    # lines belong to one complete expression first (#779)
+    if (!options$tidy && isFALSE(options$eval))
+      x = vapply(highr:::group_src(x), paste, character(1), collapse = '\n')
+    line_prompt(x)
+  } else x
 }
 
+highlight_header = function() {
+  set_header(highlight.extra = paste(c(sprintf(
+    '\\let\\hl%s\\hlstd', c('esc', 'pps', 'lin')
+  ), '\\let\\hlslc\\hlcom'), collapse = ' '))
+}
 
-## stolen from Romain's highlight package (v0.3.2)
+# stolen from Romain's highlight package (v0.3.2)
 
 # http://www.w3schools.com/css/css_colornames.asp
 w3c.colors = c(

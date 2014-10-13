@@ -5,6 +5,18 @@
 
 <title></title>
 
+<script type="text/javascript">
+window.onload = function() {
+  var imgs = document.getElementsByTagName('img'), i, img;
+  for (i = 0; i < imgs.length; i++) {
+    img = imgs[i];
+    // center an image if it is the only element of its parent
+    if (img.parentElement.childElementCount === 1)
+      img.parentElement.style.textAlign = 'center';
+  }
+};
+</script>
+
 <!-- Styles for R syntax highlighter -->
 <style type="text/css">
    pre .operator,
@@ -45,9 +57,6 @@ var hljs=new function(){function m(p){return p.replace(/&/gm,"&amp;").replace(/<
 hljs.initHighlightingOnLoad();
 </script>
 
-<!-- MathJax scripts -->
-<script type="text/javascript" src="https://c328740.ssl.cf1.rackcdn.com/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML">
-</script>
 
 
 <style type="text/css">
@@ -99,7 +108,9 @@ a:visited {
 pre, img {
   max-width: 100%;
 }
-
+pre {
+  overflow-x: auto;
+}
 pre code {
    display: block; padding: 0.5em;
 }
@@ -203,11 +214,11 @@ x = rnorm(5)
 mean(x)
 </code></pre>
 
-<pre><code>## [1] 0.1936
+<pre><code>## [1] 0.1935703
 </code></pre>
 
 <p>You can use the special syntax {{code}} to embed inline expressions, e.g.
-2.1936
+2.1935703
 is the mean of x plus 2.
 The code itself may contain braces, but these are not checked.  Thus,
 perfectly valid (though very strange) R code such as <code>{{2 + 3}} - {{4 - 5}}</code>
@@ -227,14 +238,14 @@ default options. For example, the code below has no options attached:</p>
 <pre><code class="r">var(x)
 </code></pre>
 
-<pre><code>## [1] 0.6578
+<pre><code>## [1] 0.6577564
 </code></pre>
 
 <pre><code class="r">quantile(x)
 </code></pre>
 
-<pre><code>##       0%      25%      50%      75%     100% 
-## -0.56048 -0.23018  0.07051  0.12929  1.55871
+<pre><code>##          0%         25%         50%         75%        100% 
+## -0.56047565 -0.23017749  0.07050839  0.12928774  1.55870831
 </code></pre>
 
 <p>And you can also write two chunks successively like this:</p>
@@ -242,13 +253,13 @@ default options. For example, the code below has no options attached:</p>
 <pre><code class="r">sum(x^2)  # chi-square distribution with df 5
 </code></pre>
 
-<pre><code>## [1] 2.818
+<pre><code>## [1] 2.818373
 </code></pre>
 
 <pre><code class="r">sum((x - mean(x))^2)  # df is 4 now
 </code></pre>
 
-<pre><code>## [1] 2.631
+<pre><code>## [1] 2.631026
 </code></pre>
 
 <p>Done. Call spin(&#39;knitr-spin.R&#39;) to make silk from sow&#39;s ear now and knit a

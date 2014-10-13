@@ -161,11 +161,11 @@ fix_sweave = function(x) {
 which_sweave = function(x) {
   unique(c(
     grep('^\\s*\\\\(usepackage(\\[.*\\])?\\{Sweave|SweaveInput\\{|SweaveOpts\\{)', x),
-    grep('^<<.*(echo|eval|split|include)\\s*=\\s*(true|false).*>>=', x),
-    grep('^<<.*results\\s*=\\s*(tex|verbatim|hide)).*>>=', x),
-    grep('^<<.*(fig|pdf|eps|jpeg|png|tikz)\\s*=\\s*(true|false|T|F).*>>=', x),
+    grep('^<<.*\\b(echo|eval|split|include)\\s*=\\s*(true|false)\\b.*>>=', x),
+    grep('^<<.*\\bresults\\s*=\\s*(tex|verbatim|hide)\\b.*>>=', x),
+    grep('^<<.*\\b(fig|pdf|eps|jpeg|png|tikz)\\s*=\\s*(true|false|T|F).*>>=', x),
     grep('^<<.*([, ])(width|height)\\s*=\\s*(\\d+).*>>=', x),
-    grep('^<<.*(keep.source|print|term|prefix)\\s*=\\s*(true|false|T|F).*>>=', x)
+    grep('^<<.*\\b(keep.source|print|term|prefix)\\s*=\\s*(true|false|T|F).*>>=', x)
   ))
 }
 
@@ -174,12 +174,15 @@ remind_sweave = function(file, sweave_lines) {
                 paste(sweave_lines, collapse = ', '), file)
   # throw a normal warning when R CMD check or tcltk not available
   warning(msg)
-  if (!('CheckExEnv' %in% search()) && !('_R_CHECK_TIMINGS_' %in% names(Sys.getenv())) &&
-        capabilities('tcltk') && capabilities('X11') && has_package('tcltk') &&
-        getFromNamespace('.TkUp', 'tcltk')) {
+  if (!is_R_CMD_check() && Sys.getenv('TRAVIS') != 'true' && tcltk_available()) {
     do.call(
       getFromNamespace('tkmessageBox', 'tcltk'),
       list(title = 'Sweave Noweb syntax?', icon = 'info', message = msg)
     )
   }
+}
+
+tcltk_available = function() {
+  capabilities('tcltk') && capabilities('X11') && has_package('tcltk') &&
+    getFromNamespace('.TkUp', 'tcltk')
 }

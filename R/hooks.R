@@ -1,4 +1,4 @@
-## format a single inline object
+# format a single inline object
 .inline.hook = function(x) {
   if (is.numeric(x)) x = round(x, getOption('digits'))
   paste(as.character(x), collapse = ', ')
@@ -9,7 +9,7 @@
 .default.hooks = list(
   source = .out.hook, output = .out.hook, warning = .out.hook,
   message = .out.hook, error = .out.hook, plot = .plot.hook,
-  inline = .inline.hook, chunk = .out.hook, document = identity
+  inline = .inline.hook, chunk = .out.hook, text = identity, document = identity
 )
 
 #' Hooks for R code chunks, inline R code and output

@@ -1,6 +1,6 @@
 # knitr
 
-[![Build Status](https://travis-ci.org/yihui/knitr.png)](https://travis-ci.org/yihui/knitr)
+[![Build Status](https://travis-ci.org/yihui/knitr.svg)](https://travis-ci.org/yihui/knitr)
 
 The R package **knitr** is a general-purpose literate programming engine,
 with lightweight API's designed to give users full control of the output
@@ -13,16 +13,16 @@ frequently asked questions (including where to ask questions).
 ## Installation
 
 You can install the stable version on
-[CRAN](http://cran.r-project.org/package=knitr):
+[CRAN](http://cran.rstudio.com/package=knitr):
 
-```s
+```r
 install.packages('knitr', dependencies = TRUE)
 ```
 
 You can also install the development version from
 [RForge](http://rforge.net/knitr/), which provides daily build of **knitr**:
 
-```s
+```r
 # update all existing packages first
 update.packages(ask = FALSE, repos = 'http://cran.rstudio.org')
 install.packages('knitr', repos = c('http://rforge.net', 'http://cran.rstudio.org'),
@@ -40,8 +40,8 @@ R CMD INSTALL knitr_*.tar.gz
 ## Motivation
 
 While Sweave and related add-on packages like
-[**cacheSweave**](http://cran.r-project.org/package=cacheSweave) and
-[**pgfSweave**](http://cran.r-project.org/package=pgfSweave) are fairly good
+[**cacheSweave**](http://cran.rstudio.com/package=cacheSweave) and
+[**pgfSweave**](http://cran.rstudio.com/package=pgfSweave) are fairly good
 engines for literate programming in R, but I often feel my hands are tied,
 for example:
 
@@ -61,15 +61,15 @@ for example:
 - I wished there was a way to round the numbers in `\Sexpr{}` other than
   writing expressions like `\Sexpr{round(x, 3)}` for *each single* `\Sexpr{}`
 - I wished I did not have to `print()` plots from
-  [**ggplot2**](http://cran.r-project.org/package=ggplot2) and a simple
+  [**ggplot2**](http://cran.rstudio.com/package=ggplot2) and a simple
   `qplot(x, y)` would just give me a plot in Sweave
 - I wished users would never need instructions on `Sweave.sty` or run into
   troubles due to the fact that LaTeX cannot find `Sweave.sty`
 - I wished **cacheSweave** could print the results of a code chunk even if
   it was cached
-- I wished [**brew**](http://cran.r-project.org/package=brew) could support
+- I wished [**brew**](http://cran.rstudio.com/package=brew) could support
   graphics
-- I wished [**R2HTML**](http://cran.r-project.org/package=R2HTML) could
+- I wished [**R2HTML**](http://cran.rstudio.com/package=R2HTML) could
   support R code syntax highlighting
 - ...
 
@@ -84,13 +84,13 @@ Sweave).
 
 ## Usage
 
-```s
+```r
 library(knitr)
 ?knit
 knit(input)
 ```
 
-[<img src="http://i.imgur.com/R6DSHDE.jpg" align="right" />](http://amzn.com/1482203537)
+[<img src="http://i.imgur.com/R6DSHDE.jpg" align="right" alt="The book Dynamic Documents with R and knitr" />](http://amzn.com/1482203537)
 
 If options are not explicitly specified, **knitr** will try to guess
 reasonable default settings. A few manuals are available such as the [main
@@ -110,7 +110,7 @@ request](https://help.github.com/articles/using-pull-requests) after
 [forking](https://help.github.com/articles/fork-a-repo) this repository.
 
 To make sure you did not break anything, you need to run tests, which are
-done through the [**testit**](http://cran.r-project.org/package=testit)
+done through the [**testit**](http://cran.rstudio.com/package=testit)
 package. If you added any features, add your own tests in `tests/testit/`.
 You can run tests using `make`, e.g.
 

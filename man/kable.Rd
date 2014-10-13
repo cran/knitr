@@ -2,8 +2,8 @@
 \alias{kable}
 \title{Create tables in LaTeX, HTML, Markdown and reStructuredText}
 \usage{
-kable(x, format, digits = getOption("digits"), row.names = NA, align, 
-    output = getOption("knitr.table.output", TRUE), ...)
+kable(x, format, digits = getOption("digits"), row.names = NA, col.names = colnames(x), 
+    align, caption = NULL, ...)
 }
 \arguments{
 \item{x}{an R object (typically a matrix or data frame)}
@@ -17,15 +17,18 @@ can also be set in the global option \code{knitr.table.format}}
 \code{round()}); it can also be a vector of length \code{ncol(x)} to set
 the number of digits for individual columns}
 
-\item{row.names}{whether to include row names; by default, row names are
-included if they are neither \code{NULL} nor identical to \code{1:nrow(x)}}
+\item{row.names}{a logical value indicating whether to include row names; by
+default, row names are included if \code{rownames(x)} is neither
+\code{NULL} nor identical to \code{1:nrow(x)}}
+
+\item{col.names}{a character vector of column names to be used in the table}
 
 \item{align}{the alignment of columns: a character vector consisting of
 \code{'l'} (left), \code{'c'} (center) and/or \code{'r'} (right); by
 default, numeric columns are right-aligned, and other columns are
 left-aligned; if \code{align = NULL}, the default alignment is used}
 
-\item{output}{whether to write out the output in the console}
+\item{caption}{the table caption}
 
 \item{...}{other arguments (see examples)}
 }
@@ -69,7 +72,7 @@ kable(head(mtcars), format = "markdown", padding = 2)
 # Pandoc tables
 kable(head(mtcars), format = "pandoc", caption = "Title of the table")
 # save the value
-x = kable(mtcars, format = "html", output = FALSE)
+x = kable(mtcars, format = "html")
 cat(x, sep = "\\n")
 # can also set options(knitr.table.format = 'html') so that the output is HTML
 }

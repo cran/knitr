@@ -29,7 +29,7 @@
 <<setup, include=FALSE, cache=FALSE>>=
 library(knitr)
 opts_chunk$set(fig.path='figure/theme-', cache.path='cache/theme-', cache=TRUE)
-options(replace.assign=TRUE,width=78)
+options(formatR.arrow=TRUE,width=78)
 knit_hooks$set(par=function(before, options, envir){if (before) par(mar=c(4,4,.1,.1),cex.lab=.95,cex.axis=.9,mgp=c(2,.7,0),tcl=-.3)})
 @
 <<solarized-theme, cache=FALSE, echo=FALSE>>=
@@ -76,7 +76,9 @@ The listing on the right shows the CSS file for one of the themes,
 highlighter%
 \footnote{\url{http://www.andre-simon.de/}%
 }. The \textbf{knitr} package comes pre-loaded with a number of themes
-based on this highlighter. Here is list of all available code themes:
+based on this highlighter. Here is list of all available code themes%
+\footnote{For a preview of all themes, see \url{https://gist.github.com/yihui/3422133}%
+}:
 
 <<all-themes>>=
 knit_theme$get()

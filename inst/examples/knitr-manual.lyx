@@ -117,7 +117,7 @@ nter', fig.show='hold', par=TRUE)
 
 \begin_layout Plain Layout
 
-options(replace.assign=TRUE, width=68)
+options(formatR.arrow=TRUE, width=68, digits=4)
 \end_layout
 
 \begin_layout Plain Layout
@@ -792,7 +792,7 @@ Sexpr{123456789}
 
 \end_inset
 
-) if the result is numeric, and we will not get too many digits by default.
+) if the result is numeric.
  You may check out a number of specific manuals dedicated to specific features
  such as graphics in the website: 
 \begin_inset Flex URL
@@ -813,7 +813,18 @@ Code Decoration
 \end_layout
 
 \begin_layout Standard
-An internal syntax highlighter is used to highlight R code, and the 
+The 
+\series bold
+highr
+\series default
+ package 
+\begin_inset CommandInset citation
+LatexCommand citep
+key "R-highr"
+
+\end_inset
+
+ is used to highlight R code, and the 
 \series bold
 formatR
 \series default
@@ -953,7 +964,7 @@ Note
 \family default
  because 
 \family typewriter
-options('replace.assign')
+options('formatR.arrow')
 \family default
  was set to be 
 \family typewriter
@@ -2637,7 +2648,7 @@ status open
 \begin_layout Plain Layout
 
 <<fancy-rgl, rgl=TRUE, dev='png', fig.width=5, fig.height=5, out.width='2in',
- message=FALSE, cache=TRUE>>=
+ message=FALSE, warning=FALSE, cache=TRUE>>=
 \end_layout
 
 \begin_layout Plain Layout
@@ -2932,7 +2943,8 @@ SE, warning=FALSE>>=
 
 \begin_layout Plain Layout
 
-write_bib(c(.packages(), 'evaluate', 'formatR'), file = 'knitr-packages.bib')
+write_bib(c(.packages(), 'evaluate', 'formatR', 'highr'), file = 'knitr-packages.b
+ib')
 \end_layout
 
 \begin_layout Plain Layout

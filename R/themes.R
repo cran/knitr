@@ -5,7 +5,7 @@ set_theme = function(theme) {
   header = if (is.list(theme)) theme else theme_to_header(theme)
   opts_chunk$set(background = header$background)
   set_header(highlight = header$highlight)
-  ## par(col = theme$foreground)
+  # par(col = theme$foreground)
 }
 get_theme = function(theme = NULL) {
   if (is.null(theme)) {
@@ -29,9 +29,12 @@ get_theme = function(theme = NULL) {
 #' returned by the \code{get()} method. See examples below.
 #' @author Ramnath Vaidyanathan and Yihui Xie
 #' @seealso \code{\link{eclipse_theme}} (use Eclipse themes)
-#' @references \url{https://bitbucket.org/stat/knitr/downloads/knitr-themes.pdf}
-#' (its Rnw source is at
-#' \url{https://github.com/yihui/knitr/blob/master/inst/examples/knitr-themes.Rnw})
+#' @references The themes manual
+#'   \url{https://bitbucket.org/stat/knitr/downloads/knitr-themes.pdf} (Rnw
+#'   source at
+#'   \url{https://github.com/yihui/knitr/blob/master/inst/examples/knitr-themes.Rnw}).
+#'    For a preview of all themes, see
+#'   \url{https://gist.github.com/yihui/3422133}.
 #' @export
 #' @examples opts_knit$set(out.format='latex'); knit_theme$set('edit-vim')
 #'
@@ -62,11 +65,11 @@ theme_to_header_latex = function(theme) {
   }
   css_out = css.parser(css_file)
 
-  ## get background and foreground colors
+  # get background and foreground colors
   background = css_out$background$color
   foreground = css_out$std$color
 
-  ## write latex highlight header
+  # write latex highlight header
   fgheader = color_def(foreground, 'fgcolor')
   highlight = paste(c(fgheader, styler_assistant_latex(css_out[-1])), collapse = '\n')
   list(highlight = highlight, background = background, foreground = foreground)

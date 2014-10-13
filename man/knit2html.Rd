@@ -6,16 +6,17 @@ knit2html(input, output = NULL, ..., envir = parent.frame(), text = NULL, quiet 
     encoding = getOption("encoding"))
 }
 \arguments{
-\item{...}{options passed to \code{\link[markdown]{markdownToHTML}}}
-
 \item{input}{path of the input file}
 
 \item{output}{path of the output file for \code{knit()}; if \code{NULL}, this
 function will try to guess and it will be under the current working
 directory}
 
+\item{...}{options passed to \code{\link[markdown]{markdownToHTML}}}
+
 \item{envir}{the environment in which the code chunks are to be evaluated
-(can use \code{\link{new.env}()} to guarantee an empty new environment)}
+(for example, \code{\link{parent.frame}()}, \code{\link{new.env}()}, or
+\code{\link{globalenv}()})}
 
 \item{text}{a character vector as an alternative way to provide the input
 file}
