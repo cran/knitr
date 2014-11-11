@@ -44,16 +44,16 @@ report in comments of the form \samp{## title:} and \samp{## author:}. The
 template must have a token \samp{\%sCHUNK_LABEL_HERE}, which will be used to
 input all the R code from the script. See the examples below.
 
-The R script may contain chunk headers of the form \samp{## ---- label},
-which will be copied to the template; if no chunk headers are found, the
-whole R script will be inserted into the template as one code chunk.
+The R script may contain chunk headers of the form \samp{## ---- label,
+opt1=val1, opt2=val2}, which will be copied to the template; if no chunk
+headers are found, the whole R script will be inserted into the template as
+one code chunk.
 }
 \examples{
 s = system.file("misc", "stitch-test.R", package = "knitr")
-\dontrun{
+\donttest{
 stitch(s)
 }
-
 # HTML report
 stitch(s, system.file("misc", "knitr-template.Rhtml", package = "knitr"))
 

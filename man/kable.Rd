@@ -3,7 +3,7 @@
 \title{Create tables in LaTeX, HTML, Markdown and reStructuredText}
 \usage{
 kable(x, format, digits = getOption("digits"), row.names = NA, col.names = colnames(x), 
-    align, caption = NULL, ...)
+    align, caption = NULL, escape = TRUE, ...)
 }
 \arguments{
 \item{x}{an R object (typically a matrix or data frame)}
@@ -30,6 +30,8 @@ left-aligned; if \code{align = NULL}, the default alignment is used}
 
 \item{caption}{the table caption}
 
+\item{escape}{escape special characters when producing HTML or LaTeX tables}
+
 \item{...}{other arguments (see examples)}
 }
 \value{
@@ -45,8 +47,10 @@ The tables for \code{format = 'markdown'} also work for Pandoc when the
   \code{pipe_tables} extension is enabled (this is the default behavior for
   Pandoc >= 1.10).
 
-  When using this function inside a \pkg{knitr} document (e.g. R Markdown or
-  R LaTeX), you will need the chunk option \code{results='asis'}.
+  When using \code{kable()} as a \emph{top-level} expression, you do not need
+  to explicitly \code{print()} it due to R's automatic implicit printing.
+  When it is wrapped inside other expressions (such as a \code{\link{for}}
+  loop), you must explicitly \code{print(kable(...))}.
 }
 \examples{
 kable(head(iris), format = "latex")

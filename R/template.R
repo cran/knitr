@@ -10,9 +10,10 @@
 #' template must have a token \samp{\%sCHUNK_LABEL_HERE}, which will be used to
 #' input all the R code from the script. See the examples below.
 #'
-#' The R script may contain chunk headers of the form \samp{## ---- label},
-#' which will be copied to the template; if no chunk headers are found, the
-#' whole R script will be inserted into the template as one code chunk.
+#' The R script may contain chunk headers of the form \samp{## ---- label,
+#' opt1=val1, opt2=val2}, which will be copied to the template; if no chunk
+#' headers are found, the whole R script will be inserted into the template as
+#' one code chunk.
 #' @param script path to the R script
 #' @param template path of the template to use (by default the Rnw template in
 #'   this package; there is also an HTML template in \pkg{knitr})
@@ -23,8 +24,7 @@
 #' @export
 #' @seealso \code{\link{spin}} (turn a specially formatted R script to a report)
 #' @examples s = system.file('misc', 'stitch-test.R', package = 'knitr')
-#' \dontrun{stitch(s)}
-#'
+#' \donttest{stitch(s)}
 #' # HTML report
 #' stitch(s, system.file('misc', 'knitr-template.Rhtml', package = 'knitr'))
 #'
@@ -37,17 +37,20 @@ stitch = function(script,
   # extract title and author from first two lines
   if (comment_to_var(lines[1L], '.knitr.title', '^#+ *title:', envir)) lines = lines[-1L]
   if (comment_to_var(lines[1L], '.knitr.author', '^#+ *author:', envir)) lines = lines[-1L]
-  read_chunk(lines = lines)
-  if (length(knit_code$get()) == 0L) knit_code$set(`auto-report` = lines)
   input = basename(template)
   input = sub_ext(basename(if (nosrc) script else tempfile()), file_ext(input))
   txt = readLines(template, warn = FALSE)
   i = grep('%sCHUNK_LABEL_HERE', txt)
   if (length(i) != 1L) stop('Wrong template for stitch: ', template)
-  txt[i] = paste(sprintf(sub('CHUNK_LABEL_HERE', '', txt[i]), names(knit_code$get())),
-                 unlist(lapply(knit_code$get(), paste, collapse = '\n')),
-                 sep = '\n', collapse = '\n')
-  knit_code$restore()
+  h = sub('CHUNK_LABEL_HERE', '', txt[i])
+  j = grep(.sep.label, lines)
+  if (length(j) == 0) {
+    lines = c(sprintf(h, 'auto-report'), lines)
+  } else {
+    lines[j] = sprintf(h, gsub(.sep.label, '\\2', lines[j]))
+    if (j[1] != 1L) lines = c(sprintf(h, ''), lines)
+  }
+  txt[i] = paste(lines, collapse = '\n')
   opts_chunk$set(
     fig.align = 'center', par = TRUE, fig.width = 6, fig.height = 6,
     fig.path = paste('figure', gsub('[^[:alnum:]]', '-', input), sep = '/')

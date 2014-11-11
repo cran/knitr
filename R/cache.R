@@ -66,9 +66,9 @@ new_cache = function() {
     # save or load R packages
     path = valid_path(path, '__packages')
     if (save) {
-      x = .packages()
-      if (file.exists(path)) x = setdiff(c(x, readLines(path)), .base.pkgs)
-      writeLines(sort(x), path)
+      x = rev(.packages())
+      if (file.exists(path)) x = setdiff(c(readLines(path), x), .base.pkgs)
+      writeLines(x, path)
     } else {
       if (!file.exists(path)) return()
       for (p in readLines(path))
@@ -181,8 +181,8 @@ dep_prev = function() {
 #' This expression returns \code{.Random.seed} when \code{eval(rand_seed)} and
 #' \code{NULL} otherwise.
 #'
-#' It is designed to work with \code{opts_knit$set(cache.extra = rand_seed)} for
-#' reproducibility of chunks that involve with random number generation. See
+#' It is designed to work with \code{opts_chunk$set(cache.extra = rand_seed)}
+#' for reproducibility of chunks that involve with random number generation. See
 #' references.
 #' @export
 #' @references \url{http://yihui.name/knitr/demo/cache/}

@@ -41,8 +41,10 @@ body(vweave_rmarkdown)[5L] = expression(rmarkdown::render(
 ))
 
 # do not tangle R code from vignettes
-untangle_weave = function(weave) {
-  body(weave)[3L] = expression({})
+untangle_weave = function(vig_list, eng) {
+  weave = vig_list[[c(eng, 'weave')]]
+  if (eng != 'knitr::rmarkdown')
+    body(weave)[3L] = expression({})
   weave
 }
 vtangle_empty = function(file, ...) {
@@ -76,7 +78,7 @@ register_vignette_engines = function(pkg) {
   engines  = grep('_notangle$', names(vig_list), value = TRUE, invert = TRUE)
   for (eng in engines) vig_engine(
     paste(sub('^knitr::', '', eng), 'notangle', sep = '_'),
-    untangle_weave(vig_list[[c(eng, 'weave')]]),
+    untangle_weave(vig_list, eng),
     tangle = vtangle_empty,
     pattern = vig_list[[c(eng, 'pattern')]]
   )
@@ -84,6 +86,44 @@ register_vignette_engines = function(pkg) {
 # all engines use the same tangle and package arguments, so factor them out
 vig_engine = function(..., tangle = vtangle) {
   tools::vignetteEngine(..., tangle = tangle, package = 'knitr')
+}
+
+#' Spell check filter for source documents
+#'
+#' When performing spell checking on source documents, we may need to skip R
+#' code chunks and inline R expressions, because many R functions and symbols
+#' are likely to be identified as typos. This function is designed for the
+#' \code{filter} argument of \code{\link{aspell}()} to filter out code chunks
+#' and inline expressions.
+#' @param ifile the filename of the source document
+#' @param encoding the file encoding
+#' @return A chracter vector of the file content, excluding code chunks and
+#'   inline expressions.
+#' @export
+#' @examples library(knitr)
+#' knitr_example = function(...) system.file('examples', ..., package = 'knitr')
+#' \donttest{
+#' # -t means the TeX mode
+#' utils::aspell(knitr_example('knitr-minimal.Rnw'), knit_filter, control = '-t')
+#'
+#' # -H is the HTML mode
+#' utils::aspell(knitr_example('knitr-minimal.Rmd'), knit_filter, control = '-H -t')
+#' }
+knit_filter = function(ifile, encoding = 'unknown') {
+  x = readLines(ifile, encoding = encoding, warn = FALSE)
+  n = length(x); if (n == 0) return(x)
+  p = detect_pattern(x, tolower(file_ext(ifile)))
+  if (is.null(p)) return(x)
+  p = all_patterns[[p]]; p1 = p$chunk.begin; p2 = p$chunk.end
+  i1 = grepl(p1, x)
+  i2 = filter_chunk_end(i1, grepl(p2, x))
+  m = numeric(n)
+  m[i1] = 1; m[i2] = 2  # 1: code; 2: text
+  if (m[1] == 0) m[1] = 2
+  for (i in seq_len(n - 1)) if (m[i + 1] == 0) m[i + 1] = m[i]
+  x[m == 1 | i2] = ''
+  x[m == 2] = gsub(p$inline.code, '', x[m == 2])
+  x
 }
 
 pandoc_available = function() {
@@ -108,7 +148,7 @@ html_vignette = function(
   )
 ) {
   rmarkdown::html_document(
-    ..., fig_caption = fig_caption, theme = theme, hightlight = highlight,
+    ..., fig_caption = fig_caption, theme = theme, highlight = highlight,
     css = css, includes = includes
   )
 }

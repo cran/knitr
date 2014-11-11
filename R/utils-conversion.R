@@ -87,10 +87,11 @@ knit2pdf = function(input, output = NULL, compiler = NULL, envir = parent.frame(
 #' if (interactive()) browseURL('test.html')
 knit2html = function(input, output = NULL, ..., envir = parent.frame(), text = NULL,
                      quiet = FALSE, encoding = getOption('encoding')) {
-  out = knit(input, output, text = text, envir = envir, encoding = encoding, quiet = quiet)
+  out = knit(input, text = text, envir = envir, encoding = encoding, quiet = quiet)
   if (is.null(text)) {
-    markdown::markdownToHTML(out, outfile <- sub_ext(out, 'html'), encoding = encoding, ...)
-    invisible(outfile)
+    output = sub_ext(if (is.null(output) || is.na(output)) out else output, 'html')
+    markdown::markdownToHTML(out, output, encoding = encoding, ...)
+    invisible(output)
   } else markdown::markdownToHTML(text = out, ...)
 }
 
