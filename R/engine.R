@@ -139,6 +139,30 @@ eng_Rcpp = function(options) {
   engine_output(options, code, '')
 }
 
+## Stan
+## Compiles Stan model in the code chunk, creates a stanmodel object,
+## and assigns it to a variable with the name given in engine.opts$x.
+eng_stan = function(options) {
+  code = paste(options$code, collapse = '\n')
+  opts = options$engine.opts
+  ## name of the modelfit object returned by stan_model
+  x = opts$x
+  if (!is.character(x) || length(x) != 1L) stop(
+    "engine.opts$x must be a character string; ",
+    "provide a name for the returned `stanmodel` object."
+  )
+  opts$x = NULL
+  if (options$eval) {
+    message("Creating a 'stanmodel' object ", x)
+    assign(
+      x,
+      do.call(getFromNamespace('stan_model', 'rstan'), c(list(model_code = code), opts)),
+      envir = knit_global()
+    )
+  }
+  engine_output(options, code, '')
+}
+
 ## convert tikz string to PDF
 eng_tikz = function(options) {
   if (!options$eval) return(engine_output(options, options$code, ''))
@@ -151,10 +175,10 @@ eng_tikz = function(options) {
 
   s = append(lines, options$code, i)  # insert tikz into tex-template
   writeLines(s, texf <- str_c(f <- tempfile('tikz', '.'), '.tex'))
+  on.exit(unlink(texf), add = TRUE)
   unlink(outf <- str_c(f, '.pdf'))
   tools::texi2pdf(texf, clean = TRUE)
   if (!file.exists(outf)) stop('failed to compile tikz; check the template: ', tmpl)
-  unlink(texf)
 
   fig = fig_path('', options)
   dir.create(dirname(fig), recursive = TRUE, showWarnings = FALSE)
@@ -162,7 +186,9 @@ eng_tikz = function(options) {
   # convert to the desired output-format, calling `convert`
   ext = tolower(options$fig.ext %n% dev2ext(options$dev))
   if (ext != 'pdf') {
-    conv = system(sprintf('convert %s.pdf %s.%s', fig, fig, ext))
+    conv = system2(options$engine.opts$convert %n% 'convert', c(
+      options$engine.opts$convert.opts, sprintf('%s.pdf %s.%s', fig, fig, ext)
+    ))
     if (conv != 0) stop('problems with `convert`; probably not installed?')
   }
   options$fig.num = 1L; options$fig.cur = 1L
@@ -225,10 +251,12 @@ eng_highlight = function(options) {
 
 ## save the code
 eng_cat = function(options) {
-  lang = options$engine.opts$lang
-  if (!is.null(lang)) options$engine.opts$lang = NULL
-  do.call(cat, c(list(options$code, sep = '\n'), options$engine.opts))
-  if (is.null(lang)) return('')
+  cat2 = function(..., file = '', lang = NULL) {
+    # do not write to stdout like the default behavior of cat()
+    if (!identical(file, '')) cat(..., file = file)
+  }
+  do.call(cat2, c(list(options$code, sep = '\n'), options$engine.opts))
+  if (is.null(lang <- options$engine.opts$lang)) return('')
   options$engine = lang
   engine_output(options, options$code, NULL)
 }
@@ -249,7 +277,7 @@ rm(i)
 knit_engines$set(
   highlight = eng_highlight, Rcpp = eng_Rcpp, tikz = eng_tikz, dot = eng_dot,
   c = eng_shlib, fortran = eng_shlib, asy = eng_dot, cat = eng_cat,
-  asis = eng_asis
+  asis = eng_asis, stan = eng_stan
 )
 
 # possible values for engines (for auto-completion in RStudio)

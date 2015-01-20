@@ -60,8 +60,10 @@
 #'   \code{\link{globalenv}()})
 #' @param encoding the encoding of the input file; see \code{\link{file}}
 #' @return The compiled document is written into the output file, and the path
-#'   of the output file is returned, but if the \code{output} path is
-#'   \code{NULL}, the output is returned as a character vector.
+#'   of the output file is returned. If the \code{text} argument is not
+#'   \code{NULL}, the compiled output is returned as a character vector. In
+#'   other words, if you provide a file input, you get an output filename; if
+#'   you provide a character vector input, you get a character vector output.
 #' @note The name \code{knit} comes from its counterpart \samp{weave} (as in
 #'   Sweave), and the name \code{purl} (as \samp{tangle} in Stangle) comes from
 #'   a knitting method `knit one, purl one'.
@@ -104,8 +106,8 @@
 #'   people \href{http://bit.ly/SnLi6h}{just do not get it}.
 #' @export
 #' @references Package homepage: \url{http://yihui.name/knitr/}. The \pkg{knitr}
-#'   \href{http://bit.ly/117OLVl}{main manual}: and
-#'   \href{http://bit.ly/114GNdP}{graphics manual}.
+#'   \href{http://bit.ly/knitr-main}{main manual}: and
+#'   \href{http://bit.ly/knitr-graphics}{graphics manual}.
 #'
 #'   See \code{citation('knitr')} for the citation information.
 #' @examples library(knitr)
@@ -301,6 +303,7 @@ process_file = function(text, output) {
   # output line numbers
   if (concord_mode()) knit_concord$set(outlines = line_count(res))
   print_knitlog()
+  if (tangle) res = res[res != '']
 
   res
 }
@@ -385,8 +388,8 @@ knit_child = function(..., options = NULL, envir = knit_global()) {
 #' ignore the rest of the document. This function provides a mechanism to
 #' terminate \code{\link{knit}()}.
 #' @param append a character vector to be appended to the results from
-#'   \code{knit()} so far; by default, it is \verb{\end{document}} for LaTeX
-#'   output, and \verb{</body></html>} for HTML output to make the output
+#'   \code{knit()} so far; by default, it is \samp{\end{document}} for LaTeX
+#'   output, and \samp{</body></html>} for HTML output to make the output
 #'   document complete; for other types of output, it is an empty string
 #' @return Invisible \code{NULL}. An internal signal is set up (as a side
 #'   effect) to notify \code{knit()} to quit as if it had reached the end of the
@@ -407,7 +410,7 @@ knit_log = new_defaults()  # knitr log for errors, warnings and messages
 #' @param x output from \code{\link[evaluate]{evaluate}}
 #' @param options list of options used to control output
 #' @noRd
-wrap = function(x, options = list()) {
+wrap = function(x, options = list(), ...) {
   UseMethod('wrap', x)
 }
 
@@ -433,7 +436,7 @@ wrap.character = function(x, options) {
 # if you provide a custom print function that returns a character object of
 # class 'knit_asis', I'll just write it as is
 #' @export
-wrap.knit_asis = function(x, options) {
+wrap.knit_asis = function(x, options, inline = FALSE) {
   if (isFALSE(attr(x, 'knit_cacheable', exact = TRUE)) &&
         (!missing(options) && options$cache > 0))
     stop("The code chunk '", options$label, "' is not cacheable; ",
@@ -443,7 +446,7 @@ wrap.knit_asis = function(x, options) {
     .knitEnv$meta = c(.knitEnv$meta, m)
   }
   x = as.character(x)
-  if (!out_format('latex')) return(x)
+  if (!out_format('latex') || inline) return(x)
   # latex output need the \end{kframe} trick
   options$results = 'asis'
   knit_hooks$get('output')(x, options)

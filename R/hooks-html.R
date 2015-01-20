@@ -91,8 +91,6 @@ hook_ffmpeg = function(x, options, format = '.webm') {
           opts, str_c(opts_knit$get('base.url'), mov.fname), options$label)
 }
 
-opts_knit$set(animation.fun = hook_ffmpeg_html)
-
 # use SciAnimator to create animations
 #' @rdname hook_animation
 #' @export
@@ -161,7 +159,9 @@ render_html = function() {
   html.hook = function(name) {
     force(name)
     function (x, options) {
-      if (name == 'source') x = c(hilight_source(x, 'html', options), '')
+      x = if (name == 'source') {
+        c(hilight_source(x, 'html', options), '')
+      } else escape_html(x)
       x = paste(x, collapse = '\n')
       sprintf('<div class="%s"><pre class="knitr %s">%s</pre></div>\n', name, tolower(options$engine), x)
     }

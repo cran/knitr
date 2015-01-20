@@ -157,7 +157,7 @@ is_lyx = function() {
   args = commandArgs(TRUE)
   if (length(args) < 4) return(FALSE)
   grepl('[.]Rnw$', args[1]) &&
-    !is.na(Sys.getenv('LyXDir', NA)) && !is.na(Sys.getenv('LYXSOCKET', NA))
+    !is.na(Sys.getenv('LyXDir', NA))
 }
 
 # scientific notation in TeX, HTML and reST
@@ -331,7 +331,7 @@ sanitize_fn = function(path, suffix = '') {
             path <- gsub('[^~:_./\\[:alnum:]-]', '_', path), '"')
   }
   # replace . with _ except ../ and ./
-  s = str_split(path, '[/\\]')[[1L]]
+  s = strsplit(path, '[/\\\\]')[[1L]]
   i = (s != '.') & (s != '..') & grepl('\\.', s)
   if (any(i)) {
     s[i] = gsub('\\.', '_', s[i])
@@ -471,7 +471,8 @@ escape_html = highr:::escape_html
 #' @return A character vector of the source code.
 #' @author Yihui Xie and Peter Ruckdeschel
 #' @export
-#' @examples \donttest{read_rforge('rgl/R/axes.R', project = 'rgl')
+#' @examples library(knitr)
+#' \donttest{read_rforge('rgl/R/axes.R', project = 'rgl')
 #' read_rforge('rgl/R/axes.R', project = 'rgl', extra='&revision=519')}
 read_rforge = function(path, project, extra = '') {
   base = 'http://r-forge.r-project.org/scm/viewvc.php/*checkout*/pkg'

@@ -208,12 +208,12 @@ p{clear:both;}
 <body>
 <!--
 %\VignetteEngine{knitr::knitr}
-%\VignetteIndexEntry{Display Tables with the DataTables Library}
+%\VignetteIndexEntry{Display Tables with the JavaScript Library DataTables}
 -->
 
 <h1>jQuery DataTables</h1>
 
-<p>We can use the JavaScript library <a href="http://www.datatables.net"><code>DataTables</code></a> to generate enhanced tables in HTML. In the example below, we create a table for the <code>mtcars</code> data:</p>
+<p>We can use the JavaScript library <a href="http://www.datatables.net"><strong>DataTables</strong></a> to generate enhanced tables in HTML. In the example below, we create a table for the <code>mtcars</code> data:</p>
 
 <pre><code class="r">library(knitr)
 kable(mtcars, &quot;html&quot;, table.attr = &quot;id=\&quot;mtcars_table\&quot;&quot;)
@@ -688,7 +688,7 @@ kable(mtcars, &quot;html&quot;, table.attr = &quot;id=\&quot;mtcars_table\&quot;
 </tbody>
 </table>
 
-<p>Note we assigned an <code>id</code> to the table, and next we use the <code>DataTables</code> library to tweak the table.</p>
+<p>Note we assigned an <code>id</code> to the table, and next we use the <strong>DataTables</strong> library to tweak the table.</p>
 
 <pre><code class="js">&lt;script type=&quot;text/javascript&quot;&gt;
     $(document).ready(function() {
@@ -819,6 +819,8 @@ kable(mtcars, &quot;html&quot;, table.attr = &quot;id=\&quot;mtcars_table\&quot;
   </tr>
 </tbody>
 </table>
+
+<p>This vignette is only a toy example. I&#39;d recommend you to use the <strong>DT</strong> package instead: <a href="https://github.com/rstudio/DT">https://github.com/rstudio/DT</a></p>
 
 </body>
 

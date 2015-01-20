@@ -13,7 +13,7 @@
 #' vig_list[['knitr::docco_classic']][c('weave', 'tangle')]
 NULL
 
-vweave = vtangle = function(file, driver, syntax, encoding = '', quiet = FALSE, ...) {
+vweave = vtangle = function(file, driver, syntax, encoding = 'UTF-8', quiet = FALSE, ...) {
   opts_chunk$set(error = FALSE)  # should not hide errors
   knit_hooks$set(purl = hook_purl)  # write out code while weaving
   options(markdown.HTML.header = NULL)
@@ -65,7 +65,7 @@ register_vignette_engines = function(pkg) {
       vweave_rmarkdown(...)
     } else {
       if (!is_R_CMD_check())
-        warning('Pandoc is not available. Please install Pandoc.')
+        warning('Pandoc (>= 1.12.3) and/or pandoc-citeproc is not available. Please install both.')
       vweave(...)
     }
   } else {
@@ -103,12 +103,13 @@ vig_engine = function(..., tangle = vtangle) {
 #' @examples library(knitr)
 #' knitr_example = function(...) system.file('examples', ..., package = 'knitr')
 #' \donttest{
+#' if (Sys.which('aspell') != '') {
 #' # -t means the TeX mode
 #' utils::aspell(knitr_example('knitr-minimal.Rnw'), knit_filter, control = '-t')
 #'
 #' # -H is the HTML mode
 #' utils::aspell(knitr_example('knitr-minimal.Rmd'), knit_filter, control = '-H -t')
-#' }
+#' }}
 knit_filter = function(ifile, encoding = 'unknown') {
   x = readLines(ifile, encoding = encoding, warn = FALSE)
   n = length(x); if (n == 0) return(x)
@@ -130,14 +131,7 @@ pandoc_available = function() {
   # if you have this environment variable, chances are you are good to go
   if (Sys.getenv("RSTUDIO_PANDOC") != '') return(TRUE)
   if (Sys.which('pandoc-citeproc') == '') return(FALSE)
-  if ((pandoc <- Sys.which('pandoc')) == '') return(FALSE)
-  # see if pandoc is >= 1.12.3
-  res = try(system2(pandoc, '--version', stdout = TRUE))
-  !inherits(res, 'try-error') && length(res) > 1 && grepl('pandoc', res[1]) && {
-    version = gsub('pandoc\\s+([0-9]+[.][0-9]+[.][0-9]+).*$', '\\1', res[1])
-    version = try(as.numeric_version(version))
-    !inherits(version, 'try-error') && version >= '1.12.3'
-  }
+  rmarkdown::pandoc_available('1.12.3')
 }
 
 html_vignette = function(

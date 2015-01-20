@@ -1,3 +1,4 @@
+% Please edit documentation in R/themes-eclipse.R
 \name{eclipse_theme}
 \alias{eclipse_theme}
 \title{Download and convert a theme from eclipsecolorthemes.org to CSS}
@@ -19,6 +20,7 @@ theme.
 }
 \examples{
 # http://www.eclipsecolorthemes.org/?view=theme&id=1
+library(knitr)
 \donttest{
 opts_knit$set(out.format = "latex")
 (css = eclipse_theme(1))
