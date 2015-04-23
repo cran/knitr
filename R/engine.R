@@ -47,7 +47,10 @@ knit_engines = new_defaults()
 #'   the appropriate output hooks.
 #' @export
 engine_output = function(options, code, out, extra = NULL) {
+  if (!is.logical(options$echo)) code = code[options$echo]
   if (length(code) != 1L) code = paste(code, collapse = '\n')
+  if (options$engine == 'sas' && length(out) > 1L && !grepl('[[:alnum:]]', out[2]))
+    out = tail(out, -3L)
   if (length(out) != 1L) out = paste(out, collapse = '\n')
   out = sub('([^\n]+)$', '\\1\n', out)
   # replace the engine names for markup later, e.g. ```Rscript should be ```r
@@ -55,8 +58,13 @@ engine_output = function(options, code, out, extra = NULL) {
     options$engine, 'Rscript' = 'r', node = 'javascript',
     options$engine
   )
+  if (options$engine == 'stata') {
+    out = gsub('\n\nrunning.*profile.do', '', out)
+    out = sub('...\n\n\n', '', out)
+    out = sub('\n. \nend of do-file\n', '', out)
+  }
   paste(c(
-    if (options$echo) knit_hooks$get('source')(code, options),
+    if (length(options$echo) > 1L || options$echo) knit_hooks$get('source')(code, options),
     if (options$results != 'hide' && !is_blank(out)) {
       if (options$engine == 'highlight') out else wrap.character(out, options)
     },
@@ -69,24 +77,37 @@ engine_output = function(options, code, out, extra = NULL) {
 
 eng_interpreted = function(options) {
   engine = options$engine
-  code = if (engine %in% c('highlight', 'Rscript', 'sas', 'haskell')) {
-    f = basename(tempfile(engine, '.', switch(engine, sas = '.sas', Rscript = '.R', '.txt')))
-    # SAS runs code in example.sas and creates 'listing' file example.lst and log file example.log
+  code = if (engine %in% c('highlight', 'Rscript', 'sas', 'haskell', 'stata')) {
+    f = basename(tempfile(engine, '.', switch(
+      engine, sas = '.sas', Rscript = '.R', stata = '.do', '.txt'
+    )))
     writeLines(c(switch(
       engine,
-      sas = "OPTIONS NONUMBER NODATE PAGESIZE = MAX FORMCHAR = '|----|+|---+=|-/<>*' FORMDLIM=' ';",
+      sas = "OPTIONS NONUMBER NODATE PAGESIZE = MAX FORMCHAR = '|----|+|---+=|-/<>*' FORMDLIM=' ';title;",
       haskell = ':set +m'
     ), options$code), f)
     on.exit(unlink(f))
-    switch(engine, sas = {
-      saslst = sub('[.]sas$', '.lst', f)
-      on.exit(unlink(c(saslst, sub('[.]sas$', '.log', f))), add = TRUE)
+    switch(
+      engine,
+      haskell = paste('-e', shQuote(paste(':script', f))),
+      sas = {
+        logf = sub('[.]sas$', '.lst', f)
+        on.exit(unlink(c(logf, sub('[.]sas$', '.log', f))), add = TRUE)
+        f
+      },
+      stata = {
+        logf = sub('[.]do$', '.log', f)
+        on.exit(unlink(c(logf)), add = TRUE)
+        paste(ifelse(.Platform$OS.type == 'windows', '/q /e', '-q -b'), f)
+      },
       f
-    }, haskell = paste('-e', shQuote(paste(':script', f))), f)
+    )
   } else paste(switch(
-    engine, bash = '-c', coffee = '-e', groovy = '-e', node = '-e', perl = '-e',
-    python = '-c', ruby = '-e', scala = '-e', sh = '-c', zsh = '-c', NULL
+    engine, bash = '-c', coffee = '-e', groovy = '-e', lein = 'exec -e',
+    node = '-e', perl = '-e', python = '-c', ruby = '-e', scala = '-e',
+    sh = '-c', zsh = '-c', NULL
   ), shQuote(paste(options$code, collapse = '\n')))
+
   # FIXME: for these engines, the correct order is options + code + file
   code = if (engine %in% c('awk', 'gawk', 'sed', 'sas'))
     paste(code, options$engine.opts) else paste(options$engine.opts, code)
@@ -101,8 +122,8 @@ eng_interpreted = function(options) {
   # chunk option error=FALSE means we need to signal the error
   if (!options$error && !is.null(attr(out, 'status')))
     stop(paste(out, collapse = '\n'))
-  if (options$eval && engine == 'sas' && file.exists(saslst))
-    out = c(readLines(saslst), out)
+  if (options$eval && engine %in% c('sas', 'stata') && file.exists(logf))
+    out = c(readLines(logf), out)
   engine_output(options, options$code, out)
 }
 
@@ -174,22 +195,23 @@ eng_tikz = function(options) {
     stop("Couldn't find replacement string; or the are multiple of them.")
 
   s = append(lines, options$code, i)  # insert tikz into tex-template
-  writeLines(s, texf <- str_c(f <- tempfile('tikz', '.'), '.tex'))
+  writeLines(s, texf <- paste0(f <- tempfile('tikz', '.'), '.tex'))
   on.exit(unlink(texf), add = TRUE)
-  unlink(outf <- str_c(f, '.pdf'))
+  unlink(outf <- paste0(f, '.pdf'))
   tools::texi2pdf(texf, clean = TRUE)
   if (!file.exists(outf)) stop('failed to compile tikz; check the template: ', tmpl)
 
   fig = fig_path('', options)
   dir.create(dirname(fig), recursive = TRUE, showWarnings = FALSE)
-  file.rename(outf, str_c(fig, '.pdf'))
+  file.rename(outf, paste0(fig, '.pdf'))
   # convert to the desired output-format, calling `convert`
   ext = tolower(options$fig.ext %n% dev2ext(options$dev))
   if (ext != 'pdf') {
     conv = system2(options$engine.opts$convert %n% 'convert', c(
       options$engine.opts$convert.opts, sprintf('%s.pdf %s.%s', fig, fig, ext)
     ))
-    if (conv != 0) stop('problems with `convert`; probably not installed?')
+    if (conv != 0 && !options$error)
+      stop('problems with `convert`; probably not installed?')
   }
   options$fig.num = 1L; options$fig.cur = 1L
   extra = knit_hooks$get('plot')(paste(fig, ext, sep = '.'), options)
@@ -217,7 +239,7 @@ eng_dot = function(options) {
   # prepare system command
   cmd = sprintf(command_string, shQuote(options$engine %n% options$engine.path),
                 shQuote(f), ext <- options$fig.ext %n% dev2ext(options$dev),
-                shQuote(str_c(fig <- fig_path(), '.', ext)))
+                shQuote(paste0(fig <- fig_path(), '.', ext)))
 
   # generate output
   dir.create(dirname(fig), recursive = TRUE, showWarnings = FALSE)
@@ -267,11 +289,12 @@ eng_asis = function(options) {
 }
 
 # set engines for interpreted languages
-for (i in c(
-  'awk', 'bash', 'coffee', 'gawk', 'groovy', 'haskell', 'node', 'perl', 'python',
-  'Rscript', 'ruby', 'sas', 'scala', 'sed', 'sh', 'zsh'
-)) knit_engines$set(setNames(list(eng_interpreted), i))
-rm(i)
+local({
+  for (i in c(
+    'awk', 'bash', 'coffee', 'gawk', 'groovy', 'haskell', 'lein', 'node', 'perl',
+    'python', 'Rscript', 'ruby', 'sas', 'scala', 'sed', 'sh', 'stata', 'zsh'
+  )) knit_engines$set(setNames(list(eng_interpreted), i))
+})
 
 # additional engines
 knit_engines$set(
@@ -279,6 +302,20 @@ knit_engines$set(
   c = eng_shlib, fortran = eng_shlib, asy = eng_dot, cat = eng_cat,
   asis = eng_asis, stan = eng_stan
 )
+
+get_engine = function(name) {
+  fun = knit_engines$get(name)
+  if (is.function(fun)) return(fun)
+  # FIXME: definitely stop() after the next version of dplyr is on CRAN
+  # https://github.com/hadley/dplyr/pull/1091
+  (if (name == 'cpp' && 'dplyr' %in% loadedNamespaces() && packageVersion('dplyr') <= '0.4.1') warning else stop)(
+    "Unknown language engine '", name,
+    "' (must be registered via knit_engines$set())."
+  )
+  function(options) {
+    engine_output(options, options$code, '')
+  }
+}
 
 # possible values for engines (for auto-completion in RStudio)
 opts_chunk_attr$engine = as.list(sort(c('R', names(knit_engines$get()))))

@@ -78,9 +78,9 @@ save_rgl = function(name, devices) {
   # support 3 formats: eps, pdf and png (default)
   for (dev in devices) switch(
     dev,
-    postscript = rgl::rgl.postscript(str_c(name, '.eps'), fmt = 'eps'),
-    pdf = rgl::rgl.postscript(str_c(name, '.pdf'), fmt = 'pdf'),
-    rgl::rgl.snapshot(str_c(name, '.png'), fmt = 'png')
+    postscript = rgl::rgl.postscript(paste0(name, '.eps'), fmt = 'eps'),
+    pdf = rgl::rgl.postscript(paste0(name, '.pdf'), fmt = 'pdf'),
+    rgl::rgl.snapshot(paste0(name, '.png'), fmt = 'png')
   )
 }
 
@@ -167,6 +167,10 @@ hook_purl = function(before, options, envir) {
   if (isFALSE(.knitEnv$tangle.start)) {
     .knitEnv$tangle.start = TRUE
     unlink(output)
+    # write out knit_params() data from YAML
+    params = .knitEnv$tangle.params
+    if (length(params)) writeLines(params, output)
+    .knitEnv$tangle.params = NULL
   }
 
   code = options$code

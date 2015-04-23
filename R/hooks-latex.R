@@ -147,7 +147,7 @@ hook_plot_tex = function(x, options) {
       aniopts = if (is.na(aniopts)) NULL else gsub(';', ',', aniopts)
       size = paste(c(size, sprintf('%s', aniopts)), collapse = ',')
       if (nzchar(size)) size = sprintf('[%s]', size)
-      sprintf('\\animategraphics%s{%s}{%s}{%s}{%s}', size, 1/options$interval,
+      sprintf('\\animategraphics%s{%s}{%s}{%s}{%s}', size, 1 / options$interval,
               sub(sprintf('%d$', fig.num), '', sans_ext(x)), 1L, fig.num)
     } else {
       if (nzchar(size)) size = sprintf('[%s]', size)
@@ -194,7 +194,7 @@ hook_plot_tex = function(x, options) {
   .inline.hook(x)
 }
 
-.verb.hook = function(x, options)
+.verb.hook = function(x)
   paste(c('\\begin{verbatim}', sub('\n$', '', x), '\\end{verbatim}', ''), collapse = '\n')
 .color.block = function(color1 = '', color2 = '') {
   function(x, options) {
@@ -330,7 +330,7 @@ render_listings = function() {
 hook_movecode = function(x) {
   x = split_lines(x)
   res = split(x, cumsum(grepl('^\\\\(begin|end)\\{figure\\}', x)))
-  x = split_lines(unlist(lapply(res, function(p) {
+  x = split_lines(vapply(res, function(p) {
     if (length(p) <= 4 || !grepl('^\\\\begin\\{figure\\}', p[1]) ||
           length(grep('% knitr_do_not_move', p)) ||
           !any(grepl('\\\\begin\\{(alltt|kframe)\\}', p))) return(p)
@@ -350,10 +350,10 @@ hook_movecode = function(x) {
     idx = unique(idx)
     p = paste(c(p[-idx], p[idx]), collapse = '\n')
     gsub('\\\\end\\{(kframe)\\}\\s*\\\\begin\\{\\1\\}', '', p)
-  }), use.names = FALSE))
+  }, character(1)))
 
   res = split(x, cumsum(grepl('^\\\\(begin|end)\\{table\\}', x)))
-  res = paste(unlist(lapply(res, function(p) {
+  res = paste(vapply(res, function(p) {
     if (length(p) <= 4 || !grepl('^\\\\begin\\{table\\}', p[1]) ||
           length(grep('% knitr_do_not_move', p)) ||
           !any(grepl('\\\\begin\\{(alltt|kframe)\\}', p))) return(p)
@@ -364,6 +364,6 @@ hook_movecode = function(x) {
     idx = sort(idx)
     p = paste(c(p[-idx], p[idx]), collapse = '\n')
     gsub('\\\\end\\{(kframe)\\}\\s*\\\\begin\\{\\1\\}', '', p)
-  }), use.names = FALSE), collapse = '\n')
+  }, character(1)), collapse = '\n')
   .rm.empty.envir(res)
 }
