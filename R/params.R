@@ -122,17 +122,37 @@ knit_params = function(text) {
   yaml = yaml_front_matter(text)
   if (is.null(yaml)) return(list())
 
+  yaml = enc2utf8(yaml)
   # parse the yaml using our handlers
   parsed_yaml = yaml::yaml.load(yaml, handlers = knit_params_handlers())
 
   # if we found paramters then resolve and return them
   if (is.list(parsed_yaml) && !is.null(parsed_yaml$params)) {
-    resolve_params(parsed_yaml$params)
+    resolve_params(mark_utf8(parsed_yaml$params))
   } else {
     list()
   }
 }
 
+# turn params into a named list of values
+flatten_params = function(params) {
+  res = list()
+  for (param in params) res[[param$name]] = param$value
+  res
+}
+
+# copied from rmarkdown:::mark_utf8
+mark_utf8 = function(x) {
+  if (is.character(x)) {
+    Encoding(x) = 'UTF-8'
+    return(x)
+  }
+  if (!is.list(x)) return(x)
+  attrs = attributes(x)
+  res = lapply(x, mark_utf8)
+  attributes(res) = attrs
+  res
+}
 
 # Extract the yaml front matter (if any) from the passed lines. The front
 # matter is returned as a single-element character vector (with newlines
@@ -187,6 +207,14 @@ knit_params_handlers = function() {
   }
 
   list(
+
+    `bool#yes` = function(value) {
+      if (tolower(value) == "y") value else TRUE
+    },
+
+    `bool#no` = function(value) {
+      if (tolower(value) == "n") value else FALSE
+    },
 
     # date
     date = function(value) {

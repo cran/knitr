@@ -1,4 +1,3 @@
-
 library(testit)
 
 # helper function to convert raw src to params list
@@ -23,6 +22,7 @@ assert(params[[1]]$value == 10)
 assert(params[[2]]$name == 'b')
 assert(params[[2]]$value == 20)
 
+assert(identical(flatten_params(params), list(a = 10L, b = 20L)))
 
 ## test date custom type ---------------------------------------------------
 
@@ -105,3 +105,23 @@ params:
 assert(identical(params[[1]]$choices, c('North', 'South', 'East', 'West')))
 assert(params[[1]]$label == "Select Regions")
 
+
+## test y/Y/n/N ------------------------------------------------------------
+
+params <- read_params('
+---
+params:
+  x: 1
+  y: 2
+  z: 3
+  n: 4
+  Y: 5
+  N: 6
+---
+'
+)
+
+assert(
+  'y/Y/n/N are not converted to booleans',
+  identical(unlist(lapply(params, `[[`, 'name')), c('x', 'y', 'z', 'n', 'Y', 'N'))
+)

@@ -31,9 +31,12 @@
 NULL
 
 vweave = function(file, driver, syntax, encoding = 'UTF-8', quiet = FALSE, ...) {
+  {
+    on.exit({opts_chunk$restore(); knit_hooks$restore()}, add = TRUE)
+    oopts = options(markdown.HTML.header = NULL); on.exit(options(oopts), add = TRUE)
+  }
   opts_chunk$set(error = FALSE)  # should not hide errors
   knit_hooks$set(purl = hook_purl)  # write out code while weaving
-  options(markdown.HTML.header = NULL)
   (if (grepl('\\.[Rr]md$', file)) knit2html else if (grepl('\\.[Rr]rst$', file)) knit2pdf else knit)(
     file, encoding = encoding, quiet = quiet, envir = globalenv()
   )
@@ -67,8 +70,11 @@ body(vweave_rmarkdown)[5L] = expression(rmarkdown::render(
 # do not tangle R code from vignettes
 untangle_weave = function(vig_list, eng) {
   weave = vig_list[[c(eng, 'weave')]]
-  if (eng != 'knitr::rmarkdown')
-    body(weave)[3L] = expression({})
+  # remove the purl hook from the weave function, but the rmarkdown engine
+  # function is different (not vweave_rmarkdown above, but the function(...)
+  # defined below in vig_engine('rmarkdown'), and it is not straightforward to
+  # remove the purl hook there)
+  if (eng != 'knitr::rmarkdown') body(weave)[4L] = expression({})
   weave
 }
 vtangle_empty = function(file, ...) {
