@@ -259,7 +259,9 @@ digest_plot = function(x, level = 1) {
 }
 
 # a null device
-pdf_null = function(width = 7, height = 7, ...) pdf(NULL, width, height, ...)
+pdf_null = function(width = 7, height = 7, ...) {
+  grDevices::pdf(NULL, width, height, ...)
+}
 
 fig_process = function(FUN, path) {
   if (is.function(FUN)) {
@@ -281,21 +283,35 @@ fig_process = function(FUN, path) {
 #' \command{convert} is a command in ImageMagick (Windows users may have to put
 #' the bin path of ImageMagick into the \var{PATH} variable).
 #' @param x the plot filename
+#' @param quiet whether to suppress standard output from the command line
+#'   utility
 #' @export
 #' @references PDFCrop: \url{http://pdfcrop.sourceforge.net}; the
 #'   \command{convert} command in ImageMagick:
 #'   \url{http://www.imagemagick.org/script/convert.php}
 #' @return The original filename.
-plot_crop = function(x) {
+plot_crop = function(x, quiet = !opts_knit$get('progress')) {
   ext = tolower(file_ext(x))
   if (ext == 'pdf') {
     if (!has_utility('pdfcrop')) return(x)
   } else if (!has_utility('convert', 'ImageMagick')) return(x)
 
-  message('cropping ', x)
+  if (!quiet) message('cropping ', x)
   x = shQuote(x)
-  cmd = if (ext == 'pdf') paste('pdfcrop', x, x) else paste('convert', x, '-trim', x)
-  (if (is_windows()) shell else system)(cmd)
+  if (ext == 'pdf') {
+    cmd = 'pdfcrop'
+    args = c(x, x)
+  } else {
+    cmd = 'convert'
+    args = c(x, '-trim', x)
+  }
+  # see this post for why use shell() on Windoz:
+  # http://comments.gmane.org/gmane.comp.lang.r.devel/38113
+  if (is_windows() && cmd == 'convert') {
+    shell(paste(cmd, args))  # no way to quiet cmd output on Windoz
+  } else {
+    system2(cmd, args = args, stdout = if (quiet) FALSE else "")
+  }
   x
 }
 

@@ -31,7 +31,7 @@ call_block = function(block) {
   if (opts_knit$get('progress')) print(block)
 
   if (!is.null(params$child)) {
-    if (length(params$code)) warning(
+    if (!is_blank(params$code)) warning(
       "The chunk '", params$label, "' has the 'child' option, ",
       "and this code chunk must be empty. Its code will be ignored."
     )
@@ -331,10 +331,7 @@ call_inline = function(block) {
   in_dir(opts_knit$get('root.dir') %n% input_dir(), inline_exec(block))
 }
 
-inline_exec = function(
-  block, eval = eval_lang(opts_chunk$get('eval')), envir = knit_global(),
-  hook = knit_hooks$get('inline')
-) {
+inline_exec = function(block, envir = knit_global(), hook = knit_hooks$get('inline')) {
 
   # run inline code and substitute original texts
   code = block$code; input = block$input
@@ -342,11 +339,9 @@ inline_exec = function(
 
   loc = block$location
   for (i in 1:n) {
-    res = if (eval) {
-      v = withVisible(eval(parse_only(code[i]), envir = envir))
-      if (v$visible) knit_print(v$value, inline = TRUE, options = opts_chunk$get())
-    } else '??'
-    if (inherits(res, 'knit_asis')) res = wrap.knit_asis(res, inline = TRUE)
+    v = withVisible(eval(parse_only(code[i]), envir = envir))
+    res = if (v$visible) knit_print(v$value, inline = TRUE, options = opts_chunk$get())
+    if (inherits(res, c('knit_asis', 'knit_asis_list'))) res = wrap(res, inline = TRUE)
     d = nchar(input)
     # replace with evaluated results
     stringr::str_sub(input, loc[i, 1], loc[i, 2]) = if (length(res)) {

@@ -7,19 +7,18 @@
 #' the default parameter values in the R code it emits.
 #'
 #' @param text Character vector containing the document text
-#'
+#' @param evaluate If TRUE, expression values embedded within the YAML will be
+#' evaluated. This is the default. When FALSE, parameters defined by an
+#' expression will have the parsed expression in its \code{value} field.
+#' 
 #' @return List of objects of class \code{knit_param} that correspond to the
 #'   parameters declared in the \code{params} section of the YAML front matter.
 #'   These objects have the following fields:
 #'
 #'   \describe{
 #'     \item{\code{name}}{The parameter name.}
-#'     \item{\code{type}}{The parameter type. This can be a standard R object
-#'     type such as \code{character}, \code{integer}, \code{numeric}, or
-#'     \code{logical} as well as the special \code{date}, \code{datetime}, and
-#'     \code{file} types. See the \emph{Types} section below for additional
-#'     details.}
 #'     \item{\code{value}}{The default value for the parameter.}
+#'     \item{\code{expr}}{The R expression (if any) that yielded the default value.}
 #'   }
 #'
 #'   In addition, other fields included in the YAML may also be present
@@ -58,62 +57,20 @@
 #' This second form is useful when you need to provide additional details
 #' about the parameter (e.g. a \code{label} field as describe above).
 #'
-#' Parameter types are deduced implicitly based on the value provided. However
-#' in some cases additional type information is required (for example when
-#' a character vector needs to be interpreted as a date or as a file path).
-#' In these cases a special type designater precedes the value. For example:
+#' You can also use R code to yield the value of a parameter by prefacing the value
+#' with \code{!r}, for example:
 #'
 #' \preformatted{
 #' ---
 #' title: My Document
 #' output: html_document
 #' params:
-#'   start: !date 2015-01-01
+#'   start: !r Sys.Date()
 #' ---
-#' }
-#'
-#' @section Types:
-#'
-#' All of the standard R types that can be parsed using
-#' \code{\link[yaml]{yaml.load}} are supported. These types are used
-#' implicitly based on the \code{value} provided so no special type
-#' designater is required. Built-in types include \code{character},
-#' \code{integer}, \code{numeric}, and \code{logical}.
-#'
-#' In addition there are a number of custom types used to represent
-#' dates and times as well as to note that character values have
-#' special semantics (e.g. are the name of a file). These types are
-#' specified by prefacing the YAML \code{value} with !\emph{typename},
-#' for example:
-#'
-#' \preformatted{
-#' ---
-#' title: My Document
-#' output: html_document
-#' params:
-#'   start: !date 2015-01-01
-#'   end: !datetime 2015-01-01 12:30:00
-#'   data: !file data.csv
-#' ---
-#' }
-#'
-#' Supported custom types include:
-#'
-#' \describe{
-#'   \item{\code{date}}{A character value representing a date.
-#'   The underlying date value is parsed from the character
-#'   value using the \code{\link[base]{as.Date}} function.}
-#'   \item{\code{datetime}}{A character value representing a
-#'   date and time. The underlying datetime value is parsed from
-#'   the character value using the \code{\link[base]{as.POSIXct}}
-#'   function. Note that these values should always speicifed using
-#'   UTC (Universal Time, Coordinated).}
-#'   \item{\code{file}}{A character value representing the name
-#'   of a file.}
 #' }
 #'
 #' @export
-knit_params = function(text) {
+knit_params = function(text, evaluate = TRUE) {
 
   # make sure each element is on one line
   text = split_lines(text)
@@ -123,12 +80,33 @@ knit_params = function(text) {
   if (is.null(yaml)) return(list())
 
   yaml = enc2utf8(yaml)
+  knit_params_yaml(yaml, evaluate = evaluate)
+}
+
+#' Extract knit parameters from YAML text
+#'
+#' This function reads the YAML front-matter that has already been extracted
+#' from a document and returns a list of any parameters declared there.
+#'
+#' @param yaml Character vector containing the YAML text
+#' @param evaluate If TRUE, expression values embedded within the YAML will be
+#' evaluated. This is the default. When FALSE, parameters defined by an
+#' expression will have the parsed expression in its \code{value} field.
+#'
+#' @return List of objects of class \code{knit_param} that correspond to the
+#' parameters declared in the \code{params} section of the YAML. See
+#' \code{\link{knit_params}} for a full description of these objects.
+#'
+#' @seealso \code{\link{knit_params}}
+#' 
+#' @export
+knit_params_yaml = function(yaml, evaluate = TRUE) {
   # parse the yaml using our handlers
-  parsed_yaml = yaml::yaml.load(yaml, handlers = knit_params_handlers())
+  parsed_yaml = yaml::yaml.load(yaml, handlers = knit_params_handlers(evaluate = evaluate))
 
   # if we found paramters then resolve and return them
   if (is.list(parsed_yaml) && !is.null(parsed_yaml$params)) {
-    resolve_params(mark_utf8(parsed_yaml$params))
+    resolve_params(mark_utf8(parsed_yaml$params), evaluate = evaluate)
   } else {
     list()
   }
@@ -165,11 +143,12 @@ yaml_front_matter = function(lines) {
   # by other content
   has_front_matter = function(delimiters) {
     length(delimiters) >= 2 && (delimiters[2] - delimiters[1] > 1) &&
-      (delimiters[1] == 1 || is_blank(head(lines, delimiters[1] - 1)))
+      (delimiters[1] == 1 || is_blank(head(lines, delimiters[1] - 1))) &&
+      grepl("^---\\s*$", lines[delimiters[1]])
   }
 
   # find delimiters in the document
-  delimiters = grep("^---\\s*$", lines)
+  delimiters = grep("^(---|\\.\\.\\.)\\s*$", lines)
 
   # if it's valid then return front matter as a text block suitable for passing
   # to yaml::load
@@ -194,68 +173,57 @@ yaml_front_matter = function(lines) {
 
 
 # define custom handlers for knitr_params
-knit_params_handlers = function() {
+knit_params_handlers = function(evaluate = TRUE) {
 
-  # generic handler for intrinsic types that need a special 'type' designator as
-  # a hint to front-ends (e.g. 'file' to indicate a file could be uploaded)
-  type_handler = function(type) {
-    force(type)
-    function(value) {
-      attr(value, "type") = type
-      value
+  # generic handler for r expressions where we want to preserve both the original
+  # code and the fact that it was an expression.
+  expr_handler = function(value) {
+    expression = parse_only(value)
+    transformed_value = if (evaluate) {
+      eval(expression)
+    } else {
+      # When we are not evaluating, provide the parsed expression as the transformed value
+      expression
     }
+
+    wrapped = list(
+        value = transformed_value,
+        expr = value)
+    wrapped = structure(wrapped, class = "knit_param_expr")
+    wrapped
   }
 
   list(
 
+    # r expressions where we want to preserve both the original code
+    # and the fact that it was an expression.
+    r = expr_handler,
+    expr = expr_handler,
+
+    # date and datetime (for backward compatibility with previous syntax)
+    date = function(value) {
+      value = as.Date(value)
+      value
+    },
+    datetime = function(value) {
+      value = as.POSIXct(value, tz = "GMT")
+      value
+    },
+
+    # workaround default yaml parsing behavior to allow keys named 'y' and 'n'
     `bool#yes` = function(value) {
       if (tolower(value) == "y") value else TRUE
     },
-
     `bool#no` = function(value) {
       if (tolower(value) == "n") value else FALSE
-    },
-
-    # date
-    date = function(value) {
-      value = as.Date(value)
-      attr(value, "type") = "date"
-      value
-    },
-
-    # datetime
-    datetime = function(value) {
-      value = as.POSIXct(value, tz = "GMT")
-      attr(value, "type") = "datetime"
-      value
-    },
-
-    # file
-    file = type_handler("file")
+    }
   )
 }
 
 
 # resolve the raw params list into the full params data structure (with name,
 # type, value, and other optional fields included)
-resolve_params = function(params) {
-
-  # get the type attribute (if any)
-  type_attr = function(value) {
-    attr(value, "type", exact = TRUE)
-  }
-
-  # deduce type from attribute or class
-  param_type = function(value) {
-    type_attr(value) %n% class(value)[[1]]
-  }
-
-  # return a parameter value with type attribute stripped and as a vector rather
-  # than list if it's unnamed
-  param_value = function(value) {
-    attr(value, "type") = NULL
-    if (is.null(names(value))) unlist(value) else value
-  }
+resolve_params = function(params, evaluate = TRUE) {
 
   # params we will return
   resolved_params = list()
@@ -267,40 +235,35 @@ resolve_params = function(params) {
     # get the parameter
     param = params[[name]]
 
-    # if it's not a list then a plain value was specified, create the list based
-    # on the value
-    if (!is.list(param)) {
-
+    if (inherits(param, "knit_param_expr")) {
+      # We have a key: !r expr
       param = list(
-        name = name,
-        type = param_type(param),
-        value = param_value(param)
-      )
-
-    } else {
-
-      # validate that the "value" field is included
-      if (!"value" %in% names(param)) {
+          expr = param$expr,
+          value = param$value)
+    } else if (is.list(param)) {
+      if ("value" %in% names(param)) {
+        # This looks like a complex parameter configuration.
+        value = param$value
+        if (inherits(value, "knit_param_expr")) {
+          # We have a key: { value: !r expr }
+          param$expr  = value$expr
+          param$value = value$value
+        }
+      } else {
         stop("no value field specified for YAML parameter '", name, "'",
              call. = FALSE)
       }
-
-      # ensure we have a name
-      param$name = name
-
-      # look for type info at the object level then value level
-      param$type = type_attr(param)
-      if (is.null(param$type)) param$type = param_type(param$value)
+    } else {
+      # A simple key: value
+      param = list(value = param)
     }
-
-    # normalize parameter value
-    param$value = param_value(param$value)
-
-    # add knit_param class
+      
+    # param is now always a named list. record name and add knit_param class.
+    param$name = name
     param = structure(param, class = "knit_param")
 
     # add the parameter
-    resolved_params[[length(resolved_params) + 1]] = param
+    resolved_params[[name]] = param
   }
 
   # return params
