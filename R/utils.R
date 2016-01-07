@@ -20,7 +20,7 @@ chunk_counter = knit_counter(1L)
 # a vectorized and better version than evaluate:::line_prompt
 line_prompt = function(x, prompt = getOption('prompt'), continue = getOption('continue')) {
   # match a \n, then followed by any character (use zero width assertion)
-  paste(prompt, gsub('(?<=\n)(?=.|\n)', continue, x, perl = TRUE), sep = '')
+  paste0(prompt, gsub('(?<=\n)(?=.|\n)', continue, x, perl = TRUE))
 }
 
 # add a prefix to output
@@ -48,11 +48,12 @@ is_blank = function(x) {
 }
 valid_path = function(prefix, label) {
   if (length(prefix) == 0L || is.na(prefix) || prefix == 'NA') prefix = ''
-  paste(prefix, label, sep = '')
+  paste0(prefix, label)
 }
 
 # define a color variable in TeX
 color_def = function(col, variable = 'shadecolor') {
+  if (is.na(col)) return('')  # no LaTeX code when color is NA
   x = if (length(col) == 1L) sc_split(col) else col
   if ((n <- length(x)) != 3L) {
     if (n == 1L) x = drop(col2rgb(x) / 255) else {
@@ -81,12 +82,12 @@ set_preamble = function(input, patterns = knit_patterns$get()) {
   .knitEnv$tikzPackages = .knitEnv$bibliography = NULL
   if (length(db <- patterns$document.begin) != 1L) return()  # no \begin{document} pattern
   if (length(hb <- patterns$header.begin) != 1L) return()  # no \documentclass{} pattern
-  idx2 = grepl(db, input)
-  if (!any(idx2)) return()
-  if ((idx2 <- which(idx2)[1]) < 2L) return()
-  txt = paste(input[seq_len(idx2 - 1L)], collapse = '\n')  # rough preamble
+  idx2 = grep(db, input)[1]
+  if (is.na(idx2) || idx2 < 2L) return()
+  idx1 = grep(hb, input)[1]
+  if (is.na(idx1) || idx1 >= idx2) return()
+  txt = paste(input[idx1:(idx2 - 1L)], collapse = '\n')  # rough preamble
   idx = stringr::str_locate(txt, hb)  # locate documentclass
-  if (any(is.na(idx))) return()
   options(tikzDocumentDeclaration = stringr::str_sub(txt, idx[, 1L], idx[, 2L]))
   preamble = pure_preamble(split_lines(stringr::str_sub(txt, idx[, 2L] + 1L)), patterns)
   .knitEnv$tikzPackages = c(.header.sweave.cmd, preamble, '\n')
@@ -242,6 +243,11 @@ fix_options = function(options) {
 
   options$eval = unname(options$eval)
 
+  # if aspect ratio is specified, calculate figure height
+  if (is.numeric(options$fig.asp)) {
+    options$fig.height = options$fig.width * options$fig.asp
+  }
+
   # out.[width|height].px: unit in pixels for sizes
   for (i in c('width', 'height')) {
     options[[sprintf('out.%s.px', i)]] = options[[sprintf('out.%s', i)]] %n%
@@ -249,7 +255,7 @@ fix_options = function(options) {
   }
   # for Retina displays, increase physical size, and decrease output size
   if (is.numeric(r <- options$fig.retina) && r != 1) {
-    if (is.null(options$out.width)) {
+    if (is.null(options[['out.width']])) {
       options$out.width = options$fig.width * options$dpi
     } else {
       warning('You must not set both chunk options out.width and fig.retina')
@@ -258,6 +264,10 @@ fix_options = function(options) {
   } else {
     options$fig.retina = 1
   }
+
+  # turn x% to x/100\linewidth
+  if (is_latex_output())
+    options['out.width'] = list(percent_latex_width(options[['out.width']]))
 
   # deal with aliases: a1 is real option; a0 is alias
   if (length(a1 <- opts_knit$get('aliases')) && length(a0 <- names(a1))) {
@@ -268,6 +278,21 @@ fix_options = function(options) {
   }
 
   options
+}
+
+is_latex_output = function() {
+  out_format('latex') || pandoc_to(c('latex', 'beamer'))
+}
+
+# turn percent width to LaTeX unit, e.g. out.width = 30% -> .3\linewidth
+percent_latex_width = function(x) {
+  if (!is.character(x)) return(x)
+  i = grep('^[0-9.]+%$', x)
+  if (length(i) == 0) return(x)
+  xi = as.numeric(sub('%$', '', x[i]))
+  if (any(is.na(xi))) return(x)
+  x[i] = paste0(xi / 100, '\\linewidth')
+  x
 }
 
 # parse but do not keep source
@@ -307,6 +332,20 @@ pandoc_to = function(x) {
   if (missing(x)) fmt else !is.null(fmt) && (fmt %in% x)
 }
 
+# rmarkdown's input format
+pandoc_from = function() {
+  opts_knit$get('rmarkdown.pandoc.from') %n% 'markdown'
+}
+
+pandoc_fragment = function(text, to, from = pandoc_from()) {
+  f1 = tempfile('pandoc', '.', '.md'); f2 = tempfile('pandoc', '.')
+  on.exit(unlink(c(f1, f2)))
+  writeLines(enc2utf8(text), f1, useBytes = TRUE)
+  rmarkdown::pandoc_convert(f1, to, from, f2)
+  code = readLines(f2, encoding = 'UTF-8', warn = FALSE)
+  paste(code, collapse = '\n')
+}
+
 #' Path for figure files
 #'
 #' The filename of figure files is the combination of options \code{fig.path}
@@ -327,9 +366,9 @@ pandoc_to = function(x) {
 #' @examples fig_path('.pdf', options = list(fig.path='figure/abc-', label='first-plot'))
 #' fig_path('.png', list(fig.path='foo-', label='bar'), 1:10)
 fig_path = function(suffix = '', options = opts_current$get(), number) {
-  if (suffix != '' && !grepl('[.]', suffix)) suffix = paste('.', suffix, sep = '')
+  if (suffix != '' && !grepl('[.]', suffix)) suffix = paste0('.', suffix)
   if (missing(number)) number = options$fig.cur %n% 1L
-  if (!is.null(number)) suffix = paste('-', number, suffix, sep = '')
+  if (!is.null(number)) suffix = paste0('-', number, suffix)
   path = valid_path(options$fig.path, options$label)
   (if (out_format(c('latex', 'sweave', 'listings'))) sanitize_fn else
     paste0)(path, suffix)
@@ -543,7 +582,8 @@ file_ext = tools::file_ext
 sans_ext = tools::file_path_sans_ext
 # substitute extension
 sub_ext = function(x, ext) {
-  if (grepl('\\.([[:alnum:]]+)$', x)) x = sans_ext(x)
+  i = grep('\\.([[:alnum:]]+)$', x)
+  x[i] = sans_ext(x[i])
   paste(x, ext, sep = '.')
 }
 
@@ -694,4 +734,23 @@ same_file = function(f1, f2) {
   f1 = normalizePath(f1, mustWork = FALSE)
   f2 = normalizePath(f2, mustWork = FALSE)
   f1 == f2
+}
+
+# a restricted version of is.numeric (e.g. do not treat chron::chron() as
+# numeric since their behavior may be somewhat unpredictable, e.g. through
+# round(), #1118)
+is_numeric = function(x) {
+  class(x)[1] %in% c('numeric', 'integer')
+}
+
+# create \label{x} or (\#x); the latter is current an internal hack for bookdown
+create_label = function(..., latex = FALSE) {
+  if (isTRUE(opts_knit$get('bookdown.internal.label'))) {
+    lab1 = '(\\#'; lab2 = ')'
+  } else if (latex) {
+    lab1 = '\\label{'; lab2 = '}'
+  } else {
+    return('')  # we don't want the label at all
+  }
+  paste0(lab1, ..., lab2)
 }

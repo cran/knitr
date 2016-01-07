@@ -2,8 +2,7 @@
 #' @export
 hook_plot_md = function(x, options) {
   # if not using R Markdown v2 or output is HTML, just return v1 output
-  if (is.null(to <- pandoc_to()) || grepl('^markdown', to) ||
-        to %in% c('html', 'html5', 'revealjs', 's5', 'slideous', 'slidy'))
+  if (is.null(to <- pandoc_to()) || is_html_output(to))
     return(hook_plot_md_base(x, options))
   if (!is.null(options$out.width) || !is.null(options$out.height) ||
         !is.null(options$out.extra) || options$fig.align != 'default') {
@@ -22,20 +21,47 @@ hook_plot_md = function(x, options) {
   hook_plot_md_base(x, options)
 }
 
+is_html_output = function(fmt = pandoc_to()) {
+  if (length(fmt) == 0) return(FALSE)
+  grepl('^markdown', fmt) ||
+    fmt %in% c('html', 'html5', 'revealjs', 's5', 'slideous', 'slidy')
+}
+
 hook_plot_md_base = function(x, options) {
   if (options$fig.show == 'animate') return(hook_plot_html(x, options))
 
   base = opts_knit$get('base.url') %n% ''
   cap = .img.cap(options)
 
-  if (is.null(w <- options$out.width) & is.null(h <- options$out.height) &
-    is.null(s <- options$out.extra) & options$fig.align == 'default') {
-    return(sprintf('![%s](%s%s) ', cap, base, .upload.url(x)))
+  w = options$out.width; h = options$out.height
+  s = options$out.extra; a = options$fig.align
+  ai = options$fig.show == 'asis'
+  pandoc_html = cap != '' && is_html_output()
+  plot1 = ai || options$fig.cur <= 1L
+  plot2 = ai || options$fig.cur == options$fig.num
+  if (is.null(w) && is.null(h) && is.null(s) && a == 'default' && !pandoc_html) {
+    return(sprintf(
+      '![%s](%s%s)%s%s', cap, base, .upload.url(x),
+      if (cap == '' && !is.null(pandoc_to())) '\\' else '', if (plot2) '' else ' '
+    ))
   }
   # use HTML syntax <img src=...>
-  .img.tag(
+  if (pandoc_html) {
+    d1 = if (plot1) sprintf('<div class="figure"%s>\n', css_text_align(a))
+    d2 = sprintf('<p class="caption">%s</p>', cap)
+    img = sprintf(
+      '<img src="%s" alt="%s" %s />',
+      paste0(opts_knit$get('base.url'), .upload.url(x)), cap, .img.attr(w, h, s)
+    )
+    # whether to place figure caption at the top or bottom of a figure
+    if (isTRUE(options$fig.topcaption)) {
+      paste0(d1, if (ai || options$fig.cur <= 1) d2, img, if (plot2) '</div>')
+    } else {
+      paste0(d1, img, if (plot2) paste0('\n', d2, '\n</div>'))
+    }
+  } else .img.tag(
     .upload.url(x), w, h, cap,
-    c(s, sprintf('style="%s"', css_align(options$fig.align)))
+    c(s, sprintf('style="%s"', css_align(a)))
   )
 }
 
@@ -43,6 +69,10 @@ css_align = function(align) {
   sprintf('display: block; margin: %s;', switch(
     align, left = 'auto auto auto 0', center = 'auto', right = 'auto 0 auto auto'
   ))
+}
+
+css_text_align = function(align) {
+  if (align == 'default') '' else sprintf(' style="text-align: %s"', align)
 }
 
 #' @rdname output_hooks
@@ -67,7 +97,7 @@ render_markdown = function(strict = FALSE) {
         l = max(l)
         if (l >= 4) fence = paste(rep('`', l), collapse = '')
       }
-      paste('\n\n', fence, x, fence, '\n\n', sep = '')
+      paste0('\n\n', fence, x, fence, '\n\n')
     }
   }
   hook.r = function(x, options) {
@@ -75,7 +105,7 @@ render_markdown = function(strict = FALSE) {
     if (language == 'node')
         language = 'javascript'
     if (!options$highlight) language = 'text'
-    paste('\n\n```', language, '\n', x, '```\n\n', sep = '')
+    paste0('\n\n```', language, '\n', x, '```\n\n')
   }
   knit_hooks$set(
     source = function(x, options) {
@@ -93,9 +123,7 @@ render_markdown = function(strict = FALSE) {
       x = gsub('[\n]+$', '', x)
       x = gsub('^[\n]+', '\n', x)
       if (isTRUE(options$collapse)) {
-        x = gsub(paste(
-          '\n([`]{3,})\n+\\1(', tolower(options$engine), ')?\n', sep = ''
-        ), "\n", x)
+        x = gsub(paste0('\n([`]{3,})\n+\\1(', tolower(options$engine), ')?\n'), "\n", x)
       }
       if (is.null(s <- options$indent)) return(x)
       line_prompt(x, prompt = s, continue = s)
@@ -117,23 +145,23 @@ render_jekyll = function(highlight = c('pygments', 'prettify', 'none'), extra = 
   if (hi == 'none') return()
   switch(hi, pygments = {
     hook.r = function(x, options) {
-      paste(
+      paste0(
         '\n\n{% highlight ', tolower(options$engine), if (extra != '') ' ', extra,
-        ' %}\n', x, '\n{% endhighlight %}\n\n', sep = ''
+        ' %}\n', x, '\n{% endhighlight %}\n\n'
       )
     }
-    hook.t = function(x, options) paste(
-      '\n\n{% highlight text %}\n', x, '{% endhighlight %}\n\n', sep = ''
+    hook.t = function(x, options) paste0(
+      '\n\n{% highlight text %}\n', x, '{% endhighlight %}\n\n'
     )
   }, prettify = {
     hook.r = function(x, options) {
-      paste(
+      paste0(
         '\n\n<pre><code class="prettyprint ', extra, '">', escape_html(x),
-        '</code></pre>\n\n', sep = ''
+        '</code></pre>\n\n'
       )
     }
-    hook.t = function(x, options) paste(
-      '\n\n<pre><code>', escape_html(x), '</code></pre>\n\n', sep = ''
+    hook.t = function(x, options) paste0(
+      '\n\n<pre><code>', escape_html(x), '</code></pre>\n\n'
     )
   })
   knit_hooks$set(source = function(x, options) {

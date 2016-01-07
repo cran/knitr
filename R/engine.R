@@ -98,7 +98,7 @@ eng_interpreted = function(options) {
       stata = {
         logf = sub('[.]do$', '.log', f)
         on.exit(unlink(c(logf)), add = TRUE)
-        paste(ifelse(.Platform$OS.type == 'windows', '/q /e do', '-q -b do'), f)
+        paste(switch(Sys.info()[['sysname']], Windows='/q /e do', Darwin='-q -e do', Linux='-q -b do', '-q -b do'), f)
       },
       f
     )
@@ -114,10 +114,13 @@ eng_interpreted = function(options) {
   cmd = options$engine.path %n% engine
   out = if (options$eval) {
     message('running: ', cmd, ' ', code)
-    tryCatch(system2(cmd, code, stdout = TRUE, stderr = TRUE), error = function(e) {
-      if (!options$error) stop(e)
-      paste('Error in running command', cmd)
-    })
+    tryCatch(
+      system2(cmd, code, stdout = TRUE, stderr = TRUE, env = options$engine.env),
+      error = function(e) {
+        if (!options$error) stop(e)
+        paste('Error in running command', cmd)
+      }
+    )
   } else ''
   # chunk option error=FALSE means we need to signal the error
   if (!options$error && !is.null(attr(out, 'status')))
@@ -130,7 +133,7 @@ eng_interpreted = function(options) {
 ## C and Fortran (via R CMD SHLIB)
 eng_shlib = function(options) {
   n = switch(options$engine, c = 'c', fortran = 'f')
-  f = basename(tempfile(n, '.', paste('.', n, sep = '')))
+  f = basename(tempfile(n, '.', paste0('.', n)))
   writeLines(options$code, f)
   on.exit(unlink(c(f, sub_ext(f, c('o', 'so', 'dll')))))
   if (options$eval) {
@@ -285,7 +288,49 @@ eng_cat = function(options) {
 
 ## output the code without processing it
 eng_asis = function(options) {
-  if (options$echo && options$eval) options$code
+  if (options$echo && options$eval) paste(options$code, collapse = '\n')
+}
+
+# write a block environment according to the output format
+eng_block = function(options) {
+  if (isFALSE(options$echo)) return()
+  code = paste(options$code, collapse = '\n')
+  to = pandoc_to()
+  is_pandoc = !is.null(to)
+  if (!is_pandoc) {
+    # not in R Markdown v2
+    to = out_format()
+    if (!(to %in% c('latex', 'html', 'markdown'))) to = NULL
+  }
+  if (is.null(to)) return(code)
+  if (to == 'beamer') to = 'latex'
+  if (is_html_output(to)) to = 'html'
+  type = options$type
+  if (is.null(type)) return(code)
+  # convert the chunk content to HTML or LaTeX (ideally I only need to specify
+  # the markdown extension, but it is not implemented yet for LaTeX:
+  # https://github.com/jgm/pandoc/issues/2453)
+  if (is_pandoc) code = pandoc_fragment(code, to)
+  l1 = options$latex.options
+  l1 = if (is.null(l1)) '' else paste0('[', l1, ']')
+  h2 = options$html.tag %n% 'div'
+  h3 = options$html.before %n% ''
+  h4 = options$html.after %n% ''
+  # e.g. type = c(latex = 'marginfigure', html = 'marginnote')
+  if (to %in% names(type)) type = type[to]
+  # block level tags? this is an incomplete list, but should work for most cases
+  if (to == 'html') if (h2 %in% c('div', 'p', 'blockquote')) {
+    code = paste0('\n', code, '\n')
+  } else {
+    code = gsub('<p>', '<span style="display: block;">', code)
+    code = gsub('</p>', '</span>', code)
+  }
+  switch(
+    to,
+    latex = sprintf('\\begin%s{%s}\n%s\n\\end{%s}', l1, type, code, type),
+    html =  sprintf('%s<%s class="%s">%s</%s>%s', h3, h2, type, code, h2, h4),
+    code
+  )
 }
 
 # set engines for interpreted languages
@@ -301,15 +346,13 @@ local({
 knit_engines$set(
   highlight = eng_highlight, Rcpp = eng_Rcpp, tikz = eng_tikz, dot = eng_dot,
   c = eng_shlib, fortran = eng_shlib, asy = eng_dot, cat = eng_cat,
-  asis = eng_asis, stan = eng_stan
+  asis = eng_asis, stan = eng_stan, block = eng_block
 )
 
 get_engine = function(name) {
   fun = knit_engines$get(name)
   if (is.function(fun)) return(fun)
-  # FIXME: definitely stop() after the next version of dplyr is on CRAN
-  # https://github.com/hadley/dplyr/pull/1091
-  (if (name == 'cpp' && 'dplyr' %in% loadedNamespaces() && packageVersion('dplyr') <= '0.4.1') warning else stop)(
+  warning(
     "Unknown language engine '", name,
     "' (must be registered via knit_engines$set())."
   )

@@ -15,15 +15,16 @@ call_block = function(block) {
   # now try eval all options except those in eval.after and their aliases
   af = opts_knit$get('eval.after'); al = opts_knit$get('aliases')
   if (!is.null(al) && !is.null(af)) af = c(af, names(al[af %in% al]))
+
+  # expand parameters defined via template
+  if (!is.null(block$params$opts.label)) {
+    block$params <- merge_list(opts_template$get(block$params$opts.label), block$params)
+  }
+
   params = opts_chunk$merge(block$params)
   opts_current$restore(params)
   for (o in setdiff(names(params), af)) params[o] = list(eval_lang(params[[o]]))
-
   params = fix_options(params)  # for compatibility
-
-  # expand parameters defined via template
-  if (!is.null(params$opts.label))
-    params = merge_list(params, opts_template$get(params$opts.label))
 
   label = ref.label = params$label
   if (!is.null(params$ref.label)) ref.label = sc_split(params$ref.label)
@@ -42,6 +43,18 @@ call_block = function(block) {
   }
 
   params$code = parse_chunk(params$code) # parse sub-chunk references
+
+  ohooks = opts_hooks$get()
+  for (opt in names(ohooks)) {
+    hook = ohooks[[opt]]
+    if (!is.function(hook)) {
+      warning("The option hook '", opt, "' should be a function")
+      next
+    }
+    if (!is.null(params[[opt]])) params = hook(params)
+    if (!is.list(params))
+      stop("The option hook '", opt, "' should return a list of chunk options")
+  }
 
   # Check cache
   if (params$cache > 0) {
@@ -93,7 +106,10 @@ block_exec = function(options) {
     res.after = run_hooks(before = FALSE, options)
     output = paste(c(res.before, output, res.after), collapse = '')
     output = if (is_blank(output)) '' else knit_hooks$get('chunk')(output, options)
-    if (options$cache) block_cache(options, output, character(0))
+    if (options$cache) block_cache(
+      options, output,
+      if (options$engine == 'stan') options$engine.opts$x else character(0)
+    )
     return(if (options$include) output else '')
   }
 
@@ -125,7 +141,7 @@ block_exec = function(options) {
       formatR::tidy_source, c(list(text = code, output = FALSE), options$tidy.opts)
     ))
     if (!inherits(res, 'try-error')) {
-      code = native_encode(res$text.tidy)
+      code = res$text.tidy
     } else warning('failed to tidy R code in chunk <', options$label, '>\n',
                    'reason: ', res)
   }
@@ -191,13 +207,13 @@ block_exec = function(options) {
   res = filter_evaluate(res, options$message, evaluate::is.message)
 
   # rearrange locations of figures
-  figs = vapply(res, evaluate::is.recordedplot, logical(1))
+  figs = find_recordedplot(res)
   if (length(figs) && any(figs)) {
     if (keep == 'none') {
       res = res[!figs] # remove all
     } else {
       if (options$fig.show == 'hold') res = c(res[!figs], res[figs]) # move to the end
-      figs = sapply(res, evaluate::is.recordedplot)
+      figs = find_recordedplot(res)
       if (length(figs) && sum(figs) > 1) {
         if (keep %in% c('first', 'last')) {
           res = res[-(if (keep == 'last') head else tail)(which(figs), -1L)]
@@ -213,7 +229,9 @@ block_exec = function(options) {
     options$fig.num = if (length(res)) sum(sapply(res, evaluate::is.recordedplot)) else 0L
 
   # merge neighbor elements of the same class into one element
-  for (cls in c('source', 'message')) res = merge_class(res, cls)
+  for (cls in c('source', 'message', 'warning')) res = merge_class(res, cls)
+
+  if (isTRUE(options$fig.beforecode)) res = fig_before_code(res)
 
   on.exit(plot_counter(reset = TRUE), add = TRUE)  # restore plot number
   if (options$fig.show != 'animate' && options$fig.num > 1) {
@@ -256,9 +274,9 @@ block_cache = function(options, output, objects) {
 
 purge_cache = function(options) {
   # purge my old cache and cache of chunks dependent on me
-  cache$purge(paste(valid_path(
+  cache$purge(paste0(valid_path(
     options$cache.path, c(options$label, dep_list$get(options$label))
-  ), '_????????????????????????????????', sep = ''))
+  ), '_????????????????????????????????'))
 }
 
 # open a device for a chunk; depending on the option global.device, may or may
@@ -266,11 +284,16 @@ purge_cache = function(options) {
 chunk_device = function(width, height, record = TRUE, dev, dev.args, dpi) {
   dev_new = function() {
     # actually I should adjust the recording device according to dev, but here
-    # I have only considered the png device
+    # I have only considered the png and tikz devices (because the measurement
+    # results can be very different especially with the latter, see #1066)
     if (identical(dev, 'png')) {
       do.call(grDevices::png, c(list(
         filename = tempfile(), width = width, height = height, units = 'in', res = dpi
       ), get_dargs(dev.args, 'png')))
+    } else if (identical(dev, 'tikz')) {
+      do.call(tikz_dev, c(list(
+        file = paste0(tempfile(), ".tex"), width = width, height = height
+      ), get_dargs(dev.args, 'tikz')))
     } else if (identical(getOption('device'), pdf_null)) {
       if (!is.null(dev.args)) {
         dev.args = get_dargs(dev.args, 'pdf')
@@ -301,25 +324,48 @@ filter_evaluate = function(res, opt, test) {
   if (length(idx) == 0) res else res[-idx]
 }
 
-# merge neighbor elements of the same class in a list returned by evaluate()
-merge_class = function(res, class) {
+# find recorded plots in the output of evaluate()
+find_recordedplot = function(x) {
+  vapply(x, evaluate::is.recordedplot, logical(1))
+}
 
+# move plots before source code
+fig_before_code = function(x) {
+  s = vapply(x, evaluate::is.source, logical(1))
+  if (length(s) == 0 || !any(s)) return(x)
+  s = which(s)
+  f = which(find_recordedplot(x))
+  f = f[f >= min(s)]  # only move those plots after the first code block
+  for (i in f) {
+    j = max(s[s < i])
+    tmp = x[i]; x[[i]] = NULL; x = append(x, tmp, j - 1)
+    s = which(vapply(x, evaluate::is.source, logical(1)))
+  }
+  x
+}
+
+# merge neighbor elements of the same class in a list returned by evaluate()
+merge_class = function(res, class = c('source', 'message', 'warning')) {
+
+  class = match.arg(class)
   idx = if (length(res)) which(sapply(res, inherits, what = class))
   if ((n <- length(idx)) <= 1) return(res)
 
-  k1 = idx[1]; k2 = NULL
-  el = switch(
-    class, `source` = 'src', `message` = 'message',
-    stop("`class` must be either 'source' or 'message'")
-  )
+  k1 = idx[1]; k2 = NULL; res1 = res[[k1]]
+  el = c(source = 'src', message = 'message', warning = 'message')[class]
   for (i in 1:(n - 1)) {
-    if (idx[i + 1] - idx[i] == 1) {
-      res[[k1]] = structure(
-        list(c(res[[k1]][[el]], res[[idx[i + 1]]][[el]])),
-        class = class, .Names = el
-      )
-      k2 = c(k2, idx[i + 1])
-    } else k1 = idx[i + 1]
+    idx2 = idx[i + 1]; idx1 = idx[i]
+    if (idx2 - idx1 == 1) {
+      res2 = res[[idx2]]
+      # merge warnings/messages only if next one is identical to previous one
+      if (class == 'source' || identical(res1, res2)) {
+        res[[k1]][[el]] = c(res[[k1]][[el]], res2[[el]])
+        k2 = c(k2, idx2)
+      } else {
+        k1 = idx2
+        res1 = res[[k1]]
+      }
+    } else k1 = idx2
   }
   if (length(k2)) res = res[-k2] # remove lines that have been merged back
   res
@@ -391,11 +437,10 @@ process_tangle.inline = function(x) {
 # add a label [and extra chunk options] to a code chunk
 label_code = function(code, label) {
   code = paste(c('', code, ''), collapse = '\n')
-  paste('## ----', stringr::str_pad(label, max(getOption('width') - 11L, 0L), 'right', '-'),
-        '----', code, sep = '')
+  paste0('## ----', stringr::str_pad(label, max(getOption('width') - 11L, 0L), 'right', '-'),
+         '----', code)
 }
 
 as.source <- function(code) {
   list(structure(list(src = code), class = 'source'))
 }
-

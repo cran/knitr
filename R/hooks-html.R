@@ -14,25 +14,32 @@ hook_plot_html = function(x, options) {
   d1 = if (plot1) paste0(if (out_format('html')) '</div>',
                         sprintf('<div class="rimage %s">', options$fig.align))
   d2 = if (plot2) paste0('</div>', if (out_format('html')) '<div class="rcode">')
-  paste(
+  paste0(
     d1, .img.tag(
       .upload.url(x), options$out.width, options$out.height, .img.cap(options),
       paste(c(options$out.extra, 'class="plot"'), collapse = ' ')
-    ), d2, '\n', sep = ''
+    ), d2, '\n'
   )
 }
 
-.img.tag = function(src, width, height, caption, extra) {
-  extra = paste(c(sprintf('width="%s"', width), sprintf('height="%s"', height),
-                  extra), collapse = ' ')
-  paste('<img src="', opts_knit$get('base.url'), src,
-        '" title="', caption, '" alt="', caption, '" ', extra, ' />', sep = '')
+.img.attr = function(w, h, extra) {
+  paste(c(sprintf('width="%s"', w), sprintf('height="%s"', h), extra), collapse = ' ')
+}
+
+.img.tag = function(src, w, h, caption, extra) {
+  paste0(
+    '<img src="', opts_knit$get('base.url'), src, '" title="', caption,
+    '" alt="', caption, '" ', .img.attr(w, h, extra), ' />'
+  )
 }
 
 .img.cap = function(options) {
-  options$fig.cap %n% {
+  cap = options$fig.cap %n% {
     if (is.null(pandoc_to())) sprintf('plot of chunk %s', options$label) else ''
   }
+  if (length(cap) == 0) cap = ''
+  if (cap == '') return(cap)
+  paste0(create_label(options$fig.lp, options$label), cap)
 }
 
 # a wrapper to upload an image and return the URL
@@ -66,18 +73,28 @@ hook_plot_html = function(x, options) {
 #' @rdname hook_animation
 #' @export
 hook_ffmpeg_html = function(x, options) {
-  hook_ffmpeg(x, options, '.webm')
+  hook_ffmpeg(x, options, options$ffmpeg.format %n% 'webm')
 }
 
-hook_ffmpeg = function(x, options, format = '.webm') {
+hook_ffmpeg = function(x, options, format = 'webm') {
   x = c(sans_ext(x), file_ext(x))
   fig.num = options$fig.num
+  format = sub('^[.]', '', format)
   # set up the ffmpeg run
   fig.fname = paste0(sub(paste0(fig.num, '$'), '%d', x[1]), '.', x[2])
-  mov.fname = paste0(sub(paste(fig.num, '$', sep = ''), '', x[1]), format)
+  mov.fname = paste0(sub(paste0(fig.num, '$'), '', x[1]), '.', format)
 
-  ffmpeg.cmd = paste('ffmpeg', '-y', '-r', 1 / options$interval,
-                     '-i', fig.fname, mov.fname)
+  extra = if (format == 'webm') {
+    paste('-b:v', options$ffmpeg.bitrate %n% '1M', '-crf 10')
+  }
+  ffmpeg.cmd = paste(
+    'ffmpeg', '-y', '-r', 1 / options$interval, '-i', fig.fname, extra, mov.fname
+  )
+
+  if (Sys.which('ffmpeg') == '') stop(
+    'Could not find ffmpeg command. You should either change the animation.fun ',
+    'hook option or install ffmpeg with libvpx enabled.', call. = FALSE
+  )
   message('executing: ', ffmpeg.cmd)
   system(ffmpeg.cmd, ignore.stdout = TRUE)
 

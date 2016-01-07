@@ -77,6 +77,8 @@ knit2pdf = function(input, output = NULL, compiler = NULL, envir = parent.frame(
 #' convert the result to HTML.
 #' @inheritParams knit
 #' @param ... options passed to \code{\link[markdown]{markdownToHTML}}
+#' @param force_v1 whether to force rendering the input document as an R
+#'   Markdown v1 document (even if it is for v2)
 #' @export
 #' @seealso \code{\link{knit}}, \code{\link[markdown]{markdownToHTML}}
 #' @return If the argument \code{text} is NULL, a character string (HTML code)
@@ -91,7 +93,16 @@ knit2pdf = function(input, output = NULL, compiler = NULL, envir = parent.frame(
 #' knit2html('test.Rmd')
 #' if (interactive()) browseURL('test.html')
 knit2html = function(input, output = NULL, ..., envir = parent.frame(), text = NULL,
-                     quiet = FALSE, encoding = getOption('encoding')) {
+                     quiet = FALSE, encoding = getOption('encoding'), force_v1 = FALSE) {
+  if (!force_v1 && is.null(text)) {
+    con = file(input, encoding = encoding)
+    on.exit(close(con), add = TRUE)
+    signal = if (is_R_CMD_check()) warning else stop
+    if (length(grep('^---\\s*$', head(readLines(con), 1)))) signal(
+      'It seems you should call rmarkdown::render() instead of knitr::knit2html() ',
+      'because ', input, ' appears to be an R Markdown v2 document.'
+    )
+  }
   out = knit(input, text = text, envir = envir, encoding = encoding, quiet = quiet)
   if (is.null(text)) {
     output = sub_ext(if (is.null(output) || is.na(output)) out else output, 'html')
@@ -167,4 +178,41 @@ knit2wp = function(
 
   do.call('library', list(package = 'RWordPress', character.only = TRUE))
   do.call(action, args = WPargs)
+}
+
+#' Watch an input file continuously and knit it when it is updated
+#'
+#' Check the modification time of an input file continously in an infinite loop.
+#' Whenever the time indicates the file has been modified, call a function to
+#' recompile the input file.
+#'
+#' This is actually a general function not necessarily restricted to
+#' applications in \pkg{knitr}. You may specify any \code{compile} function to
+#' process the \code{input} file. To stop the infinite loop, press the
+#' \samp{Escape} key or \samp{Ctrl + C} (depending on your editing environment
+#' and operating system).
+#' @param input an input file path (or a character vector of mutiple paths of
+#'   input files)
+#' @param compile a function to compile the \code{input} file, e.g. it can be
+#'   \code{\link{knit}} or \code{\link{knit2pdf}} depending on the input file
+#'   and the output you want
+#' @param interval a time interval to pause in each cycle of the infinite loop
+#' @param ... other arguments to be passed to the \code{compile} function
+#' @export
+#' @examples # knit_watch('foo.Rnw', knit2pdf)
+#'
+#' # knit_watch('foo.Rmd', rmarkdown::render)
+knit_watch = function(input, compile = knit, interval = 1, ...) {
+  mtime = function(...) file.info(...)[, 'mtime']
+  last_time = mtime(input)
+  updated = function() {
+    this_time = mtime(input)
+    on.exit(last_time <<- this_time, add = TRUE)
+    this_time > last_time
+  }
+  for (f in input) compile(f, ...)
+  while (TRUE) {
+    for (f in input[updated()]) compile(f, ...)
+    Sys.sleep(interval)
+  }
 }

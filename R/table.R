@@ -6,7 +6,8 @@
 #' @param format a character string; possible values are \code{latex},
 #'   \code{html}, \code{markdown}, \code{pandoc}, and \code{rst}; this will be
 #'   automatically determined if the function is called within \pkg{knitr}; it
-#'   can also be set in the global option \code{knitr.table.format}
+#'   can also be set in the global option \code{knitr.table.format}; if
+#'   \code{format} is a function, it must return a character string
 #' @param digits the maximum number of digits for numeric columns (passed to
 #'   \code{round()}); it can also be a vector of length \code{ncol(x)} to set
 #'   the number of digits for individual columns
@@ -69,17 +70,48 @@
 #' cat(x, sep = '\n')
 #' # can also set options(knitr.table.format = 'html') so that the output is HTML
 kable = function(
-  x, format, digits = getOption('digits'), row.names = NA, col.names = colnames(x),
+  x, format, digits = getOption('digits'), row.names = NA, col.names = NA,
   align, caption = NULL, format.args = list(), escape = TRUE, ...
 ) {
+
+  # determine the table format
   if (missing(format) || is.null(format)) format = getOption('knitr.table.format')
   if (is.null(format)) format = if (is.null(pandoc_to())) switch(
     out_format() %n% 'markdown',
     latex = 'latex', listings = 'latex', sweave = 'latex',
     html = 'html', markdown = 'markdown', rst = 'rst',
     stop('table format not implemented yet!')
-  ) else 'pandoc'
-  col.names # evaluate it now! no lazy evaluation because colnames(x) may change
+  ) else if (isTRUE(opts_knit$get('bookdown.table.latex')) && is_latex_output()) {
+    # force LaTeX table because Pandoc's longtable may not work well with floats
+    # http://tex.stackexchange.com/q/276699/9128
+    'latex'
+  } else 'pandoc'
+  if (is.function(format)) format = format()
+
+  # create a label for bookdown if applicable
+  if (!is.null(caption) && !is.na(caption)) caption = paste0(
+    create_label('tab:', opts_current$get('label')), caption
+  )
+  if (inherits(x, 'list')) {
+    # if the output is for Pandoc and we want multiple tabular in one table, we
+    # should use the latex format instead, because Pandoc does not support
+    # Markdown in LaTeX yet https://github.com/jgm/pandoc/issues/2453
+    if (format == 'pandoc' && is_latex_output()) format = 'latex'
+    res = lapply(
+      x, kable, format = format, digits = digits, row.names = row.names,
+      col.names = col.names, align = align, caption = NA,
+      format.args = format.args, escape = escape, ...
+    )
+    res = unlist(lapply(res, paste, collapse = '\n'))
+    res = if (format == 'latex') {
+      kable_latex_caption(res, caption)
+    } else if (format == 'html' || (format == 'pandoc' && is_html_output())) kable_html(
+      matrix(paste0('\n\n', res, '\n\n'), 1), caption = caption, escape = FALSE,
+      table.attr = 'class="kable_wrapper"'
+    ) else paste(res, collapse = '\n\n')
+    return(structure(res, format = format, class = 'knitr_kable'))
+  }
+  if (identical(col.names, NA)) col.names = colnames(x)
   if (!is.matrix(x)) x = as.data.frame(x)
   m = ncol(x)
   # numeric columns
@@ -89,7 +121,7 @@ kable = function(
   # rounding
   digits = rep(digits, length.out = m)
   for (j in seq_len(m)) {
-    if (is.numeric(x[, j])) x[, j] = round(x[, j], digits[j])
+    if (is_numeric(x[, j])) x[, j] = round(x[, j], digits[j])
   }
   if (any(isn)) {
     if (is.matrix(x)) {
@@ -97,8 +129,7 @@ kable = function(
       x = format_matrix(x, format.args)
     } else x[, isn] = format_args(x[, isn], format.args)
   }
-  if (is.na(row.names))
-    row.names = !is.null(rownames(x)) && !identical(rownames(x), as.character(seq_len(NROW(x))))
+  if (is.na(row.names)) row.names = has_rownames(x)
   if (!is.null(align)) align = rep(align, length.out = m)
   if (row.names) {
     x = cbind(' ' = rownames(x), x)
@@ -106,7 +137,7 @@ kable = function(
     if (!is.null(align)) align = c('l', align)  # left align row names
   }
   n = nrow(x)
-  x = format(as.matrix(x), trim = TRUE, justify = 'none')
+  x = base::format(as.matrix(x), trim = TRUE, justify = 'none')
   if (!is.matrix(x)) x = matrix(x, nrow = n)
   x = gsub('^\\s*|\\s*$', '', x)
   colnames(x) = col.names
@@ -135,6 +166,10 @@ format_args = function(x, args = list()) {
   do.call(format, args)
 }
 
+has_rownames = function(x) {
+  !is.null(rownames(x)) && !identical(rownames(x), as.character(seq_len(NROW(x))))
+}
+
 #' @export
 print.knitr_kable = function(x, ...) {
   if (!(attr(x, 'format') %in% c('html', 'latex'))) cat('\n\n')
@@ -150,7 +185,7 @@ knit_print.knitr_kable = function(x, ...) {
 }
 
 kable_latex = function(
-  x, booktabs = FALSE, longtable = FALSE,
+  x, booktabs = FALSE, longtable = FALSE, valign = 't', centering = TRUE,
   vline = getOption('knitr.table.vline', if (booktabs) '' else '|'),
   toprule = getOption('knitr.table.toprule', if (booktabs) '\\toprule' else '\\hline'),
   bottomrule = getOption('knitr.table.bottomrule', if (booktabs) '\\bottomrule' else '\\hline'),
@@ -160,8 +195,15 @@ kable_latex = function(
 ) {
   if (!is.null(align <- attr(x, 'align', exact = TRUE))) {
     align = paste(align, collapse = vline)
-    align = paste('{', align, '}', sep = '')
+    align = paste0('{', align, '}')
   }
+  centering = if (centering && !is.null(caption)) '\n\\centering'
+  # vertical align only if 'caption' is not NULL (may be NA) or 'valign' has
+  # been explicitly specified
+  valign = if ((!is.null(caption) || !missing(valign)) && valign != '') {
+    sprintf('[%s]', valign)
+  } else ''
+  if (identical(caption, NA)) caption = NULL
   env1 = sprintf('\\begin{%s}\n', table.envir)
   env2 = sprintf('\n\\end{%s}',   table.envir)
   cap = if (is.null(caption)) '' else sprintf('\n\\caption{%s}', caption)
@@ -171,26 +213,33 @@ kable_latex = function(
   linesep = if (nrow(x) > 1) {
     c(rep(linesep, length.out = nrow(x) - 2), linesep[[1L]], '')
   } else rep('', nrow(x))
-  linesep = ifelse(linesep == "", linesep, paste('\n', linesep, sep = ''))
+  linesep = ifelse(linesep == "", linesep, paste0('\n', linesep))
 
   if (escape) x = escape_latex(x)
   if (!is.character(toprule)) toprule = NULL
   if (!is.character(bottomrule)) bottomrule = NULL
+  tabular = if (longtable) 'longtable' else 'tabular'
 
   paste(c(
-    env1,
-    cap,
-    sprintf('\n\\begin{%s}', if (longtable) 'longtable' else 'tabular'), align,
+    if (!longtable) c(env1, cap, centering),
+    sprintf('\n\\begin{%s}%s', tabular, valign), align,
+    if (longtable && cap != '') c(cap, '\\\\'),
     sprintf('\n%s', toprule), '\n',
     if (!is.null(cn <- colnames(x))) {
       if (escape) cn = escape_latex(cn)
-      paste(paste(cn, collapse = ' & '), sprintf('\\\\\n%s\n', midrule), sep = '')
+      paste0(paste(cn, collapse = ' & '), sprintf('\\\\\n%s\n', midrule))
     },
-    paste(apply(x, 1, paste, collapse = ' & '), sprintf('\\\\%s', linesep),
-          sep = '', collapse = '\n'),
+    paste0(apply(x, 1, paste, collapse = ' & '), sprintf('\\\\%s', linesep),
+           collapse = '\n'),
     sprintf('\n%s', bottomrule),
-    sprintf('\n\\end{%s}', if (longtable) 'longtable' else 'tabular'),
-    env2
+    sprintf('\n\\end{%s}', tabular),
+    if (!longtable) env2
+  ), collapse = '')
+}
+
+kable_latex_caption = function(x, caption) {
+  paste(c(
+    '\\begin{table}\n', sprintf('\\caption{%s}\n', caption), x, '\n\\end{table}'
   ), collapse = '')
 }
 
@@ -201,9 +250,10 @@ kable_html = function(x, table.attr = '', caption = NULL, escape = TRUE, ...) {
   align = if (is.null(align <- attr(x, 'align', exact = TRUE))) '' else {
     sprintf(' style="text-align:%s;"', c(l = 'left', c = 'center', r = 'right')[align])
   }
-  cap = if (is.null(caption)) '' else sprintf('\n<caption>%s</caption>', caption)
+  if (identical(caption, NA)) caption = NULL
+  cap = if (length(caption)) sprintf('\n<caption>%s</caption>', caption) else ''
   if (escape) x = escape_html(x)
-  paste(c(
+  paste0(c(
     sprintf('<table%s>%s', table.attr, cap),
     if (!is.null(cn <- colnames(x))) {
       if (escape) cn = escape_html(cn)
@@ -217,7 +267,7 @@ kable_html = function(x, table.attr = '', caption = NULL, escape = TRUE, ...) {
     ),
     '</tbody>',
     '</table>'
-  ), sep = '', collapse = '\n')
+  ), collapse = '\n')
 }
 
 #' Generate tables for Markdown and reST
@@ -279,7 +329,8 @@ kable_markdown = function(x, padding = 1, ...) {
 kable_pandoc = function(x, caption = NULL, padding = 1, ...) {
   tab = kable_mark(x, c(NA, '-', if (is.null(colnames(x))) '-' else NA),
                    padding = padding, ...)
-  if (is.null(caption)) tab else c(paste('Table:', caption), "", tab)
+  if (identical(caption, NA)) caption = NULL
+  if (length(caption)) c(paste('Table:', caption), "", tab) else tab
 }
 
 # pad a matrix
@@ -303,7 +354,7 @@ pad_width = function(x, width, side) {
   w1 = floor(w / 2)  # the left half of spaces when side = 'both'
   s1 = v_spaces(w * (side == 'left') + w1 * (side == 'both'))
   s2 = v_spaces(w * (side == 'right') + (w - w1) * (side == 'both'))
-  paste(s1, x, s2, sep = '')
+  paste0(s1, x, s2)
 }
 
 # vectorized over n to generate sequences of spaces

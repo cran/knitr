@@ -138,7 +138,7 @@ knit = function(input, output = NULL, tangle = FALSE, text = NULL, quiet = FALSE
     setwd(opts_knit$get('output.dir')) # always restore original working dir
     # in child mode, input path needs to be adjusted
     if (in.file && !is_abs_path(input)) {
-      input = paste(opts_knit$get('child.path'), input, sep = '')
+      input = paste0(opts_knit$get('child.path'), input)
       input = input2 = file.path(input_dir(), input)
     }
     # respect the quiet argument in child mode (#741)
@@ -202,7 +202,6 @@ knit = function(input, output = NULL, tangle = FALSE, text = NULL, quiet = FALSE
     if (is.character(output)) file.create(output)
     return(output) # a trivial case: create an empty file and exit
   }
-  text = native_encode(text)
 
   apat = all_patterns; opat = knit_patterns$get()
   on.exit(knit_patterns$restore(opat), add = TRUE)
@@ -540,6 +539,16 @@ wrap.recordedplot = function(x, options) {
   knit_hooks$get('plot')(file, reduce_plot_opts(options))
 }
 
+#' @export
+wrap.knit_image_paths = function(x, options, inline = FALSE) {
+  hook_plot = knit_hooks$get('plot')
+  options$fig.num = length(x)
+  paste(unlist(lapply(seq_along(x), function(i) {
+    options$fig.cur = i
+    hook_plot(x[i], options)
+  })), collapse = '')
+}
+
 #' A custom printing function
 #'
 #' The S3 generic function \code{knit_print} is the default printing function in
@@ -617,6 +626,9 @@ formals(normal_print) = alist(x = , ... = )
 #'   will be collected when the object is printed, and accessible via
 #'   \code{knit_meta()})
 #' @param cacheable a logical value indicating if this object is cacheable
+#' @note This function only works in top-level R expressions, and it will not
+#'   work when it is called inside another expression, such as a for-loop. See
+#'   \url{https://github.com/yihui/knitr/issues/1137} for a discussion.
 #' @export
 #' @examples  # see ?knit_print
 asis_output = function(x, meta = NULL, cacheable = length(meta) == 0) {

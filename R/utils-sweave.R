@@ -70,7 +70,7 @@ Sweave2knitr = function(file, output = gsub('[.]([^.]+)$', '-knitr.\\1', file),
   i = grep('^<<(.*)>>=\\s*$', x)
   if (length(i)) {
     opts = gsub('^<<(.*)>>=\\s*$', '\\1', x[i])
-    x[i] = paste('<<', fix_sweave(opts), '>>=', sep = '')
+    x[i] = paste0('<<', fix_sweave(opts), '>>=')
   }
   x = gsub_msg("replacing \\SweaveInput{...} with <<child='...'>>=",
                '^\\s*\\\\SweaveInput\\{([^}]+)\\}', "\n<<'child-\\1', child='\\1'>>=\n@\n", x)
@@ -171,7 +171,7 @@ remind_sweave = function(file, sweave_lines) {
                 paste(sweave_lines, collapse = ', '), file)
   # throw a normal warning when R CMD check or tcltk not available
   warning(msg)
-  if (!is_R_CMD_check() && Sys.getenv('TRAVIS') != 'true' && tcltk_available()) {
+  if (!is_R_CMD_check() && Sys.getenv('CI') != 'true' && tcltk_available()) {
     do.call(
       getFromNamespace('tkmessageBox', 'tcltk'),
       list(title = 'Sweave Noweb syntax?', icon = 'info', message = msg)

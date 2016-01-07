@@ -3,8 +3,8 @@
 \alias{kable}
 \title{Create tables in LaTeX, HTML, Markdown and reStructuredText}
 \usage{
-kable(x, format, digits = getOption("digits"), row.names = NA, col.names = colnames(x), 
-    align, caption = NULL, format.args = list(), escape = TRUE, ...)
+kable(x, format, digits = getOption("digits"), row.names = NA, col.names = NA, align, 
+    caption = NULL, format.args = list(), escape = TRUE, ...)
 }
 \arguments{
 \item{x}{an R object (typically a matrix or data frame)}
@@ -12,7 +12,8 @@ kable(x, format, digits = getOption("digits"), row.names = NA, col.names = colna
 \item{format}{a character string; possible values are \code{latex},
 \code{html}, \code{markdown}, \code{pandoc}, and \code{rst}; this will be
 automatically determined if the function is called within \pkg{knitr}; it
-can also be set in the global option \code{knitr.table.format}}
+can also be set in the global option \code{knitr.table.format}; if
+\code{format} is a function, it must return a character string}
 
 \item{digits}{the maximum number of digits for numeric columns (passed to
 \code{round()}); it can also be a vector of length \code{ncol(x)} to set
