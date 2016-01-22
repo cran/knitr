@@ -93,7 +93,7 @@ call_block = function(block) {
 # options that should affect cache when cache level = 1,2
 cache1.opts = c('code', 'eval', 'cache', 'cache.path', 'message', 'warning', 'error')
 # more options affecting cache level 2
-cache2.opts = c('fig.keep', 'fig.path', 'fix.ext', 'dev', 'dpi', 'dev.args', 'fig.width', 'fig.height')
+cache2.opts = c('fig.keep', 'fig.path', 'fig.ext', 'dev', 'dpi', 'dev.args', 'fig.width', 'fig.height')
 # options that should not affect cache
 cache0.opts = c('include', 'out.width.px', 'out.height.px', 'cache.rebuild')
 
@@ -120,7 +120,7 @@ block_exec = function(options) {
   keep = options$fig.keep
   # open a device to record plots
   if (chunk_device(options$fig.width[1L], options$fig.height[1L], keep != 'none',
-                   options$dev, options$dev.args, options$dpi)) {
+                   options$dev, options$dev.args, options$dpi, options)) {
     # preserve par() settings from the last code chunk
     if (keep.pars <- opts_knit$get('global.par'))
       par(opts_knit$get('global.pars'))
@@ -281,7 +281,7 @@ purge_cache = function(options) {
 
 # open a device for a chunk; depending on the option global.device, may or may
 # not need to close the device on exit
-chunk_device = function(width, height, record = TRUE, dev, dev.args, dpi) {
+chunk_device = function(width, height, record = TRUE, dev, dev.args, dpi, options) {
   dev_new = function() {
     # actually I should adjust the recording device according to dev, but here
     # I have only considered the png and tikz devices (because the measurement
@@ -293,7 +293,9 @@ chunk_device = function(width, height, record = TRUE, dev, dev.args, dpi) {
     } else if (identical(dev, 'tikz')) {
       do.call(tikz_dev, c(list(
         file = paste0(tempfile(), ".tex"), width = width, height = height
-      ), get_dargs(dev.args, 'tikz')))
+      ), get_dargs(dev.args, 'tikz'), list(
+        sanitize = options$sanitize, standAlone = options$external
+      )))
     } else if (identical(getOption('device'), pdf_null)) {
       if (!is.null(dev.args)) {
         dev.args = get_dargs(dev.args, 'pdf')
