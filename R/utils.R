@@ -15,6 +15,7 @@ knit_counter = function(init = 0L) {
 }
 
 plot_counter = knit_counter(1L)
+shot_counter = knit_counter(1L)
 chunk_counter = knit_counter(1L)
 
 # a vectorized and better version than evaluate:::line_prompt
@@ -257,8 +258,6 @@ fix_options = function(options) {
   if (is.numeric(r <- options$fig.retina) && r != 1) {
     if (is.null(options[['out.width']])) {
       options$out.width = options$fig.width * options$dpi
-    } else {
-      warning('You must not set both chunk options out.width and fig.retina')
     }
     options$dpi = options$dpi * r
   } else {
@@ -754,3 +753,42 @@ create_label = function(..., latex = FALSE) {
   }
   paste0(lab1, ..., lab2)
 }
+
+# yes I hate partial matching
+attr = function(...) base::attr(..., exact = TRUE)
+
+#' Combine multiple words into a single string
+#'
+#' When a value from an inline R expression is a character vector of multiple
+#' elements, we may want to combine them into a phrase like \samp{a and b}, or
+#' \code{a, b, and c}. That is what this a helper function does.
+#'
+#' If the length of the input \code{words} is smaller than or equal to 1,
+#' \code{words} is returned. When \code{words} is of length 2, the first word
+#' and second word are combined using the \code{and} string. When the length is
+#' greater than 2, \code{sep} is used to separate all words, and the \code{and}
+#' string is prepended to the last word.
+#' @param words a character vector
+#' @param sep the separator to be inserted among words
+#' @param and a character string to be prepended to the last word
+#' @param before,after A character string to be added before/after each word
+#' @return A character string.
+#' @export
+#' @examples combine_words('a'); combine_words(c('a', 'b'))
+#' combine_words(c('a', 'b', 'c'))
+#' combine_words(c('a', 'b', 'c'), sep = ' / ', and = '')
+#' combine_words(c('a', 'b', 'c'), and = '')
+#' combine_words(c('a', 'b', 'c'), before = '"', after = '"')
+combine_words = function(words, sep = ', ', and = ' and ', before = '', after = before) {
+  n = length(words)
+  if (n == 0) return(words)
+  words = paste0(before, words, after)
+  if (n == 1) return(words)
+  if (n == 2) return(paste(words, collapse = and))
+  if (grepl('^ ', and) && grepl(' $', sep)) and = gsub('^ ', '', and)
+  words[n] = paste0(and, words[n])
+  paste(words, collapse = sep)
+}
+
+# check if a package is loadable
+loadable = function(pkg) requireNamespace(pkg, quietly = TRUE)

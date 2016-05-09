@@ -25,6 +25,8 @@
 #'
 #' \Sexpr[results=verbatim]{str(knitr::knit_engines$get())}
 #' @export
+#' @note The Leiningen engine \code{lein} requires lein-exec plugin; see
+#'   \url{https://github.com/yihui/knitr/issues/1176} for details.
 #' @references Usage: \url{http://yihui.name/knitr/objects}; examples:
 #'   \url{http://yihui.name/knitr/demo/engines/}
 #' @examples knit_engines$get('python'); knit_engines$get('awk')
@@ -55,7 +57,7 @@ engine_output = function(options, code, out, extra = NULL) {
   out = sub('([^\n]+)$', '\\1\n', out)
   # replace the engine names for markup later, e.g. ```Rscript should be ```r
   options$engine = switch(
-    options$engine, 'Rscript' = 'r', node = 'javascript',
+    options$engine, mysql = 'sql', node = 'javascript', psql = 'sql', Rscript = 'r',
     options$engine
   )
   if (options$engine == 'stata') {
@@ -200,24 +202,39 @@ eng_tikz = function(options) {
   s = append(lines, options$code, i)  # insert tikz into tex-template
   writeLines(s, texf <- paste0(f <- tempfile('tikz', '.'), '.tex'))
   on.exit(unlink(texf), add = TRUE)
-  unlink(outf <- paste0(f, '.pdf'))
-  tools::texi2pdf(texf, clean = TRUE)
-  if (!file.exists(outf)) stop('failed to compile tikz; check the template: ', tmpl)
 
-  fig = fig_path('', options)
-  dir.create(dirname(fig), recursive = TRUE, showWarnings = FALSE)
-  file.rename(outf, paste0(fig, '.pdf'))
-  # convert to the desired output-format, calling `convert`
   ext = tolower(options$fig.ext %n% dev2ext(options$dev))
-  if (ext != 'pdf') {
-    conv = system2(options$engine.opts$convert %n% 'convert', c(
-      options$engine.opts$convert.opts, sprintf('%s.pdf %s.%s', fig, fig, ext)
-    ))
-    if (conv != 0 && !options$error)
-      stop('problems with `convert`; probably not installed?')
+
+  to_svg = ext == 'svg'
+  unlink(outf <- paste0(f, if (to_svg) '.dvi' else '.pdf'))
+  tools::texi2dvi(texf, pdf = !to_svg, clean = TRUE)
+  if (!file.exists(outf)) stop('Failed to compile tikz; check the template: ', tmpl)
+
+  fig = fig_path(if (to_svg) '.dvi' else '.pdf', options)
+  dir.create(dirname(fig), recursive = TRUE, showWarnings = FALSE)
+  file.rename(outf, fig)
+
+  fig2 = sub_ext(fig, ext)
+  if (to_svg) {
+    # dvisvgm needs to be on the path
+    # dvisvgm for windows needs ghostscript bin dir on the path also
+    conv = system2('dvisvgm', fig)
+    # copy the svg to figure subdir
+    file.rename(basename(fig2), fig2)
+  } else {
+    # convert to the desired output-format, calling `convert`
+    conv = 0
+    if (ext != 'pdf') {
+      conv = system2(options$engine.opts$convert %n% 'convert', c(
+        options$engine.opts$convert.opts, sprintf('%s %s', fig, fig2)
+      ))
+    }
   }
+  if (conv != 0 && !options$error) stop('Failed to compile ', fig, ' to ', fig2)
+  fig = fig2
+
   options$fig.num = 1L; options$fig.cur = 1L
-  extra = knit_hooks$get('plot')(paste(fig, ext, sep = '.'), options)
+  extra = knit_hooks$get('plot')(fig, options)
   options$engine = 'tex'  # for output hooks to use the correct language class
   engine_output(options, options$code, '', extra)
 }
@@ -333,6 +350,23 @@ eng_block = function(options) {
   )
 }
 
+# helper to create engines the wrap embedded html assets (e.g. css,js)
+eng_html_asset = function(prefix, postfix) {
+  function(options) {
+    if (options$eval && is_html_output(excludes = 'markdown')) {
+      code = c(prefix, options$code, postfix)
+      paste(code, collapse = '\n')
+    }
+  }
+}
+
+# include js in a script tag (ignore if not html output)
+eng_js = eng_html_asset('<script type="text/javascript">', '</script>')
+
+# include css in a style tag (ignore if not html output)
+eng_css = eng_html_asset('<style type="text/css">', '</style>')
+
+
 # set engines for interpreted languages
 local({
   for (i in c(
@@ -346,7 +380,7 @@ local({
 knit_engines$set(
   highlight = eng_highlight, Rcpp = eng_Rcpp, tikz = eng_tikz, dot = eng_dot,
   c = eng_shlib, fortran = eng_shlib, asy = eng_dot, cat = eng_cat,
-  asis = eng_asis, stan = eng_stan, block = eng_block
+  asis = eng_asis, stan = eng_stan, block = eng_block, js = eng_js, css = eng_css
 )
 
 get_engine = function(name) {

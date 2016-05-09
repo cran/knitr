@@ -7,11 +7,12 @@
 <meta charset="utf-8">
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
 <meta name="generator" content="pandoc" />
+
 <meta name="viewport" content="width=device-width, initial-scale=1">
 
 <meta name="author" content="Yihui Xie" />
 
-<meta name="date" content="2016-01-21" />
+<meta name="date" content="2016-05-09" />
 
 <title>Custom Print Methods</title>
 
@@ -56,6 +57,8 @@ code > span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } /* Com
 code > span.in { color: #60a0b0; font-weight: bold; font-style: italic; } /* Information */
 </style>
 
+
+
 <link href="data:text/css;charset=utf-8,body%20%7B%0Abackground%2Dcolor%3A%20%23fff%3B%0Amargin%3A%201em%20auto%3B%0Amax%2Dwidth%3A%20800px%3B%0Aoverflow%3A%20visible%3B%0Apadding%2Dleft%3A%202em%3B%0Apadding%2Dright%3A%202em%3B%0Afont%2Dfamily%3A%20%22Helvetica%20Neue%22%2C%20Helvetica%2C%20Arial%2C%20sans%2Dserif%3B%0Afont%2Dsize%3A%2014px%3B%0Aline%2Dheight%3A%2020px%3B%0A%7D%0A%23header%20%7B%0Atext%2Dalign%3A%20center%3B%0A%7D%0A%23TOC%20%7B%0Aclear%3A%20both%3B%0Amargin%3A%200%200%2010px%200%3B%0Apadding%3A%204px%3B%0Aborder%3A%201px%20solid%20%23CCCCCC%3B%0Aborder%2Dradius%3A%205px%3B%0Abackground%2Dcolor%3A%20%23f6f6f6%3B%0Afont%2Dsize%3A%2013px%3B%0Aline%2Dheight%3A%201%2E3%3B%0A%7D%0A%23TOC%20%2Etoctitle%20%7B%0Afont%2Dweight%3A%20bold%3B%0Afont%2Dsize%3A%2015px%3B%0Amargin%2Dleft%3A%205px%3B%0A%7D%0A%23TOC%20ul%20%7B%0Apadding%2Dleft%3A%2040px%3B%0Amargin%2Dleft%3A%20%2D1%2E5em%3B%0Amargin%2Dtop%3A%205px%3B%0Amargin%2Dbottom%3A%205px%3B%0A%7D%0A%23TOC%20ul%20ul%20%7B%0Amargin%2Dleft%3A%20%2D2em%3B%0A%7D%0A%23TOC%20li%20%7B%0Aline%2Dheight%3A%2016px%3B%0A%7D%0Atable%3Anot%28%5Bclass%5D%29%20%7B%0Amargin%3A%20auto%3B%0Amin%2Dwidth%3A%2040%25%3B%0Aborder%2Dwidth%3A%201px%3B%0Aborder%2Dcolor%3A%20%23DDDDDD%3B%0Aborder%2Dstyle%3A%20outset%3B%0Aborder%2Dcollapse%3A%20collapse%3B%0A%7D%0Atable%5Bsummary%3D%22R%20argblock%22%5D%20%7B%0Awidth%3A%20100%25%3B%0Aborder%3A%20none%3B%0A%7D%0Atable%3Anot%28%5Bclass%5D%29%20th%20%7B%0Aborder%2Dwidth%3A%202px%3B%0Apadding%3A%205px%3B%0Aborder%2Dstyle%3A%20inset%3B%0A%7D%0Atable%3Anot%28%5Bclass%5D%29%20td%20%7B%0Aborder%2Dwidth%3A%201px%3B%0Aborder%2Dstyle%3A%20inset%3B%0Aline%2Dheight%3A%2018px%3B%0Apadding%3A%205px%205px%3B%0A%7D%0Atable%3Anot%28%5Bclass%5D%29%2C%20table%3Anot%28%5Bclass%5D%29%20th%2C%20table%3Anot%28%5Bclass%5D%29%20td%20%7B%0Aborder%2Dleft%2Dstyle%3A%20none%3B%0Aborder%2Dright%2Dstyle%3A%20none%3B%0A%7D%0Atable%3Anot%28%5Bclass%5D%29%20tr%2Eodd%20%7B%0Abackground%2Dcolor%3A%20%23f7f7f7%3B%0A%7D%0Ap%20%7B%0Amargin%3A%200%2E5em%200%3B%0A%7D%0Ablockquote%20%7B%0Abackground%2Dcolor%3A%20%23f6f6f6%3B%0Apadding%3A%2013px%3B%0Apadding%2Dbottom%3A%201px%3B%0A%7D%0Ahr%20%7B%0Aborder%2Dstyle%3A%20solid%3B%0Aborder%3A%20none%3B%0Aborder%2Dtop%3A%201px%20solid%20%23777%3B%0Amargin%3A%2028px%200%3B%0A%7D%0Adl%20%7B%0Amargin%2Dleft%3A%200%3B%0A%7D%0Adl%20dd%20%7B%0Amargin%2Dbottom%3A%2013px%3B%0Amargin%2Dleft%3A%2013px%3B%0A%7D%0Adl%20dt%20%7B%0Afont%2Dweight%3A%20bold%3B%0A%7D%0Aul%20%7B%0Amargin%2Dtop%3A%200%3B%0A%7D%0Aul%20li%20%7B%0Alist%2Dstyle%3A%20circle%20outside%3B%0A%7D%0Aul%20ul%20%7B%0Amargin%2Dbottom%3A%200%3B%0A%7D%0Apre%2C%20code%20%7B%0Abackground%2Dcolor%3A%20%23f5f5f5%3B%0Aborder%2Dradius%3A%203px%3B%0Acolor%3A%20%23333%3B%0A%7D%0Apre%20%7B%0Aoverflow%2Dx%3A%20auto%3B%0Aborder%2Dradius%3A%203px%3B%0Amargin%3A%205px%200%2010px%200%3B%0Apadding%3A%2010px%3B%0A%7D%0Apre%3Anot%28%5Bclass%5D%29%20%7B%0Abackground%2Dcolor%3A%20white%3B%0Aborder%3A%20%23f5f5f5%201px%20solid%3B%0A%7D%0Apre%3Anot%28%5Bclass%5D%29%20code%20%7B%0Acolor%3A%20%23444%3B%0Abackground%2Dcolor%3A%20white%3B%0A%7D%0Acode%20%7B%0Afont%2Dfamily%3A%20monospace%3B%0Afont%2Dsize%3A%2090%25%3B%0A%7D%0Ap%20%3E%20code%2C%20li%20%3E%20code%20%7B%0Apadding%3A%202px%204px%3B%0Acolor%3A%20%23d14%3B%0Aborder%3A%201px%20solid%20%23e1e1e8%3B%0Awhite%2Dspace%3A%20inherit%3B%0A%7D%0Adiv%2Efigure%20%7B%0Atext%2Dalign%3A%20center%3B%0A%7D%0Atable%20%3E%20caption%2C%20div%2Efigure%20p%2Ecaption%20%7B%0Afont%2Dstyle%3A%20italic%3B%0A%7D%0Atable%20%3E%20caption%20span%2C%20div%2Efigure%20p%2Ecaption%20span%20%7B%0Afont%2Dstyle%3A%20normal%3B%0Afont%2Dweight%3A%20bold%3B%0A%7D%0Ap%20%7B%0Amargin%3A%200%200%2010px%3B%0A%7D%0Atable%3Anot%28%5Bclass%5D%29%20%7B%0Amargin%3A%20auto%20auto%2010px%20auto%3B%0A%7D%0Aimg%3Anot%28%5Bclass%5D%29%20%7B%0Abackground%2Dcolor%3A%20%23FFFFFF%3B%0Apadding%3A%202px%3B%0Aborder%2Dradius%3A%203px%3B%0Aborder%3A%201px%20solid%20%23CCCCCC%3B%0Amargin%3A%200%205px%3B%0Amax%2Dwidth%3A%20100%25%3B%0A%7D%0Ah1%20%7B%0Amargin%2Dtop%3A%200%3B%0Afont%2Dsize%3A%2035px%3B%0Aline%2Dheight%3A%2040px%3B%0A%7D%0Ah2%20%7B%0Aborder%2Dbottom%3A%204px%20solid%20%23f5f5f5%3B%0Apadding%2Dtop%3A%2010px%3B%0Apadding%2Dbottom%3A%202px%3B%0Afont%2Dsize%3A%20145%25%3B%0A%7D%0Ah3%20%7B%0Aborder%2Dbottom%3A%202px%20solid%20%23f5f5f5%3B%0Apadding%2Dtop%3A%2010px%3B%0Afont%2Dsize%3A%20120%25%3B%0A%7D%0Ah4%20%7B%0Aborder%2Dbottom%3A%201px%20solid%20%23f5f5f5%3B%0Amargin%2Dleft%3A%208px%3B%0Afont%2Dsize%3A%20105%25%3B%0A%7D%0Ah5%2C%20h6%20%7B%0Aborder%2Dbottom%3A%201px%20solid%20%23ccc%3B%0Afont%2Dsize%3A%20105%25%3B%0A%7D%0Aa%20%7B%0Acolor%3A%20%230033dd%3B%0Atext%2Ddecoration%3A%20none%3B%0A%7D%0Aa%3Ahover%20%7B%0Acolor%3A%20%236666ff%3B%20%7D%0Aa%3Avisited%20%7B%0Acolor%3A%20%23800080%3B%20%7D%0Aa%3Avisited%3Ahover%20%7B%0Acolor%3A%20%23BB00BB%3B%20%7D%0Aa%5Bhref%5E%3D%22http%3A%22%5D%20%7B%0Atext%2Ddecoration%3A%20underline%3B%20%7D%0Aa%5Bhref%5E%3D%22https%3A%22%5D%20%7B%0Atext%2Ddecoration%3A%20underline%3B%20%7D%0Adiv%2Er%2Dhelp%2Dpage%20%7B%0Abackground%2Dcolor%3A%20%23f9f9f9%3B%0Aborder%2Dbottom%3A%20%23ddd%201px%20solid%3B%0Amargin%2Dbottom%3A%2010px%3B%0Apadding%3A%2010px%3B%0A%7D%0Adiv%2Er%2Dhelp%2Dpage%3Ahover%20%7B%0Abackground%2Dcolor%3A%20%23f4f4f4%3B%0A%7D%0A%0Acode%20%3E%20span%2Ekw%20%7B%20color%3A%20%23555%3B%20font%2Dweight%3A%20bold%3B%20%7D%20%0Acode%20%3E%20span%2Edt%20%7B%20color%3A%20%23902000%3B%20%7D%20%0Acode%20%3E%20span%2Edv%20%7B%20color%3A%20%2340a070%3B%20%7D%20%0Acode%20%3E%20span%2Ebn%20%7B%20color%3A%20%23d14%3B%20%7D%20%0Acode%20%3E%20span%2Efl%20%7B%20color%3A%20%23d14%3B%20%7D%20%0Acode%20%3E%20span%2Ech%20%7B%20color%3A%20%23d14%3B%20%7D%20%0Acode%20%3E%20span%2Est%20%7B%20color%3A%20%23d14%3B%20%7D%20%0Acode%20%3E%20span%2Eco%20%7B%20color%3A%20%23888888%3B%20font%2Dstyle%3A%20italic%3B%20%7D%20%0Acode%20%3E%20span%2Eot%20%7B%20color%3A%20%23007020%3B%20%7D%20%0Acode%20%3E%20span%2Eal%20%7B%20color%3A%20%23ff0000%3B%20font%2Dweight%3A%20bold%3B%20%7D%20%0Acode%20%3E%20span%2Efu%20%7B%20color%3A%20%23900%3B%20font%2Dweight%3A%20bold%3B%20%7D%20%0Acode%20%3E%20span%2Eer%20%7B%20color%3A%20%23a61717%3B%20background%2Dcolor%3A%20%23e3d2d2%3B%20%7D%20%0A" rel="stylesheet" type="text/css" />
 
 </head>
@@ -64,11 +67,11 @@ code > span.in { color: #60a0b0; font-weight: bold; font-style: italic; } /* Inf
 
 
 
-<div id="header">
-<h1 class="title">Custom Print Methods</h1>
+
+<h1 class="title toc-ignore">Custom Print Methods</h1>
 <h4 class="author"><em>Yihui Xie</em></h4>
-<h4 class="date"><em>2016-01-21</em></h4>
-</div>
+<h4 class="date"><em>2016-05-09</em></h4>
+
 
 <div id="TOC">
 <ul>
@@ -98,7 +101,12 @@ Valiant           18.1   6  225 105 2.76 3.460 20.22  1  0    3    1</code></pre
 knit_print  <span class="co"># an S3 generic function</span></code></pre></div>
 <pre><code>## function (x, ...) 
 ## {
-##     UseMethod(&quot;knit_print&quot;, x)
+##     if (need_screenshot(x, ...)) {
+##         html_screenshot(x)
+##     }
+##     else {
+##         UseMethod(&quot;knit_print&quot;)
+##     }
 ## }
 ## &lt;environment: namespace:knitr&gt;</code></pre>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">methods</span>(knit_print)</code></pre></div>
@@ -151,7 +159,7 @@ knit_print.data.frame =<span class="st"> </span>function(x, ...) {
 <table>
 <thead>
 <tr class="header">
-<th align="left"></th>
+<th></th>
 <th align="right">mpg</th>
 <th align="right">cyl</th>
 <th align="right">disp</th>
@@ -167,7 +175,7 @@ knit_print.data.frame =<span class="st"> </span>function(x, ...) {
 </thead>
 <tbody>
 <tr class="odd">
-<td align="left">Mazda RX4</td>
+<td>Mazda RX4</td>
 <td align="right">21.0</td>
 <td align="right">6</td>
 <td align="right">160</td>
@@ -181,7 +189,7 @@ knit_print.data.frame =<span class="st"> </span>function(x, ...) {
 <td align="right">4</td>
 </tr>
 <tr class="even">
-<td align="left">Mazda RX4 Wag</td>
+<td>Mazda RX4 Wag</td>
 <td align="right">21.0</td>
 <td align="right">6</td>
 <td align="right">160</td>
@@ -195,7 +203,7 @@ knit_print.data.frame =<span class="st"> </span>function(x, ...) {
 <td align="right">4</td>
 </tr>
 <tr class="odd">
-<td align="left">Datsun 710</td>
+<td>Datsun 710</td>
 <td align="right">22.8</td>
 <td align="right">4</td>
 <td align="right">108</td>
@@ -209,7 +217,7 @@ knit_print.data.frame =<span class="st"> </span>function(x, ...) {
 <td align="right">1</td>
 </tr>
 <tr class="even">
-<td align="left">Hornet 4 Drive</td>
+<td>Hornet 4 Drive</td>
 <td align="right">21.4</td>
 <td align="right">6</td>
 <td align="right">258</td>
@@ -223,7 +231,7 @@ knit_print.data.frame =<span class="st"> </span>function(x, ...) {
 <td align="right">1</td>
 </tr>
 <tr class="odd">
-<td align="left">Hornet Sportabout</td>
+<td>Hornet Sportabout</td>
 <td align="right">18.7</td>
 <td align="right">8</td>
 <td align="right">360</td>
@@ -237,7 +245,7 @@ knit_print.data.frame =<span class="st"> </span>function(x, ...) {
 <td align="right">2</td>
 </tr>
 <tr class="even">
-<td align="left">Valiant</td>
+<td>Valiant</td>
 <td align="right">18.1</td>
 <td align="right">6</td>
 <td align="right">225</td>
@@ -344,7 +352,8 @@ knit_print.foo =<span class="st"> </span>function(x, ...) {
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">str</span>(<span class="kw">knit_meta</span>(<span class="dt">clean =</span> <span class="ot">FALSE</span>))</code></pre></div>
 <pre><code>## List of 2
 ##  $ js : chr &quot;/Users/yihui/R/shiny/www/shared/shiny.js&quot;
-##  $ css: chr &quot;/Users/yihui/R/shiny/www/shared/shiny.css&quot;</code></pre>
+##  $ css: chr &quot;/Users/yihui/R/shiny/www/shared/shiny.css&quot;
+##  - attr(*, &quot;knit_meta_id&quot;)= chr [1:2] &quot;unnamed-chunk-9&quot; &quot;unnamed-chunk-9&quot;</code></pre>
 <p>Another <code>foo</code> object:</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">new_foo</span>(<span class="st">&quot;world&quot;</span>)</code></pre></div>
 <p><strong>This is a <code>foo</code> object</strong>: world</p>
@@ -365,7 +374,8 @@ new_bar =<span class="st"> </span>function(x) <span class="kw">structure</span>(
 ##  $ js  : chr &quot;/Users/yihui/R/shiny/www/shared/shiny.js&quot;
 ##  $ css : chr &quot;/Users/yihui/R/shiny/www/shared/shiny.css&quot;
 ##  $ head: chr &quot;&lt;script&gt;console.log(\&quot;bar!\&quot;)&lt;/script&gt;&quot;
-##  $ head: chr &quot;&lt;script&gt;console.log(\&quot;bar!\&quot;)&lt;/script&gt;&quot;</code></pre>
+##  $ head: chr &quot;&lt;script&gt;console.log(\&quot;bar!\&quot;)&lt;/script&gt;&quot;
+##  - attr(*, &quot;knit_meta_id&quot;)= chr [1:6] &quot;unnamed-chunk-9&quot; &quot;unnamed-chunk-9&quot; &quot;unnamed-chunk-11&quot; &quot;unnamed-chunk-11&quot; ...</code></pre>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">str</span>(<span class="kw">knit_meta</span>())  <span class="co"># empty now, because clean = TRUE by default</span></code></pre></div>
 <pre><code>##  list()</code></pre>
 </div>
@@ -376,7 +386,7 @@ new_bar =<span class="st"> </span>function(x) <span class="kw">structure</span>(
 <li><code>knit_print()</code> is an S3 generic function in <strong>knitr</strong>, so in theory you need to import it in your namespace via <code>importFrom(knitr, knit_print)</code>, but due to the “lack of rigor” of the S3 system, you can choose not to import <strong>knitr</strong>, and just do <code>export(knit_print.foo)</code> in the namespace, then R will find the S3 “method” after your package is attached via <code>library()</code>, because it is essentially a normal R function;</li>
 <li><p><code>asis_output()</code> is simply a function that marks an object with the class <code>knit_asis</code>, and you do not have to import this function to your package, either – just let your print method return <code>structure(x, class = 'knit_asis')</code>, and if there are additional metadata, just put it in the <code>knit_meta</code> attribute; here is the source code of this function:</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">knitr::asis_output</code></pre></div>
-<pre><code>## function (x, meta = NULL, cacheable = length(meta) == 0) 
+<pre><code>## function (x, meta = NULL, cacheable = NA) 
 ## {
 ##     structure(x, class = &quot;knit_asis&quot;, knit_meta = meta, knit_cacheable = cacheable)
 ## }

@@ -18,7 +18,7 @@ call_block = function(block) {
 
   # expand parameters defined via template
   if (!is.null(block$params$opts.label)) {
-    block$params <- merge_list(opts_template$get(block$params$opts.label), block$params)
+    block$params = merge_list(opts_template$get(block$params$opts.label), block$params)
   }
 
   params = opts_chunk$merge(block$params)
@@ -105,7 +105,7 @@ block_exec = function(options) {
     output = in_dir(opts_knit$get('root.dir') %n% input_dir(), engine(options))
     res.after = run_hooks(before = FALSE, options)
     output = paste(c(res.before, output, res.after), collapse = '')
-    output = if (is_blank(output)) '' else knit_hooks$get('chunk')(output, options)
+    output = knit_hooks$get('chunk')(output, options)
     if (options$cache) block_cache(
       options, output,
       if (options$engine == 'stan') options$engine.opts$x else character(0)
@@ -123,7 +123,7 @@ block_exec = function(options) {
                    options$dev, options$dev.args, options$dpi, options)) {
     # preserve par() settings from the last code chunk
     if (keep.pars <- opts_knit$get('global.par'))
-      par(opts_knit$get('global.pars'))
+      par2(opts_knit$get('global.pars'))
     showtext(options$fig.showtext)  # showtext support
     dv = dev.cur()
     on.exit({
@@ -162,6 +162,7 @@ block_exec = function(options) {
     options$error = err.code != 2L
   }
   cache.exists = cache$exists(options$hash, options$cache.lazy)
+  evaluate = knit_hooks$get('evaluate')
   # return code with class 'source' if not eval chunks
   res = if (is_blank(code)) list() else if (isFALSE(ev)) {
     as.source(code)
@@ -169,7 +170,7 @@ block_exec = function(options) {
     fix_evaluate(cache$output(options$hash, 'list'), options$cache == 1)
   } else in_dir(
     opts_knit$get('root.dir') %n% input_dir(),
-    evaluate::evaluate(
+    evaluate(
       code, envir = env, new_device = FALSE,
       keep_warning = !isFALSE(options$warning),
       keep_message = !isFALSE(options$message),
@@ -233,16 +234,16 @@ block_exec = function(options) {
 
   if (isTRUE(options$fig.beforecode)) res = fig_before_code(res)
 
-  on.exit(plot_counter(reset = TRUE), add = TRUE)  # restore plot number
-  if (options$fig.show != 'animate' && options$fig.num > 1) {
-    options = recycle_plot_opts(options)
-  }
+  on.exit({
+    plot_counter(reset = TRUE)
+    shot_counter(reset = TRUE)
+  }, add = TRUE)  # restore plot number
 
   output = unlist(wrap(res, options)) # wrap all results together
   res.after = run_hooks(before = FALSE, options, env) # run 'after' hooks
 
   output = paste(c(res.before, output, res.after), collapse = '')  # insert hook results
-  output = if (is_blank(output)) '' else knit_hooks$get('chunk')(output, options)
+  output = knit_hooks$get('chunk')(output, options)
 
   if (options$cache > 0) {
     obj.new = setdiff(ls(globalenv(), all.names = TRUE), obj.before)
@@ -256,7 +257,7 @@ block_exec = function(options) {
       dep_auto()
     }
     if (options$cache < 3) {
-      if (!cache.exists) block_cache(options, res.orig, objs)
+      if (options$cache.rebuild || !cache.exists) block_cache(options, res.orig, objs)
     } else block_cache(options, output, objs)
   }
 
@@ -265,7 +266,7 @@ block_exec = function(options) {
 
 block_cache = function(options, output, objects) {
   hash = options$hash
-  outname = sprintf('.%s', hash)
+  outname = cache_output_name(hash)
   assign(outname, output, envir = knit_global())
   purge_cache(options)
   cache$library(options$cache.path, save = TRUE)
@@ -291,11 +292,12 @@ chunk_device = function(width, height, record = TRUE, dev, dev.args, dpi, option
         filename = tempfile(), width = width, height = height, units = 'in', res = dpi
       ), get_dargs(dev.args, 'png')))
     } else if (identical(dev, 'tikz')) {
-      do.call(tikz_dev, c(list(
+      dargs = c(list(
         file = paste0(tempfile(), ".tex"), width = width, height = height
-      ), get_dargs(dev.args, 'tikz'), list(
-        sanitize = options$sanitize, standAlone = options$external
-      )))
+      ), get_dargs(dev.args, 'tikz'))
+      dargs$sanitize = options$sanitize; dargs$standAlone = options$external
+      if (is.null(dargs$verbose)) dargs$verbose = FALSE
+      do.call(tikz_dev, dargs)
     } else if (identical(getOption('device'), pdf_null)) {
       if (!is.null(dev.args)) {
         dev.args = get_dargs(dev.args, 'pdf')
@@ -389,7 +391,7 @@ inline_exec = function(block, envir = knit_global(), hook = knit_hooks$get('inli
   for (i in 1:n) {
     v = withVisible(eval(parse_only(code[i]), envir = envir))
     res = if (v$visible) knit_print(v$value, inline = TRUE, options = opts_chunk$get())
-    if (inherits(res, c('knit_asis', 'knit_asis_list'))) res = wrap(res, inline = TRUE)
+    if (inherits(res, 'knit_asis')) res = wrap(res, inline = TRUE)
     d = nchar(input)
     # replace with evaluated results
     stringr::str_sub(input, loc[i, 1], loc[i, 2]) = if (length(res)) {

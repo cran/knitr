@@ -21,10 +21,13 @@ hook_plot_md = function(x, options) {
   hook_plot_md_base(x, options)
 }
 
-is_html_output = function(fmt = pandoc_to()) {
+# excludes can be a vector of 'markdown', 'epub', etc
+is_html_output = function(fmt = pandoc_to(), excludes = NULL) {
   if (length(fmt) == 0) return(FALSE)
-  grepl('^markdown', fmt) ||
-    fmt %in% c('html', 'html5', 'revealjs', 's5', 'slideous', 'slidy')
+  if (grepl('^markdown', fmt)) fmt = 'markdown'
+  if (fmt == 'epub3') fmt = 'epub'
+  fmts = c('markdown', 'epub', 'html', 'html5', 'revealjs', 's5', 'slideous', 'slidy')
+  fmt %in% setdiff(fmts, excludes)
 }
 
 hook_plot_md_base = function(x, options) {
@@ -33,20 +36,26 @@ hook_plot_md_base = function(x, options) {
   base = opts_knit$get('base.url') %n% ''
   cap = .img.cap(options)
 
-  w = options$out.width; h = options$out.height
+  w = options[['out.width']]; h = options[['out.height']]
   s = options$out.extra; a = options$fig.align
   ai = options$fig.show == 'asis'
+  lnk = options$fig.link
   pandoc_html = cap != '' && is_html_output()
+  in_bookdown = isTRUE(opts_knit$get('bookdown.internal.label'))
   plot1 = ai || options$fig.cur <= 1L
   plot2 = ai || options$fig.cur == options$fig.num
-  if (is.null(w) && is.null(h) && is.null(s) && a == 'default' && !pandoc_html) {
+  if (is.null(w) && is.null(h) && is.null(s) && a == 'default' && !(pandoc_html && in_bookdown)) {
     # append \ to ![]() to prevent the figure environment in these cases
-    nocap = cap == '' && !is.null(pandoc_to()) && (options$fig.num == 1 || ai) &&
-      !grepl('-implicit_figures', pandoc_from())
-    return(sprintf(
-      '![%s](%s%s)%s%s', cap, base, .upload.url(x),
-      if (nocap) '<!-- -->' else '', if (is_latex_output()) ' ' else ''
-    ))
+    nocap = cap == '' && !is.null(to <- pandoc_to()) && !grepl('^markdown', to) &&
+      (options$fig.num == 1 || ai) && !grepl('-implicit_figures', pandoc_from())
+    res = sprintf('![%s](%s%s)', cap, base, .upload.url(x))
+    if (!is.null(lnk) && !is.na(lnk)) res = sprintf('[%s](%s)', res, lnk)
+    res = paste0(res, if (nocap) '<!-- -->' else '', if (is_latex_output()) ' ' else '')
+    return(res)
+  }
+  add_link = function(x) {
+    if (is.null(lnk) || is.na(lnk)) return(x)
+    sprintf('<a href="%s" target="_blank">%s</a>', lnk, x)
   }
   # use HTML syntax <img src=...>
   if (pandoc_html) {
@@ -56,16 +65,17 @@ hook_plot_md_base = function(x, options) {
       '<img src="%s" alt="%s" %s />',
       paste0(opts_knit$get('base.url'), .upload.url(x)), cap, .img.attr(w, h, s)
     )
+    img = add_link(img)
     # whether to place figure caption at the top or bottom of a figure
     if (isTRUE(options$fig.topcaption)) {
       paste0(d1, if (ai || options$fig.cur <= 1) d2, img, if (plot2) '</div>')
     } else {
       paste0(d1, img, if (plot2) paste0('\n', d2, '\n</div>'))
     }
-  } else .img.tag(
+  } else add_link(.img.tag(
     .upload.url(x), w, h, cap,
     c(s, sprintf('style="%s"', css_align(a)))
-  )
+  ))
 }
 
 css_align = function(align) {
@@ -85,30 +95,33 @@ css_text_align = function(align) {
 #'   put in fences made by three backticks; for reST, if \code{TRUE}, code is
 #'   put under two colons and indented by 4 spaces, otherwise is put under the
 #'   \samp{sourcecode} directive (e.g. it is useful for Sphinx)
-render_markdown = function(strict = FALSE) {
+#' @param fence_char a single character to be used in the code blocks fence
+#'   (e.g. it can be a backtick or a tilde, depending on your Markdown rendering
+#'   engine)
+render_markdown = function(strict = FALSE, fence_char = '`') {
   set_html_dev()
   opts_knit$set(out.format = 'markdown')
+  fence = paste(rep(fence_char, 3), collapse = '')
   # four spaces lead to <pre></pre>
   hook.t = function(x, options) {
     if (strict) {
       paste('\n', indent_block(x), '', sep = '\n')
     } else {
       x = paste(c('', x), collapse = '\n')
-      fence = '```'
-      if (grepl('\n`{3,}', x)) {
-        l = attr(gregexpr('\n`{3,}', x)[[1]], 'match.length', exact = TRUE)
+      r = paste0('\n', fence_char, '{3,}')
+      if (grepl(r, x)) {
+        l = attr(gregexpr(r, x)[[1]], 'match.length')
         l = max(l)
-        if (l >= 4) fence = paste(rep('`', l), collapse = '')
+        if (l >= 4) fence = paste(rep(fence_char, l), collapse = '')
       }
       paste0('\n\n', fence, x, fence, '\n\n')
     }
   }
   hook.r = function(x, options) {
     language = tolower(options$engine)
-    if (language == 'node')
-        language = 'javascript'
+    if (language == 'node') language = 'javascript'
     if (!options$highlight) language = 'text'
-    paste0('\n\n```', language, '\n', x, '```\n\n')
+    paste0('\n\n', fence, language, '\n', x, fence, '\n\n')
   }
   knit_hooks$set(
     source = function(x, options) {
@@ -122,26 +135,26 @@ render_markdown = function(strict = FALSE) {
     },
     plot = hook_plot_md,
     chunk = function(x, options) {
-      x = gsub('[\n]{2,}(```|    )', '\n\n\\1', x)
+      x = gsub(paste0('[\n]{2,}(', fence, '|    )'), '\n\n\\1', x)
       x = gsub('[\n]+$', '', x)
       x = gsub('^[\n]+', '\n', x)
       if (isTRUE(options$collapse)) {
-        x = gsub(paste0('\n([`]{3,})\n+\\1(', tolower(options$engine), ')?\n'), "\n", x)
+        x = gsub(paste0('\n([', fence_char, ']{3,})\n+\\1(', tolower(options$engine), ')?\n'), "\n", x)
       }
       if (is.null(s <- options$indent)) return(x)
       line_prompt(x, prompt = s, continue = s)
     }
   )
 }
-#'@param highlight which code highlighting engine to use: for \code{pygments},
-#'  the Liquid syntax is used (default approach Jekyll); for \code{prettify},
-#'  the output is prepared for the JavaScript library \file{prettify.js}; for
-#'  \code{none}, no highlighting engine will be used (code blocks are indented
-#'  by 4 spaces)
-#'@param extra extra tags for the highlighting engine; for \code{pygments}, it
-#'  can be \code{'linenos'}; for \code{prettify}, it can be \code{'linenums'}
-#'@rdname output_hooks
-#'@export
+#' @param highlight which code highlighting engine to use: for \code{pygments},
+#'   the Liquid syntax is used (default approach Jekyll); for \code{prettify},
+#'   the output is prepared for the JavaScript library \file{prettify.js}; for
+#'   \code{none}, no highlighting engine will be used (code blocks are indented
+#'   by 4 spaces)
+#' @param extra extra tags for the highlighting engine; for \code{pygments}, it
+#'   can be \code{'linenos'}; for \code{prettify}, it can be \code{'linenums'}
+#' @rdname output_hooks
+#' @export
 render_jekyll = function(highlight = c('pygments', 'prettify', 'none'), extra = '') {
   hi = match.arg(highlight)
   render_markdown(TRUE)

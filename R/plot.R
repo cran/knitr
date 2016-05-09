@@ -45,7 +45,7 @@ quartz_dev = function(type, dpi) {
 
 # a wrapper of the tikzDevice::tikz device
 tikz_dev = function(...) {
-  suppressPackageStartupMessages(do.call('library', list('tikzDevice')))
+  loadNamespace('tikzDevice')
   packages = switch(
     getOption('tikzDefaultEngine'),
     pdftex = getOption('tikzLatexPackages'),
@@ -193,21 +193,17 @@ is_low_change = function(p1, p2) {
 # recycle some plot options such as fig.cap, out.width/height, etc when there
 # are multiple plots per chunk
 .recyle.opts = c('fig.cap', 'fig.scap', 'fig.env', 'fig.pos', 'fig.subcap',
-                 'out.width', 'out.height', 'out.extra')
-recycle_plot_opts = function(options) {
-  n = options$fig.num
-  for (i in .recyle.opts) {
-    if (length(options[[i]]) == 0L) next
-    options[[i]] = rep(options[[i]], length.out = n)
-  }
-  options
-}
+                 'out.width', 'out.height', 'out.extra', 'fig.link')
 
 # when passing options to plot hooks, reduce the recycled options to scalars
 reduce_plot_opts = function(options) {
-  if (options$fig.show == 'animate' || options$fig.num <= 1L) return(options)
-  fig.cur = options$fig.cur
-  for (i in .recyle.opts) options[i] = list(options[[i]][fig.cur])
+  i = options$fig.cur %n% 1L
+  for (o in .recyle.opts) {
+    v = options[[o]]
+    if ((n <- length(v)) == 0) next
+    if ((j <- i %% n) == 0) j = n
+    options[o] = list(v[j])
+  }
   options
 }
 
@@ -322,6 +318,21 @@ showtext = function(show) {
   if (isTRUE(show)) getFromNamespace('showtext.begin', 'showtext')()
 }
 
+# handle some special cases of par()
+par2 = function(x) {
+  if (length(x) == 0) return()
+  # this may not be correct, but there is no way to tell if the user set mfrow
+  # or mfcol in par() (either setting will change mfrow/mfcol simultaneously),
+  # and I just assume it was mfrow
+  if (!is.null(x$mfrow)) {
+    # do this before the rest of pars because setting mfrow/mfcol will reset cex
+    par(mfrow = x$mfrow)
+    x$mfrow = x$mfcol = NULL
+  }
+  x$usr = NULL  # you are unlikely to want to reset usr
+  par(x)
+}
+
 #' Embed external images in \pkg{knitr} documents
 #'
 #' When plots are not generated from R code, there is no way for \pkg{knitr} to
@@ -339,18 +350,158 @@ showtext = function(show) {
 #'   \file{foo/bar.pdf} if the latter exists; this can be useful since normally
 #'   PDF images are of higher qualities than raster images like PNG when the
 #'   output is LaTeX/PDF
+#' @param dpi the DPI (dots per inch) value to be used to calculate the output
+#'   width (in inches) of the images from the actual width (in pixels) divided
+#'   by \code{dpi}; if not provided, the chunk option \code{dpi} is used; if
+#'   \code{NA}, the output width will not be calculated
 #' @note This function is supposed to be used in R code chunks or inline R code
 #'   expressions. You are recommended to use forward slashes (\verb{/}) as path
 #'   separators instead of backslashes in the image paths.
+#'
+#'   The automatic calculation of the output width requires the \pkg{png}
+#'   package (for PNG images) or the \pkg{jpeg} package (for JPEG images). The
+#'   width will not be calculated if the chunk option \code{out.width} is
+#'   already provided or \code{dpi = NA}.
 #' @return The same as the input character vector \code{path} but it is marked
 #'   with special internal S3 classes so that \pkg{knitr} will convert the file
 #'   paths to proper output code according to the output format.
 #' @export
-include_graphics = function(path, auto_pdf = TRUE) {
+include_graphics = function(path, auto_pdf = TRUE, dpi = NULL) {
   if (auto_pdf && is_latex_output()) {
     path2 = sub_ext(path, 'pdf')
     i = file.exists(path2)
     path[i] = path2[i]
   }
-  structure(path, class = c('knit_image_paths', 'knit_asis'))
+  structure(path, class = c('knit_image_paths', 'knit_asis'), dpi = dpi)
+}
+
+# calculate the width in inches for PNG/JPEG images given a DPI
+raster_dpi_width = function(path, dpi) {
+  if (!file.exists(path) || is.na(dpi)) return()
+  is_png = grepl('[.]png$', path, ignore.case = TRUE)
+  is_jpg = grepl('[.]jpe?g$', path, ignore.case = TRUE)
+  if (!is_png && !is_jpg) return()
+  if (is_png) {
+    if (!loadable('png')) return()
+    meta = attr(png::readPNG(path, native = TRUE, info = TRUE), 'info')
+    w = meta$dim[1]
+    if (!is.numeric(dpi)) dpi = meta$dpi[1]
+    if (!is.numeric(dpi)) return()  # cannot calculate the desired width
+  } else if (is_jpg) {
+    if (!loadable('jpeg')) return()
+    if (!is.numeric(dpi)) return()  # there is no dpi info in JPEG
+    w = ncol(jpeg::readJPEG(path, native = TRUE))
+  }
+  if (is_latex_output()) {
+    paste0(round(w / dpi, 2), 'in')
+  } else if (is_html_output()) {
+    round(w / (dpi / 96))
+  }
+}
+
+#' Embed a URL as an HTML iframe or a screenshot in \pkg{knitr} documents
+#'
+#' When the output format is HTML, \code{include_url()} inserts an iframe in the
+#' output; otherwise it takes a screenshot of the URL and insert the image in
+#' the output. \code{include_app()} takes the URL of a Shiny app and adds
+#' \samp{?showcase=0} to it (to disable the showcase mode), then passes the URL
+#' to \code{include_url()}.
+#' @param url a character string of a URL
+#' @param height the height of the iframe
+#' @return An R object with a special class that \pkg{knitr} recognizes
+#'   internally to generate the iframe or screenshot.
+#' @seealso \code{\link{include_graphics}}
+#' @export
+include_url = function(url, height = '400px') {
+  include_url2(url, height)
+}
+
+include_url2 = function(url, height = '400px', orig = url) {
+  structure(
+    list(url = url, height = height, url.orig = orig),
+    class = c('knit_embed_url', 'knit_asis')
+  )
+}
+
+#' @rdname include_url
+#' @export
+include_app = function(url, height = '400px') {
+  orig = url  # store the original URL
+  if (!grepl('?', url, fixed = TRUE)) url = paste0(url, '?showcase=0')
+  include_url2(url, height, orig)
+}
+
+need_screenshot = function(x, ...) {
+  options = list(...)[['options']]
+  # user may say 'I know the consequence; just let me render HTML'
+  if (isFALSE(options$screenshot.force)) return(FALSE)
+  # force screenshotting even if the output format support HTML
+  force = is.list(options) && isTRUE(options$screenshot.force)
+  fmt = pandoc_to()
+  i1 = inherits(x, 'htmlwidget')
+  i2 = inherits(x, 'shiny.appobj')
+  i3 = inherits(x, 'knit_embed_url')
+  # not R Markdown v2, always screenshot htmlwidgets and shiny apps
+  if (length(fmt) == 0 || force) return(i1 || i2 || i3)
+  html_format = fmt %in% c('html', 'html5', 'revealjs', 's5', 'slideous', 'slidy')
+  ((i1 || i3) && !html_format) || (i2 && !(html_format && runtime_shiny()))
+}
+
+runtime_shiny = function() {
+  identical(opts_knit$get('rmarkdown.runtime'), 'shiny')
+}
+
+html_screenshot = function(x, options = opts_current$get(), ...) {
+  i1 = inherits(x, 'htmlwidget')
+  i2 = inherits(x, 'shiny.appobj')
+  i3 = inherits(x, 'knit_embed_url')
+  if (!(i1 || i2 || i3))
+    stop('Screenshotting for the class ', class(x)[1], ' is not supported.')
+
+  # if user has specified the screenshot image, just use it
+  if (!is.null(shots <- options$screenshot.alt)) {
+    i = shot_counter()
+    if (length(shots) < i) stop('Not enough number of screenshots provided')
+    return(structure(list(file = shots[i]), class = 'html_screenshot'))
+  }
+
+  if (!loadable('webshot')) stop(
+    'Please install the webshot package ',
+    '(if not on CRAN, try devtools::install_github("wch/webshot"))'
+  )
+
+  ext = switch(options$dev, pdf = '.pdf', jpeg = '.jpeg', '.png')
+  wargs = options$screenshot.opts %n% list()
+  if (is.null(wargs$vwidth)) wargs$vwidth = options$out.width.px
+  if (is.null(wargs$vheight)) wargs$vheight = options$out.height.px
+  if (is.null(wargs$delay)) wargs$delay = if (i1) 0.2 else 1
+  d = tempfile()
+  dir.create(d); on.exit(unlink(d, recursive = TRUE), add = TRUE)
+  f = in_dir(d, {
+    if (i1 || i3) {
+      if (i1) {
+        f1 = basename(tempfile('widget', '.', '.html'))
+        save_widget(x, f1, FALSE, options = options)
+      } else f1 = x$url
+      f2 = tempfile('webshot', '.', ext)
+      do.call(webshot::webshot, c(list(f1, f2), wargs))
+      normalizePath(f2)
+    } else if (i2) {
+      f = tempfile('webshot', '.', ext)
+      do.call(webshot::appshot, c(list(x, f), wargs))
+      normalizePath(f)
+    }
+  })
+  res = readBin(f, 'raw', file.info(f)[, 'size'])
+  structure(
+    list(image = res, extension = ext, url = if (i3) x$url.orig),
+    class = 'html_screenshot'
+  )
+}
+
+save_widget = function(..., options) {
+  FUN = htmlwidgets::saveWidget
+  if ('knitrOptions' %in% names(formals(FUN))) {
+    FUN(..., knitrOptions = options)
+  } else FUN(...)
 }

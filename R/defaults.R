@@ -47,6 +47,9 @@ new_defaults = function(value = list()) {
 #'
 #'   A list of available options:
 #'   \url{http://yihui.name/knitr/options#chunk_options}
+#' @note \code{opts_current} is read-only in the sense that it does nothing if
+#'   you call \code{opts_current$set()}; you can only query the options via
+#'   \code{opts_current$get()}.
 #' @export
 #' @examples opts_chunk$get('prompt'); opts_chunk$get('fig.keep')
 opts_chunk = new_defaults(list(
@@ -148,7 +151,7 @@ set_alias = function(...) {
 #' }
 #' @include hooks-html.R
 opts_knit = new_defaults(list(
-  progress = TRUE, verbose = FALSE, width = 75L, eval.after = NULL,
+  progress = TRUE, verbose = FALSE, width = 75L, eval.after = 'fig.cap',
   base.dir = NULL, base.url = NULL, root.dir = NULL, child.path = '',
   upload.fun = identity, animation.fun = hook_ffmpeg_html,
   global.device = FALSE, global.par = FALSE,

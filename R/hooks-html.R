@@ -27,9 +27,12 @@ hook_plot_html = function(x, options) {
 }
 
 .img.tag = function(src, w, h, caption, extra) {
+  caption = if (length(caption) == 1 && caption != '') {
+    paste0('title="', caption, '" alt="', caption, '" ')
+  }
   paste0(
-    '<img src="', opts_knit$get('base.url'), src, '" title="', caption,
-    '" alt="', caption, '" ', .img.attr(w, h, extra), ' />'
+    '<img src="', opts_knit$get('base.url'), src, '" ', caption,
+    .img.attr(w, h, extra), ' />'
   )
 }
 
@@ -38,7 +41,7 @@ hook_plot_html = function(x, options) {
     if (is.null(pandoc_to())) sprintf('plot of chunk %s', options$label) else ''
   }
   if (length(cap) == 0) cap = ''
-  if (cap == '') return(cap)
+  if (is_blank(cap)) return(cap)
   paste0(create_label(options$fig.lp, options$label), cap)
 }
 

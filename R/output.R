@@ -459,25 +459,22 @@ wrap.character = function(x, options) {
 # class 'knit_asis', it will be written as is.
 #' @export
 wrap.knit_asis = function(x, options, inline = FALSE) {
-  if (isFALSE(attr(x, 'knit_cacheable', exact = TRUE)) &&
-        (!missing(options) && options$cache > 0))
-    stop("The code chunk '", options$label, "' is not cacheable; ",
-         "please use the chunk option cache=FALSE on this chunk")
-  m = attr(x, 'knit_meta', exact = TRUE)
-  if (length(m)) {
-    .knitEnv$meta = c(.knitEnv$meta, m)
+  m = attr(x, 'knit_meta')
+  knit_meta_add(m, if (missing(options)) '' else options$label)
+  if (!missing(options)) {
+    if (options$cache > 0 && isFALSE(attr(x, 'knit_cacheable'))) stop(
+      "The code chunk '", options$label, "' is not cacheable; ",
+      "please use the chunk option cache=FALSE on this chunk"
+    )
+    # store metadata in an object named of the form .hash_meta when cache=TRUE
+    if (length(m) && options$cache == 3)
+      assign(cache_meta_name(options$hash), m, envir = knit_global())
   }
   x = as.character(x)
   if (!out_format('latex') || inline) return(x)
   # latex output need the \end{kframe} trick
   options$results = 'asis'
   knit_hooks$get('output')(x, options)
-}
-
-#' @export
-wrap.knit_asis_list = function(x, options, inline = FALSE) {
-  res = lapply(x, wrap, options = options, inline = inline)
-  paste(unlist(res), collapse = '\n')
 }
 
 #' @export
@@ -496,7 +493,19 @@ msg_wrap = function(message, type, options) {
     list(c(knit_log$get(type), paste0('Chunk ', options$label, ':\n  ', message))),
     type
   ))
+  msg_sanitize(message, type)
   knit_hooks$get(type)(comment_out(message, options$comment), options)
+}
+
+# set options(knitr.sanitize.errors = TRUE) to hide error messages, etc
+msg_sanitize = function(message, type) {
+  type = match.arg(type, c('error', 'warning', 'message'))
+  opt = getOption(sprintf('knitr.sanitize.%ss', type), FALSE)
+  if (isTRUE(opt)) message = switch(
+    type, error = 'An error occurred', warning = 'A warning was emitted',
+    message = 'A message was emitted'
+  ) else if (is.character(opt)) message = opt
+  message
 }
 
 #' @export
@@ -540,13 +549,61 @@ wrap.recordedplot = function(x, options) {
 }
 
 #' @export
-wrap.knit_image_paths = function(x, options, inline = FALSE) {
+wrap.knit_image_paths = function(x, options = opts_chunk$get(), inline = FALSE) {
   hook_plot = knit_hooks$get('plot')
   options$fig.num = length(x)
+  # remove the automatically set out.width when fig.retina is set, otherwise the
+  # size of external images embedded via include_graphics() will be set to
+  # fig.width * dpi in fix_options()
+  if (is.numeric(r <- options$fig.retina)) {
+    w1 = options$out.width
+    w2 = options$fig.width * options$dpi / r
+    if (length(w1) * length(w2) == 1 && is.numeric(w1) && w1 == w2)
+      options['out.width'] = list(NULL)
+  }
+  dpi = attr(x, 'dpi') %n% options$dpi
   paste(unlist(lapply(seq_along(x), function(i) {
     options$fig.cur = i
-    hook_plot(x[i], options)
+    if (is.null(options[['out.width']]))
+      options['out.width'] = list(raster_dpi_width(x[i], dpi))
+    hook_plot(x[i], reduce_plot_opts(options))
   })), collapse = '')
+}
+
+#' @export
+wrap.html_screenshot = function(x, options = opts_chunk$get(), inline = FALSE) {
+  ext = x$extension
+  hook_plot = knit_hooks$get('plot')
+  in_base_dir({
+    i = plot_counter()
+    if (is.null(f <- x$file)) {
+      f = fig_path(ext, options, i)
+      dir.create(dirname(f), recursive = TRUE, showWarnings = FALSE)
+      writeBin(x$image, f, useBytes = TRUE)
+    }
+    # crop white margins
+    if (isTRUE(options$crop)) in_dir(dirname(f), plot_crop(basename(f)))
+    options$fig.cur = i
+    options = reduce_plot_opts(options)
+    if (!is.null(x$url) && is.null(options$fig.link)) options$fig.link = x$url
+    hook_plot(f, options)
+  })
+}
+
+#' @export
+wrap.knit_embed_url = function(x, options = opts_chunk$get(), inline = FALSE) {
+  options$fig.cur = plot_counter()
+  options = reduce_plot_opts(options)
+  iframe = sprintf(
+    '<iframe src="%s" width="%s" height="%s"></iframe>',
+    escape_html(x$url), options$out.width %n% '100%', x$height %n% '400px'
+  )
+  cap = .img.cap(options)
+  if (cap == '') return(iframe)
+  sprintf(
+    '<div class="figure"%s>\n%s\n<p class="caption">%s</p>\n</div>',
+    css_text_align(options$fig.align), iframe, cap
+  )
 }
 
 #' A custom printing function
@@ -584,7 +641,11 @@ wrap.knit_image_paths = function(x, options, inline = FALSE) {
 #' # after you defined the above method, data frames will be printed as tables in knitr,
 #' # which is different with the default print() behavior
 knit_print = function(x, ...) {
-  UseMethod('knit_print', x)
+  if (need_screenshot(x, ...)) {
+    html_screenshot(x)
+  } else {
+    UseMethod('knit_print')
+  }
 }
 
 #" the default print method is just print()/show()
@@ -616,22 +677,28 @@ formals(normal_print) = alist(x = , ... = )
 #' recommended to use \code{cacheable = FALSE} to instruct \pkg{knitr} that this
 #' object should not be cached using the chunk option \code{cache = TRUE},
 #' otherwise the side effects will be lost the next time the chunk is knitted.
-#' For example, printing a \pkg{shiny} input element in an R Markdown document
-#' may involve registering metadata about some JavaScript libraries or
-#' stylesheets, and the metadata may be lost if we cache the code chunk, because
-#' the code evaluation will be skipped the next time.
+#' For example, printing a \pkg{shiny} input element or an HTML widget in an R
+#' Markdown document may involve registering metadata about some JavaScript
+#' libraries or stylesheets, and the metadata may be lost if we cache the code
+#' chunk, because the code evaluation will be skipped the next time. This
+#' particular issue has been solved in \pkg{knitr} after v1.13 (the metadata
+#' will be saved and loaded automatically when caching is enabled), but not all
+#' metadata can be saved and loaded next time and still works in the new R
+#' session.
 #' @param x an R object (typically a character string, or can be converted to a
 #'   character string via \code{\link{as.character}()})
 #' @param meta additional metadata of the object to be printed (the metadata
 #'   will be collected when the object is printed, and accessible via
 #'   \code{knit_meta()})
-#' @param cacheable a logical value indicating if this object is cacheable
+#' @param cacheable a logical value indicating if this object is cacheable; if
+#'   \code{FALSE}, \pkg{knitr} will stop when caching is enabled on code chunks
+#'   that contain \code{asis_output()}
 #' @note This function only works in top-level R expressions, and it will not
 #'   work when it is called inside another expression, such as a for-loop. See
 #'   \url{https://github.com/yihui/knitr/issues/1137} for a discussion.
 #' @export
 #' @examples  # see ?knit_print
-asis_output = function(x, meta = NULL, cacheable = length(meta) == 0) {
+asis_output = function(x, meta = NULL, cacheable = NA) {
   structure(x, class = 'knit_asis', knit_meta = meta, knit_cacheable = cacheable)
 }
 
@@ -639,7 +706,8 @@ asis_output = function(x, meta = NULL, cacheable = length(meta) == 0) {
 #'
 #' As an object is printed, \pkg{knitr} will collect metadata about it (if
 #' available). After knitting is done, all the metadata is accessible via this
-#' function.
+#' function. You can manually add metadata to the \pkg{knitr} session via
+#' \code{knit_meta_add()}.
 #' @param class optionally return only metadata entries that inherit from the
 #'   specified class; the default, \code{NULL}, returns all entries.
 #' @param clean whether to clean the collected metadata; by default, the
@@ -648,15 +716,35 @@ asis_output = function(x, meta = NULL, cacheable = length(meta) == 0) {
 #'   defensive (i.e. not to have carryover metadata), you can call
 #'   \code{knit_meta()} before \code{knit()}
 #' @export
+#' @return \code{knit_meta()} returns the matched metadata specified by
+#'   \code{class}; \code{knit_meta_add()} returns all current metadata.
 knit_meta = function(class = NULL, clean = TRUE) {
-  matches = if (is.null(class)) {
-    # if no class was specified, match the whole list
-    seq_along(.knitEnv$meta)
-  } else if (length(.knitEnv$meta)) {
-    # if a class was specified, match the items belonging to the class
-    which(vapply(.knitEnv$meta, inherits, logical(1), what = class))
+  if (is.null(class)) {
+    if (clean) on.exit({.knitEnv$meta = list()}, add = TRUE)
+    return(.knitEnv$meta)
   }
-  if (length(matches) < 1) return(list())
-  if (clean) on.exit(.knitEnv$meta[matches] <- NULL, add = TRUE)
+  # if a class was specified, match the items belonging to the class
+  matches = if (length(.knitEnv$meta)) {
+    vapply(.knitEnv$meta, inherits, logical(1), what = class)
+  }
+  if (!any(matches)) return(list())
+  if (clean) on.exit({
+    .knitEnv$meta[matches] = NULL
+    id = attr(.knitEnv$meta, 'knit_meta_id')
+    if (length(id)) attr(.knitEnv$meta, 'knit_meta_id') = id[!matches]
+  }, add = TRUE)
   .knitEnv$meta[matches]
+}
+
+#' @param meta a metadata object to be added to the session
+#' @param label a chunk label to indicate which chunk the metadata belongs to
+#' @rdname knit_meta
+#' @export
+knit_meta_add = function(meta, label = '') {
+  if (length(meta)) {
+    meta_id = attr(.knitEnv$meta, 'knit_meta_id')
+    .knitEnv$meta = c(.knitEnv$meta, meta)
+    attr(.knitEnv$meta, 'knit_meta_id') = c(meta_id, rep(label, length(meta)))
+  }
+  .knitEnv$meta
 }
