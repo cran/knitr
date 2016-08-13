@@ -36,12 +36,12 @@ hook_plot_html = function(x, options) {
   )
 }
 
-.img.cap = function(options) {
+.img.cap = function(options, alt = FALSE) {
   cap = options$fig.cap %n% {
     if (is.null(pandoc_to())) sprintf('plot of chunk %s', options$label) else ''
   }
   if (length(cap) == 0) cap = ''
-  if (is_blank(cap)) return(cap)
+  if (is_blank(cap) || alt) return(cap)
   paste0(create_label(options$fig.lp, options$label), cap)
 }
 
@@ -94,9 +94,9 @@ hook_ffmpeg = function(x, options, format = 'webm') {
     'ffmpeg', '-y', '-r', 1 / options$interval, '-i', fig.fname, extra, mov.fname
   )
 
-  if (Sys.which('ffmpeg') == '') stop(
+  if (Sys.which('ffmpeg') == '') stop2(
     'Could not find ffmpeg command. You should either change the animation.fun ',
-    'hook option or install ffmpeg with libvpx enabled.', call. = FALSE
+    'hook option or install ffmpeg with libvpx enabled.'
   )
   message('executing: ', ffmpeg.cmd)
   system(ffmpeg.cmd, ignore.stdout = TRUE)

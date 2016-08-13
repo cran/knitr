@@ -700,7 +700,8 @@ current_input = function(dir = FALSE) {
       dir = FALSE
     }
   }
-  if (dir) file.path(outwd, input) else input
+  if (!dir) return(basename(input))
+  if (is_abs_path(input)) input else file.path(outwd, input)
 }
 
 # import output handlers from evaluate
@@ -792,3 +793,6 @@ combine_words = function(words, sep = ', ', and = ' and ', before = '', after = 
 
 # check if a package is loadable
 loadable = function(pkg) requireNamespace(pkg, quietly = TRUE)
+
+warning2 = function(...) warning(..., call. = FALSE)
+stop2 = function(...) stop(..., call. = FALSE)

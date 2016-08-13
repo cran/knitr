@@ -67,7 +67,9 @@ call_block = function(block) {
     }
     hash = paste(valid_path(params$cache.path, label), digest::digest(content), sep = '_')
     params$hash = hash
-    if (cache$exists(hash, params$cache.lazy) && isFALSE(params$cache.rebuild)) {
+    if (cache$exists(hash, params$cache.lazy) &&
+        isFALSE(params$cache.rebuild) &&
+        params$engine != 'Rcpp') {
       if (opts_knit$get('verbose')) message('  loading cache from ', hash)
       cache$load(hash, lazy = params$cache.lazy)
       if (!params$include) return('')
@@ -76,8 +78,7 @@ call_block = function(block) {
     if (params$engine == 'R')
       cache$library(params$cache.path, save = FALSE) # load packages
   } else if (label %in% names(dep_list$get()) && !isFALSE(opts_knit$get('warn.uncached.dep')))
-    warning('code chunks must not depend on the uncached chunk "', label, '"',
-            call. = FALSE)
+    warning2('code chunks must not depend on the uncached chunk "', label, '"')
 
   params$params.src = block$params.src
   opts_current$restore(params)  # save current options
@@ -118,6 +119,11 @@ block_exec = function(options) {
   obj.before = ls(globalenv(), all.names = TRUE)  # global objects before chunk
 
   keep = options$fig.keep
+  keep.idx = NULL
+  if (is.numeric(keep)) {
+    keep.idx = keep
+    keep = "index"
+  }
   # open a device to record plots
   if (chunk_device(options$fig.width[1L], options$fig.height[1L], keep != 'none',
                    options$dev, options$dev.args, options$dpi, options)) {
@@ -219,6 +225,8 @@ block_exec = function(options) {
         if (keep %in% c('first', 'last')) {
           res = res[-(if (keep == 'last') head else tail)(which(figs), -1L)]
         } else {
+          # keep only selected
+          if (keep == 'index') res = res[which(figs)[keep.idx]]
           # merge low-level plotting changes
           if (keep == 'high') res = merge_low_plot(res, figs)
         }
@@ -261,7 +269,7 @@ block_exec = function(options) {
     } else block_cache(options, output, objs)
   }
 
-  if (options$include) output else ''
+  if (options$include) output else if (is.null(s <- options$indent)) '' else s
 }
 
 block_cache = function(options, output, objects) {
@@ -284,9 +292,10 @@ purge_cache = function(options) {
 # not need to close the device on exit
 chunk_device = function(width, height, record = TRUE, dev, dev.args, dpi, options) {
   dev_new = function() {
-    # actually I should adjust the recording device according to dev, but here
-    # I have only considered the png and tikz devices (because the measurement
-    # results can be very different especially with the latter, see #1066)
+    # actually I should adjust the recording device according to dev, but here I
+    # have only considered the png and tikz devices (because the measurement
+    # results can be very different especially with the latter, see #1066), and
+    # also the cairo_pdf device (#1235)
     if (identical(dev, 'png')) {
       do.call(grDevices::png, c(list(
         filename = tempfile(), width = width, height = height, units = 'in', res = dpi
@@ -298,6 +307,10 @@ chunk_device = function(width, height, record = TRUE, dev, dev.args, dpi, option
       dargs$sanitize = options$sanitize; dargs$standAlone = options$external
       if (is.null(dargs$verbose)) dargs$verbose = FALSE
       do.call(tikz_dev, dargs)
+    } else if (identical(dev, 'cairo_pdf')) {
+      do.call(grDevices::cairo_pdf, c(list(
+        filename = tempfile(), width = width, height = height
+      ), get_dargs(dev.args, 'cairo_pdf')))
     } else if (identical(getOption('device'), pdf_null)) {
       if (!is.null(dev.args)) {
         dev.args = get_dargs(dev.args, 'pdf')

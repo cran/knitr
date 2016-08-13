@@ -35,6 +35,7 @@ hook_plot_md_base = function(x, options) {
 
   base = opts_knit$get('base.url') %n% ''
   cap = .img.cap(options)
+  alt = .img.cap(options, alt = TRUE)
 
   w = options[['out.width']]; h = options[['out.height']]
   s = options$out.extra; a = options$fig.align
@@ -45,7 +46,7 @@ hook_plot_md_base = function(x, options) {
   plot1 = ai || options$fig.cur <= 1L
   plot2 = ai || options$fig.cur == options$fig.num
   if (is.null(w) && is.null(h) && is.null(s) && a == 'default' && !(pandoc_html && in_bookdown)) {
-    # append \ to ![]() to prevent the figure environment in these cases
+    # append <!-- --> to ![]() to prevent the figure environment in these cases
     nocap = cap == '' && !is.null(to <- pandoc_to()) && !grepl('^markdown', to) &&
       (options$fig.num == 1 || ai) && !grepl('-implicit_figures', pandoc_from())
     res = sprintf('![%s](%s%s)', cap, base, .upload.url(x))
@@ -63,7 +64,7 @@ hook_plot_md_base = function(x, options) {
     d2 = sprintf('<p class="caption">%s</p>', cap)
     img = sprintf(
       '<img src="%s" alt="%s" %s />',
-      paste0(opts_knit$get('base.url'), .upload.url(x)), cap, .img.attr(w, h, s)
+      paste0(opts_knit$get('base.url'), .upload.url(x)), alt, .img.attr(w, h, s)
     )
     img = add_link(img)
     # whether to place figure caption at the top or bottom of a figure
@@ -73,7 +74,7 @@ hook_plot_md_base = function(x, options) {
       paste0(d1, img, if (plot2) paste0('\n', d2, '\n</div>'))
     }
   } else add_link(.img.tag(
-    .upload.url(x), w, h, cap,
+    .upload.url(x), w, h, alt,
     c(s, sprintf('style="%s"', css_align(a)))
   ))
 }

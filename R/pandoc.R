@@ -32,8 +32,8 @@
 #'   \code{dzslides} creates \code{html}, and so on
 #' @inheritParams knit
 #' @return The output filename(s) (or an error if the conversion failed).
-#' @references Pandoc: \url{http://johnmacfarlane.net/pandoc/}; Examples and
-#'   rules of the configurations: \url{http://yihui.name/knitr/demo/pandoc}
+#' @references Pandoc: \url{http://pandoc.org}; Examples and rules of the
+#'   configurations: \url{http://yihui.name/knitr/demo/pandoc}
 #'
 #'   Also see R Markdown (v2) at \url{http://rmarkdown.rstudio.com}. The
 #'   \pkg{rmarkdown} package has several convenience functions and templates
@@ -46,7 +46,7 @@
 pandoc = function(input, format, config = getOption('config.pandoc'), ext = NA,
                   encoding = getOption('encoding')) {
   if (Sys.which('pandoc') == '')
-    stop('Please install pandoc first: http://johnmacfarlane.net/pandoc/')
+    stop('Please install pandoc first: http://pandoc.org')
   cfg = if (is.null(config)) sub_ext(input[1L], 'pandoc') else config
   con = file(input[1L], encoding = encoding)
   tryCatch(txt <- pandoc_cfg(readLines(con, warn = FALSE)), finally = close(con))
@@ -59,19 +59,21 @@ pandoc = function(input, format, config = getOption('config.pandoc'), ext = NA,
     colnames(cfg)[nms == 'format'] = 't'  # for backward compatibility
   }
   if (missing(format)) format = pandoc_fmt(cfg)
+  input_utf8 = input
   if (encoding != 'UTF-8') {
-    input_utf8 = character(length(input))
-    on.exit(unlink(input_utf8), add = TRUE)
     for (i in seq_along(input)) {
       input_utf8[i] = gsub('[.]([[:alnum:]]+)$', '_utf8.\\1', input[i])
       encode_utf8(input[i], encoding, input_utf8[i])
     }
-    input = input_utf8
+    on.exit(unlink(input_utf8), add = TRUE)
   }
-  mapply(pandoc_one, input, format, ext, MoreArgs = list(cfg = cfg), USE.NAMES = FALSE)
+  mapply(
+    pandoc_one, input, input_utf8, format, ext, MoreArgs = list(cfg = cfg),
+    USE.NAMES = FALSE
+  )
 }
 # format is a scalar
-pandoc_one = function(input, format, ext, cfg) {
+pandoc_one = function(input, input_utf8, format, ext, cfg) {
   cmn = NULL  # common arguments
   if (nrow(cfg) == 0L) cfg = character(0) else if (nrow(cfg) == 1L) {
     if ('t' %in% colnames(cfg)) {
@@ -97,7 +99,7 @@ pandoc_one = function(input, format, ext, cfg) {
   })
   cfg = cfg[setdiff(names(cfg), c('o', 'output', 't'))]
   cmd = paste('pandoc', pandoc_arg(cfg), pandoc_arg(cmn),
-              '-t', format, '-o', out, paste(shQuote(input), collapse = ' '))
+              '-t', format, '-o', out, paste(shQuote(input_utf8), collapse = ' '))
   message('executing ', cmd)
   if (system(cmd) == 0L) out else stop('conversion failed')
 }

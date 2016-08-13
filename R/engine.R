@@ -151,14 +151,24 @@ eng_shlib = function(options) {
 ## Rcpp
 eng_Rcpp = function(options) {
 
+  sourceCpp = getFromNamespace('sourceCpp', 'Rcpp')
+
   code = paste(options$code, collapse = '\n')
   # engine.opts is a list of arguments to be passed to Rcpp function, e.g.
   # engine.opts=list(plugin='RcppArmadillo')
   opts = options$engine.opts
+
+  # use custom cacheDir for sourceCpp if it's supported
+  cache = options$cache && ('cacheDir' %in% names(formals(sourceCpp)))
+  if (cache) {
+    opts$cacheDir = paste(valid_path(options$cache.path, options$label), 'sourceCpp', sep = '_')
+    opts$cleanupCacheDir = TRUE
+  }
+
   if (!is.environment(opts$env)) opts$env = knit_global() # default env is knit_global()
   if (options$eval) {
     message('Building shared library for Rcpp code chunk...')
-    do.call(getFromNamespace('sourceCpp', 'Rcpp'), c(list(code = code), opts))
+    do.call(sourceCpp, c(list(code = code), opts))
   }
 
   options$engine = 'cpp' # wrap up source code in cpp syntax instead of Rcpp
@@ -172,10 +182,13 @@ eng_stan = function(options) {
   code = paste(options$code, collapse = '\n')
   opts = options$engine.opts
   ## name of the modelfit object returned by stan_model
-  x = opts$x
+  if (is.null(x <- options$output.var)) {
+    warning("the option engine.opts$x is deprecated; use the chunk option output.var instead")
+    x = opts$x
+  }
   if (!is.character(x) || length(x) != 1L) stop(
-    "engine.opts$x must be a character string; ",
-    "provide a name for the returned `stanmodel` object."
+    "the chunk option output.var must be a character string ",
+    "providing a name for the returned `stanmodel` object."
   )
   opts$x = NULL
   if (options$eval) {
@@ -366,6 +379,119 @@ eng_js = eng_html_asset('<script type="text/javascript">', '</script>')
 # include css in a style tag (ignore if not html output)
 eng_css = eng_html_asset('<style type="text/css">', '</style>')
 
+# sql engine
+eng_sql = function(options) {
+  # Return char vector of sql interpolation param names
+  varnames_from_sql = function(conn, sql) {
+    varPos = DBI::sqlParseVariables(conn, sql)
+    if (length(varPos$start) > 0) {
+      varNames = substring(sql, varPos$start, varPos$end)
+      sub("^\\?", "", varNames)
+    }
+  }
+
+  # Vectorized version of exists
+  mexists = function(x, env = knit_global(), inherits = TRUE) {
+    vapply(x, exists, logical(1), where = env, inherits = inherits)
+  }
+
+  # Interpolate a sql query based on the variables in an environment
+  interpolate_from_env = function(conn, sql, env = knit_global(), inherits = TRUE) {
+    names = unique(varnames_from_sql(conn, sql))
+    names_missing = names[!mexists(names, env, inherits)]
+    if (length(names_missing) > 0) {
+      stop("Object(s) not found: ", paste('"', names_missing, '"', collapse = ", "))
+    }
+
+    args = if (length(names) > 0) setNames(
+      mget(names, envir = env, inherits = inherits), names
+    )
+
+    do.call(DBI::sqlInterpolate, c(list(conn, sql), args))
+  }
+
+  # extract options
+  conn = options$connection
+  if (is.null(conn)) stop2(
+    "The 'connection' option (DBI connection) is required for sql chunks."
+  )
+  varname = options$output.var
+  max.print = options$max.print %n% (opts_knit$get('sql.max.print') %n% 10)
+  if (is.na(max.print) || is.null(max.print))
+    max.print = -1
+  sql = paste(options$code, collapse = '\n')
+
+  # execute query -- when we are printing with an enforced max.print we
+  # use dbFetch so as to only pull down the required number of records
+  query = interpolate_from_env(conn, sql)
+  if (is.null(varname) && max.print > 0) {
+    res = DBI::dbSendQuery(conn, query)
+    data = if (!DBI::dbHasCompleted(res) || (DBI::dbGetRowCount(res) > 0))
+              DBI::dbFetch(res, n = max.print)
+    DBI::dbClearResult(res)
+  } else {
+    data = DBI::dbGetQuery(conn, query)
+  }
+
+  # create output if needed (we have data and we aren't assigning it to a variable)
+  output = if (!is.null(data) && ncol(data) > 0 && is.null(varname)) capture.output({
+
+    # apply max.print to data
+    display_data = if (max.print == -1) data else head(data, n = max.print)
+
+    # get custom sql print function
+    sql.print = opts_knit$get('sql.print')
+
+    # use kable for markdown
+    if (!is.null(sql.print)) {
+      options$results = 'asis'
+      cat(sql.print(data))
+    } else if (out_format('markdown')) {
+
+      # we are going to output raw markdown so set results = 'asis'
+      options$results = 'asis'
+
+      # force left alignment if the first column is an incremental id column
+      first_column = display_data[[1]]
+      if (is.numeric(first_column) && all(diff(first_column) == 1))
+        display_data[[1]] = as.character(first_column)
+
+      # wrap html output in a div so special styling can be applied
+      if (is_html_output()) cat('<div class="knitsql-table">\n')
+
+      # determine records caption
+      caption = options$tab.cap
+      if (is.null(caption)) {
+        rows = nrow(data)
+        rows_formatted = formatC(rows, format = "d", big.mark = ',')
+        caption = if (max.print == -1 || rows < max.print) {
+          paste(rows_formatted, "records")
+        } else {
+          paste("Displaying records 1 -", rows_formatted)
+        }
+      }
+      # disable caption
+      if (identical(caption, NA)) caption = NULL
+
+      # print using kable
+      print(kable(display_data, caption = caption))
+
+      # terminate div
+      if (is_html_output()) cat("\n</div>\n")
+
+    # otherwise use tibble if it's available
+    } else if (loadable('tibble')) {
+      print(tibble::as_tibble(display_data), n = max.print)
+
+    } else print(display_data) # fallback to standard print
+  })
+
+  # assign varname if requested
+  if (!is.null(varname)) assign(varname, data, envir = knit_global())
+
+  # return output
+  engine_output(options, options$code, output)
+}
 
 # set engines for interpreted languages
 local({
@@ -380,7 +506,8 @@ local({
 knit_engines$set(
   highlight = eng_highlight, Rcpp = eng_Rcpp, tikz = eng_tikz, dot = eng_dot,
   c = eng_shlib, fortran = eng_shlib, asy = eng_dot, cat = eng_cat,
-  asis = eng_asis, stan = eng_stan, block = eng_block, js = eng_js, css = eng_css
+  asis = eng_asis, stan = eng_stan, block = eng_block, js = eng_js, css = eng_css,
+  sql = eng_sql
 )
 
 get_engine = function(name) {

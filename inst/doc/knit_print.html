@@ -12,7 +12,7 @@
 
 <meta name="author" content="Yihui Xie" />
 
-<meta name="date" content="2016-05-09" />
+<meta name="date" content="2016-08-11" />
 
 <title>Custom Print Methods</title>
 
@@ -70,7 +70,7 @@ code > span.in { color: #60a0b0; font-weight: bold; font-style: italic; } /* Inf
 
 <h1 class="title toc-ignore">Custom Print Methods</h1>
 <h4 class="author"><em>Yihui Xie</em></h4>
-<h4 class="date"><em>2016-05-09</em></h4>
+<h4 class="date"><em>2016-08-11</em></h4>
 
 
 <div id="TOC">
@@ -351,8 +351,8 @@ knit_print.foo =<span class="st"> </span>function(x, ...) {
 <p>Check the metadata now:</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">str</span>(<span class="kw">knit_meta</span>(<span class="dt">clean =</span> <span class="ot">FALSE</span>))</code></pre></div>
 <pre><code>## List of 2
-##  $ js : chr &quot;/Users/yihui/R/shiny/www/shared/shiny.js&quot;
-##  $ css: chr &quot;/Users/yihui/R/shiny/www/shared/shiny.css&quot;
+##  $ js : chr &quot;&quot;
+##  $ css: chr &quot;&quot;
 ##  - attr(*, &quot;knit_meta_id&quot;)= chr [1:2] &quot;unnamed-chunk-9&quot; &quot;unnamed-chunk-9&quot;</code></pre>
 <p>Another <code>foo</code> object:</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">new_foo</span>(<span class="st">&quot;world&quot;</span>)</code></pre></div>
@@ -369,10 +369,10 @@ new_bar =<span class="st"> </span>function(x) <span class="kw">structure</span>(
 <p>The final version of the metadata, and clean it up:</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">str</span>(<span class="kw">knit_meta</span>())</code></pre></div>
 <pre><code>## List of 6
-##  $ js  : chr &quot;/Users/yihui/R/shiny/www/shared/shiny.js&quot;
-##  $ css : chr &quot;/Users/yihui/R/shiny/www/shared/shiny.css&quot;
-##  $ js  : chr &quot;/Users/yihui/R/shiny/www/shared/shiny.js&quot;
-##  $ css : chr &quot;/Users/yihui/R/shiny/www/shared/shiny.css&quot;
+##  $ js  : chr &quot;&quot;
+##  $ css : chr &quot;&quot;
+##  $ js  : chr &quot;&quot;
+##  $ css : chr &quot;&quot;
 ##  $ head: chr &quot;&lt;script&gt;console.log(\&quot;bar!\&quot;)&lt;/script&gt;&quot;
 ##  $ head: chr &quot;&lt;script&gt;console.log(\&quot;bar!\&quot;)&lt;/script&gt;&quot;
 ##  - attr(*, &quot;knit_meta_id&quot;)= chr [1:6] &quot;unnamed-chunk-9&quot; &quot;unnamed-chunk-9&quot; &quot;unnamed-chunk-11&quot; &quot;unnamed-chunk-11&quot; ...</code></pre>

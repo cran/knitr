@@ -22,9 +22,10 @@ dev2ext = function(x) {
   res = auto_exts[x]
   if (any(idx <- is.na(res))) {
     for (i in x[idx]) check_dev(i)
-    stop('cannot find appropriate filename extensions for device ', x[idx],
-         "; please use chunk option 'fig.ext' (http://yihui.name/knitr/options)",
-         call. = FALSE)
+    stop2(
+      'cannot find appropriate filename extensions for device ', x[idx], '; ',
+      "please use chunk option 'fig.ext' (http://yihui.name/knitr/options)"
+    )
   }
   unname(res)
 }
@@ -136,14 +137,14 @@ plot2dev = function(plot, name, dev, device, path, width, height, options) {
       pdftex = getOption('tikzLatex'),
       xetex  = getOption('tikzXelatex'),
       luatex = getOption('tikzLualatex'),
-      stop('a LaTeX engine must be specified for tikzDevice', call. = FALSE)
+      stop2('a LaTeX engine must be specified for tikzDevice')
     )
     system2(latex, shQuote(basename(path)), stdout = NULL)
     setwd(owd)
     if (!file.exists(pdf.plot)) {
       if (file.exists(log <- paste(name, 'log', sep = '.')))
         message(paste(readLines(log), collapse = '\n'))
-      stop('failed to compile ', path, ' to PDF', call. = FALSE)
+      stop2('failed to compile ', path, ' to PDF')
     }
     path = pdf.plot
   }
@@ -284,7 +285,7 @@ fig_process = function(FUN, path) {
 #' @param quiet whether to suppress standard output from the command line
 #'   utility
 #' @export
-#' @references PDFCrop: \url{http://pdfcrop.sourceforge.net}; the
+#' @references PDFCrop: \url{https://www.ctan.org/pkg/pdfcrop}; the
 #'   \command{convert} command in ImageMagick:
 #'   \url{http://www.imagemagick.org/script/convert.php}
 #' @return The original filename.
@@ -328,6 +329,11 @@ par2 = function(x) {
     # do this before the rest of pars because setting mfrow/mfcol will reset cex
     par(mfrow = x$mfrow)
     x$mfrow = x$mfcol = NULL
+    # do not restore mfg (#1215); this is unlikely to make sense, e.g. for
+    # par(mfrow = c(1, 2)), mfg will be c(1, 2, 1, 2) when the second plot is
+    # completed, but when the user generate a new plot, it should typically be
+    # drawn at (1, 1) instead of (1, 2)
+    x$mfg = NULL
   }
   x$usr = NULL  # you are unlikely to want to reset usr
   par(x)
@@ -444,12 +450,22 @@ need_screenshot = function(x, ...) {
   # not R Markdown v2, always screenshot htmlwidgets and shiny apps
   if (length(fmt) == 0 || force) return(i1 || i2 || i3)
   html_format = fmt %in% c('html', 'html5', 'revealjs', 's5', 'slideous', 'slidy')
-  ((i1 || i3) && !html_format) || (i2 && !(html_format && runtime_shiny()))
+  res = ((i1 || i3) && !html_format) || (i2 && !(html_format && runtime_shiny()))
+  res && webshot_available()
 }
 
 runtime_shiny = function() {
   identical(opts_knit$get('rmarkdown.runtime'), 'shiny')
 }
+
+webshot_available = local({
+  res = NULL  # cache the availablity of webshot/PhantomJS
+  function() {
+    if (is.null(res))
+      res <<- loadable('webshot') && !is.null(getFromNamespace('find_phantom', 'webshot')())
+    res
+  }
+})
 
 html_screenshot = function(x, options = opts_current$get(), ...) {
   i1 = inherits(x, 'htmlwidget')
@@ -464,11 +480,6 @@ html_screenshot = function(x, options = opts_current$get(), ...) {
     if (length(shots) < i) stop('Not enough number of screenshots provided')
     return(structure(list(file = shots[i]), class = 'html_screenshot'))
   }
-
-  if (!loadable('webshot')) stop(
-    'Please install the webshot package ',
-    '(if not on CRAN, try devtools::install_github("wch/webshot"))'
-  )
 
   ext = switch(options$dev, pdf = '.pdf', jpeg = '.jpeg', '.png')
   wargs = options$screenshot.opts %n% list()

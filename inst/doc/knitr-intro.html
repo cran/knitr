@@ -12,7 +12,7 @@
 
 <meta name="author" content="Yihui Xie" />
 
-<meta name="date" content="2016-05-09" />
+<meta name="date" content="2016-08-11" />
 
 <title>Not An Introduction to knitr</title>
 
@@ -70,7 +70,7 @@ code > span.in { color: #60a0b0; font-weight: bold; font-style: italic; } /* Inf
 
 <h1 class="title toc-ignore">Not An Introduction to knitr</h1>
 <h4 class="author"><em>Yihui Xie</em></h4>
-<h4 class="date"><em>2016-05-09</em></h4>
+<h4 class="date"><em>2016-08-11</em></h4>
 
 
 
@@ -78,9 +78,9 @@ code > span.in { color: #60a0b0; font-weight: bold; font-style: italic; } /* Inf
 <p>Anyway, here is a code chunk that shows you can compile vignettes with <strong>knitr</strong> as well using R 3.0.x, which supports non-Sweave vignettes:</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">options</span>(<span class="dt">digits =</span> <span class="dv">4</span>)
 <span class="kw">rnorm</span>(<span class="dv">20</span>)</code></pre></div>
-<pre><code>##  [1] -0.47365 -0.38977  0.29972  0.82455 -1.34562 -1.43036 -0.68359
-##  [8]  0.31304  1.23214  2.77281  0.77800  0.54945  0.05412 -0.07847
-## [15]  1.52477 -0.18595  0.05742  0.88957 -1.31892 -0.37428</code></pre>
+<pre><code>##  [1]  0.22419 -1.15103 -0.73301  0.67108 -0.45608 -1.60370 -1.86274
+##  [8] -0.94567 -0.89729 -0.66638 -0.45954 -1.71849  0.79256  0.43149
+## [15]  0.63352 -0.54668  0.21352  0.34603 -0.61295  0.01952</code></pre>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">fit =<span class="st"> </span><span class="kw">lm</span>(dist ~<span class="st"> </span>speed, <span class="dt">data =</span> cars)
 b =<span class="st"> </span><span class="kw">coef</span>(fit)</code></pre></div>
 <table>
