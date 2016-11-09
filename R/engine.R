@@ -86,9 +86,9 @@ eng_interpreted = function(options) {
     writeLines(c(switch(
       engine,
       sas = "OPTIONS NONUMBER NODATE PAGESIZE = MAX FORMCHAR = '|----|+|---+=|-/<>*' FORMDLIM=' ';title;",
-      haskell = ':set +m'
+      NULL
     ), options$code), f)
-    on.exit(unlink(f))
+    on.exit(unlink(f), add = TRUE)
     switch(
       engine,
       haskell = paste('-e', shQuote(paste(':script', f))),
@@ -113,7 +113,7 @@ eng_interpreted = function(options) {
   # FIXME: for these engines, the correct order is options + code + file
   code = if (engine %in% c('awk', 'gawk', 'sed', 'sas'))
     paste(code, options$engine.opts) else paste(options$engine.opts, code)
-  cmd = options$engine.path %n% engine
+  cmd = get_engine_path(options$engine.path, engine)
   out = if (options$eval) {
     message('running: ', cmd, ' ', code)
     tryCatch(
@@ -132,12 +132,18 @@ eng_interpreted = function(options) {
   engine_output(options, options$code, out)
 }
 
+# options$engine.path can be list(name1 = path1, name2 = path2, ...)
+get_engine_path = function(path, engine) {
+  if (is.list(path)) path = path[[engine]]
+  path %n% engine
+}
+
 ## C and Fortran (via R CMD SHLIB)
 eng_shlib = function(options) {
-  n = switch(options$engine, c = 'c', fortran = 'f')
+  n = switch(options$engine, c = 'c', fortran = 'f', fortran95 = 'f95')
   f = basename(tempfile(n, '.', paste0('.', n)))
   writeLines(options$code, f)
-  on.exit(unlink(c(f, sub_ext(f, c('o', 'so', 'dll')))))
+  on.exit(unlink(c(f, sub_ext(f, c('o', 'so', 'dll')))), add = TRUE)
   if (options$eval) {
     out = system(paste('R CMD SHLIB', f), intern = TRUE)
     dyn.load(sub(sprintf('[.]%s$', n), .Platform$dynlib.ext, f))
@@ -258,7 +264,7 @@ eng_dot = function(options) {
   # create temporary file
   f = tempfile('code', '.')
   writeLines(code <- options$code, f)
-  on.exit(unlink(f))
+  on.exit(unlink(f), add = TRUE)
 
   # adapt command to either graphviz or asymptote
   if (options$engine == 'dot') {
@@ -342,7 +348,7 @@ eng_block = function(options) {
   # https://github.com/jgm/pandoc/issues/2453)
   if (is_pandoc) code = pandoc_fragment(code, to)
   l1 = options$latex.options
-  l1 = if (is.null(l1)) '' else paste0('[', l1, ']')
+  if (is.null(l1)) l1 = ''
   h2 = options$html.tag %n% 'div'
   h3 = options$html.before %n% ''
   h4 = options$html.after %n% ''
@@ -357,9 +363,37 @@ eng_block = function(options) {
   }
   switch(
     to,
-    latex = sprintf('\\begin%s{%s}\n%s\n\\end{%s}', l1, type, code, type),
+    latex = sprintf('\\begin{%s}%s\n%s\n\\end{%s}', type, l1, code, type),
     html =  sprintf('%s<%s class="%s">%s</%s>%s', h3, h2, type, code, h2, h4),
     code
+  )
+}
+
+eng_block2 = function(options) {
+  if (isFALSE(options$echo)) return()
+
+  code = paste(options$code, collapse = '\n'); type = options$type
+  if (is.null(type)) return(code)
+
+  if (is.null(pandoc_to())) stop('The engine "block2" is for R Markdown only')
+
+  l1 = options$latex.options
+  if (is.null(l1)) l1 = ''
+  # protect environment options because Pandoc may escape the characters like
+  # {}; when encoded in integers, they won't be escaped, but will need to
+  # restore them later; see bookdown:::restore_block2
+  if (l1 != '') l1 = paste(
+    c('\\iffalse{', utf8ToInt(enc2utf8(l1)), '}\\fi'), collapse = '-'
+  )
+  h2 = options$html.tag %n% 'div'
+  h3 = options$html.before %n% ''
+  h4 = options$html.after %n% ''
+  h5 = options$html.before2 %n% ''
+  h6 = options$html.after2 %n% ''
+
+  sprintf(
+    '\\BeginKnitrBlock{%s}%s%s<%s class="%s">%s%s%s</%s>%s\\EndKnitrBlock{%s}',
+    type, l1, h3, h2, type, h5, code, h6, h2, h4, type
   )
 }
 
@@ -379,14 +413,26 @@ eng_js = eng_html_asset('<script type="text/javascript">', '</script>')
 # include css in a style tag (ignore if not html output)
 eng_css = eng_html_asset('<style type="text/css">', '</style>')
 
+# perform basic sql parsing to determine if a sql query is an update query
+is_sql_update_query = function(query) {
+  query = paste(query, collapse = '\n')
+  # remove line comments
+  query = gsub('^\\s*--.*\n', '', query)
+  # remove multi-line comments
+  if (grepl('^\\s*\\/\\*.*', query)) query = gsub('.*\\*\\/', '', query)
+  grepl('^\\s*(INSERT|UPDATE|DELETE|CREATE).*', query, ignore.case = TRUE)
+}
+
 # sql engine
 eng_sql = function(options) {
+  if (isFALSE(options$eval)) return(engine_output(options, options$code, ''))
+
   # Return char vector of sql interpolation param names
   varnames_from_sql = function(conn, sql) {
     varPos = DBI::sqlParseVariables(conn, sql)
     if (length(varPos$start) > 0) {
       varNames = substring(sql, varPos$start, varPos$end)
-      sub("^\\?", "", varNames)
+      sub('^\\?', '', varNames)
     }
   }
 
@@ -424,10 +470,9 @@ eng_sql = function(options) {
   # execute query -- when we are printing with an enforced max.print we
   # use dbFetch so as to only pull down the required number of records
   query = interpolate_from_env(conn, sql)
-  if (is.null(varname) && max.print > 0) {
+  if (is.null(varname) && max.print > 0 && !is_sql_update_query(query)) {
     res = DBI::dbSendQuery(conn, query)
-    data = if (!DBI::dbHasCompleted(res) || (DBI::dbGetRowCount(res) > 0))
-              DBI::dbFetch(res, n = max.print)
+    data = DBI::dbFetch(res, n = max.print)
     DBI::dbClearResult(res)
   } else {
     data = DBI::dbGetQuery(conn, query)
@@ -479,12 +524,13 @@ eng_sql = function(options) {
       # terminate div
       if (is_html_output()) cat("\n</div>\n")
 
-    # otherwise use tibble if it's available
+      # otherwise use tibble if it's available
     } else if (loadable('tibble')) {
       print(tibble::as_tibble(display_data), n = max.print)
 
     } else print(display_data) # fallback to standard print
   })
+  if (options$results == 'hide') output = NULL
 
   # assign varname if requested
   if (!is.null(varname)) assign(varname, data, envir = knit_global())
@@ -505,9 +551,9 @@ local({
 # additional engines
 knit_engines$set(
   highlight = eng_highlight, Rcpp = eng_Rcpp, tikz = eng_tikz, dot = eng_dot,
-  c = eng_shlib, fortran = eng_shlib, asy = eng_dot, cat = eng_cat,
-  asis = eng_asis, stan = eng_stan, block = eng_block, js = eng_js, css = eng_css,
-  sql = eng_sql
+  c = eng_shlib, fortran = eng_shlib, fortran95 = eng_shlib, asy = eng_dot,
+  cat = eng_cat, asis = eng_asis, stan = eng_stan, block = eng_block,
+  block2 = eng_block2, js = eng_js, css = eng_css, sql = eng_sql
 )
 
 get_engine = function(name) {

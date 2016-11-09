@@ -149,16 +149,30 @@ output_asis = function(x, options) {
 }
 
 # path relative to dir of the input file
-input_dir = function() {
+input_dir = function(ignore_root = FALSE) {
+  root = opts_knit$get('root.dir')
   # LyX is a special case: the input file is in tempdir, and we should use
   # root.dir as the real input dir (#809)
-  (if (is_lyx()) opts_knit$get('root.dir')) %n% .knitEnv$input.dir %n% '.'
+  if (is_lyx()) return(root)
+  if (ignore_root) {
+    .knitEnv$input.dir %n% '.'
+  } else {
+    root %n% (if (!getOption('knitr.use.cwd', FALSE)) .knitEnv$input.dir) %n% '.'
+  }
 }
 
 is_lyx = function() {
   args = commandArgs(TRUE)
   if (length(args) < 4) return(FALSE)
   grepl('[.]Rnw$', args[1]) && !is.na(Sys.getenv('LyXDir', NA))
+}
+
+# round a number to getOption('digits') decimal places by default, and format()
+# it using significant digits if the option knitr.digits.signif = TRUE
+round_digits = function(x) {
+  if (getOption('knitr.digits.signif', FALSE)) format(x) else {
+    as.character(round(x, getOption('digits')))
+  }
 }
 
 # scientific notation in TeX, HTML and reST
@@ -176,9 +190,9 @@ format_sci_one = function(x, format = 'latex') {
   }
 
   if (abs(lx <- floor(log10(abs(x)))) < getOption('scipen') + 4L)
-    return(as.character(round(x, getOption('digits')))) # no need sci notation
+    return(round_digits(x)) # no need sci notation
 
-  b = round(x / 10^lx, getOption('digits'))
+  b = round_digits(x / 10^lx)
   b[b %in% c(1, -1)] = ''
 
   switch(format, latex = {
@@ -225,6 +239,8 @@ tikz_dict = function(path) {
 
 # compatibility with Sweave and old beta versions of knitr
 fix_options = function(options) {
+  options = as.strict_list(options)
+
   # if you want to use subfloats, fig.show must be 'hold'
   if (length(options$fig.subcap)) options$fig.show = 'hold'
   # the default device NULL is not valid; use pdf is not set
@@ -295,7 +311,10 @@ percent_latex_width = function(x) {
 }
 
 # parse but do not keep source
-parse_only = formatR:::parse_only
+parse_only = function(code) {
+  if (length(code) == 0) return(expression())
+  parse(text = code, keep.source = FALSE)
+}
 
 # eval options as symbol/language objects
 eval_lang = function(x, envir = knit_global()) {
@@ -338,7 +357,7 @@ pandoc_from = function() {
 
 pandoc_fragment = function(text, to, from = pandoc_from()) {
   f1 = tempfile('pandoc', '.', '.md'); f2 = tempfile('pandoc', '.')
-  on.exit(unlink(c(f1, f2)))
+  on.exit(unlink(c(f1, f2)), add = TRUE)
   writeLines(enc2utf8(text), f1, useBytes = TRUE)
   rmarkdown::pandoc_convert(f1, to, from, f2)
   code = readLines(f2, encoding = 'UTF-8', warn = FALSE)
@@ -656,7 +675,7 @@ set_html_dev = function() {
   # in some cases, png() does not work (e.g. options('bitmapType') == 'Xlib' on
   # headless servers); use svg then
   opts_chunk$set(dev = if (inherits(try_silent({
-    grDevices::png(tempfile()); grDevices::dev.off()
+    f = tempfile(); on.exit(unlink(f)); grDevices::png(f); grDevices::dev.off()
   }), 'try-error')) 'svg' else 'png')
 }
 
@@ -708,7 +727,14 @@ current_input = function(dir = FALSE) {
 default_handlers = evaluate:::default_output_handler
 # change the value handler in evaluate default handlers
 knit_handlers = function(fun, options) {
-  if (!is.function(fun)) fun = knit_print
+  if (!is.function(fun)) fun = function(x, ...) {
+    res = withVisible(knit_print(x, ...))
+    # indicate the htmlwidget result with a special class so we can attach
+    # the figure caption to it later in wrap.knit_asis
+    if (inherits(x, 'htmlwidget'))
+      class(res$value) = c(class(res$value), 'knit_asis_htmlwidget')
+    if (res$visible) res$value else invisible(res$value)
+  }
   if (length(formals(fun)) < 2)
     stop("the chunk option 'render' must be a function of the form ",
          "function(x, options) or function(x, ...)")
@@ -796,3 +822,82 @@ loadable = function(pkg) requireNamespace(pkg, quietly = TRUE)
 
 warning2 = function(...) warning(..., call. = FALSE)
 stop2 = function(...) stop(..., call. = FALSE)
+
+
+raw_markers = c('!!!!!RAW-KNITR-CONTENT', 'RAW-KNITR-CONTENT!!!!!')
+
+#' @export
+#' @rdname raw_output
+extract_raw_output = function(text, markers = raw_markers) {
+  r = sprintf('%s(.*?)%s', markers[1], markers[2])
+  x = paste(text, collapse = '\n')
+  m = gregexpr(r, x)
+  s = regmatches(x, m)
+  n = length(s[[1]])
+  if (n == 0) return(list(value = text, chunks = character()))
+
+  chunks = tokens = character(n)
+  for (i in seq_len(n)) {
+    chunks[i] = sub(r, '\\1', s[[1]][i])
+    tokens[i] = digest::digest(chunks[i])
+    s[[1]][i] = gsub(r, paste0(markers[1], tokens[i], markers[2]), s[[1]][i])
+  }
+  regmatches(x, m) = s
+
+  list(value = x, chunks = setNames(chunks, tokens))
+}
+
+#' @export
+#' @rdname raw_output
+restore_raw_output = function(text, chunks, markers = raw_markers) {
+  if ((n <- length(chunks)) == 0) return(text)
+  text = enc2utf8(text); chunks = enc2utf8(chunks); tokens = names(chunks)
+  for (i in seq_len(n)) {
+    r = paste0(markers[1], tokens[i], markers[2])
+    text = gsub(r, chunks[i], text, fixed = TRUE, useBytes = TRUE)
+  }
+  Encoding(text) = 'UTF-8'
+  text
+}
+
+#' Mark character strings as raw output that should not be converted
+#'
+#' These functions provide a mechanism to protect the character output of R code
+#' chunks. The output is annotated with special markers in \code{raw_output};
+#' \code{extract_raw_output()} will extract raw output wrapped in the markers,
+#' and replace the raw output with its MD5 digest; \code{restore_raw_output()}
+#' will restore the MD5 digest with the original raw output.
+#'
+#' This mechanism is designed primarily for R Markdown pre/post-processors. In
+#' an R code chunk, you generate \code{raw_output()} to the Markdown output. In
+#' the pre-processor, you can \code{extract_raw_output()} from the Markdown
+#' file, store the raw output and MD5 digests, and remove the actual raw output
+#' from Markdown so Pandoc will never see it. In the post-processor, you can
+#' read the Pandoc output (e.g., an HTML or RTF file), and restore the raw
+#' output.
+#' @param x the character vector to be protected
+#' @param markers a character vector of length 2 to be used to wrap \code{x};
+#'   see \code{knitr:::raw_markers} for the default value
+#' @param ... arguments to be passed to \code{\link{asis_output}()}
+#' @param text for \code{extract_raw_output()}, the content of the input file
+#'   (e.g. Markdown); for \code{restore_raw_output()}, the content of the output
+#'   file (e.g. HTML generated by Pandoc from Markdown)
+#' @param chunks a named character vector returned from
+#'   \code{extract_raw_output()}
+#' @return For \code{extract_raw_output()}, a list of two components
+#'   \code{value} (the \code{text} with raw output replaced by MD5 digests) and
+#'   \code{chunks} (a named character vector, of which the names are MD5 digests
+#'   and values are the raw output). For \code{restore_raw_output()}, the
+#'   restored \code{text}.
+#' @export
+#' @examples library(knitr)
+#' out = c('*hello*', raw_output('<special>content</special> *protect* me!'), '*world*')
+#' pre = extract_raw_output(out)
+#' str(pre)
+#' pre$value = gsub('[*]([^*]+)[*]', '<em>\\1</em>', pre$value)  # think this as Pandoc conversion
+#' pre$value
+#' # raw output was protected from the conversion (e.g. *protect* was not converted)
+#' restore_raw_output(pre$value, pre$chunks)
+raw_output = function(x, markers = raw_markers, ...) {
+  asis_output(paste(c(markers[1], x, markers[2]), collapse = ''), ...)
+}

@@ -8,12 +8,29 @@ assert(
   } else '/abc/def')
 )
 
+op = options(digits = 3, scipen = 0, knitr.digits.signif = TRUE)
+
+assert(
+  'format_sci() uses correct number of significant digits',
+  format_sci(1) %==% '1',
+  format_sci(0) %==% '0',
+  format_sci(3.1415e2) %==% '314',
+  format_sci(3.1415) %==% '3.14'
+)
+
+options(op)
+
+op = options(digits = 14, scipen = 0, knitr.digits.signif = TRUE)
+assert(
+  'format_sci() prints numerics at maximum number of significant digits',
+  format_sci(3.14159265358979) %==% '3.1415926535898'
+)
+options(op)
+
 op = options(digits = 4, scipen = 0)
 
 assert(
   'format_sci() turns numbers into scientific notations',
-  identical(format_sci(1), '1'),
-  identical(format_sci(0), '0'),
   identical(format_sci(c(1.84e8, 1e5, 2.34e3)),
             c('1.84\\times 10^{8}', '10^{5}', '2340')),
   identical(format_sci(1.23456789 * 10^-5), '1.2346\\times 10^{-5}'),
@@ -38,6 +55,7 @@ assert(
   'the inline hook for Rnw applies \\ensuremath{} correctly',
   .inline.hook.tex(1e4) == '\\ensuremath{10^{4}}',
   .inline.hook.tex(-Inf) == '\\ensuremath{-\\infty{}}',
+  .inline.hook.tex(-1.23) == '-1.23',
   .inline.hook.tex(c(1.2345e10, 2 * pnorm(-(3:4)))) ==
     "\\ensuremath{1.2345\\times 10^{10}}, 0.0027, \\ensuremath{6.3342\\times 10^{-5}}"
 )
@@ -121,4 +139,27 @@ assert(
   combine_words(c('a', 'b', 'c'), ' / ', '') %==% 'a / b / c',
   combine_words(c('a', 'b', 'c'), before = '"') %==% '"a", "b", and "c"',
   combine_words(c('a', 'b', 'c'), before = '``', after = "''") %==% "``a'', ``b'', and ``c''"
+)
+
+opts = list(fig.cap = 'Figure "caption" <>.', fig.lp = 'Fig:', label = 'foo')
+assert(
+  '.img.cap() generates the figure caption and alt attribute',
+  .img.cap(opts, FALSE) %==% opts$fig.cap,
+  .img.cap(opts, TRUE)  %==% 'Figure &quot;caption&quot; &lt;&gt;.'
+)
+
+z = as.strict_list(list(a = 1, aa = 2, bbb = 3))
+assert(
+  'as.strict_list() does not allow partial matching',
+  z$b %==% NULL, z$bbb %==% 3
+)
+
+out = c('*hello*', raw_output('<special>content</special> *protect* me!'), '*world*')
+pre = extract_raw_output(out)
+pre$value = gsub('[*]([^*]+)[*]', '<em>\\1</em>', pre$value)  # think this as Pandoc conversion
+# raw output was protected from the conversion (e.g. *protect* was not converted)
+assert(
+  'restore_raw_output() restores raw output',
+  restore_raw_output(pre$value, pre$chunks) %==%
+    '<em>hello</em>\n<special>content</special> *protect* me!\n<em>world</em>'
 )

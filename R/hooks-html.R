@@ -41,7 +41,8 @@ hook_plot_html = function(x, options) {
     if (is.null(pandoc_to())) sprintf('plot of chunk %s', options$label) else ''
   }
   if (length(cap) == 0) cap = ''
-  if (is_blank(cap) || alt) return(cap)
+  if (is_blank(cap)) return(cap)
+  if (alt) return(escape_html(cap))
   paste0(create_label(options$fig.lp, options$label), cap)
 }
 
@@ -100,6 +101,12 @@ hook_ffmpeg = function(x, options, format = 'webm') {
   )
   message('executing: ', ffmpeg.cmd)
   system(ffmpeg.cmd, ignore.stdout = TRUE)
+
+  # use a normal plot hook if the output is GIF
+  if (format == 'gif') {
+    options$fig.show = 'hold'
+    return((if (out_format('markdown')) hook_plot_md else hook_plot_html)(mov.fname, options))
+  }
 
   # controls,loop --> controls loop
   opts = paste(sc_split(options$aniopts), collapse = ' ')

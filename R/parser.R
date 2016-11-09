@@ -60,8 +60,8 @@ parse_block = function(code, header, params.src) {
   engine = 'r'
   # consider the syntax ```{engine, opt=val} for chunk headers
   if (out_format('markdown')) {
-    engine = sub('^([a-zA-Z]+).*$', '\\1', params)
-    params = sub('^([a-zA-Z]+)', '', params)
+    engine = sub('^([a-zA-Z0-9]+).*$', '\\1', params)
+    params = sub('^([a-zA-Z0-9]+)', '', params)
   }
   params = gsub('^\\s*,*|,*\\s*$', '', params) # rm empty options
   # turn ```{engine} into ```{r, engine="engine"}
@@ -376,7 +376,7 @@ filter_chunk_end = function(chunk.begin, chunk.end) {
 
 #' Get all chunk labels in a document
 #'
-#' The function \code{all_labels()} returns all chunk labels as a chracter
+#' The function \code{all_labels()} returns all chunk labels as a character
 #' vector. Optionally, you can specify a series of conditions to filter the
 #' labels. The function `all_rcpp_labels()` is a wrapper function for
 #' \code{all_labels(engine == 'Rcpp')}.

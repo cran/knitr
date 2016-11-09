@@ -18,7 +18,7 @@ all_patterns = list(
 
   `tex` = list(
     chunk.begin = '^\\s*%+\\s*begin.rcode\\s*(.*)', chunk.end = '^\\s*%+\\s*end.rcode',
-    chunk.code = '^%+', ref.chunk = '^%+\\s*<<(.+)>>\\s*$',
+    chunk.code = '^\\s*%+', ref.chunk = '^%+\\s*<<(.+)>>\\s*$',
     inline.comment = '^\\s*%.*', inline.code = '\\\\rinline\\{([^}]+)\\}',
     header.begin = '(^|\n)\\s*\\\\documentclass[^}]+\\}',
     document.begin = '\\s*\\\\begin\\{document\\}'),
@@ -29,13 +29,13 @@ all_patterns = list(
     inline.code = '<!--\\s*rinline(.+?)-->', header.begin = '\\s*<head>'),
 
   `md` = list(
-    chunk.begin = '^[\t >]*```+\\s*\\{[.]?([a-zA-Z]+.*)\\}\\s*$',
+    chunk.begin = '^[\t >]*```+\\s*\\{[.]?([a-zA-Z0-9]+.*)\\}\\s*$',
     chunk.end = '^[\t >]*```+\\s*$',
-    ref.chunk = '^\\s*<<(.+)>>\\s*$', inline.code = '`r +([^`]+)\\s*`'),
+    ref.chunk = '^\\s*<<(.+)>>\\s*$', inline.code = '`r[ #]([^`]+)\\s*`'),
 
   `rst` = list(
     chunk.begin = '^\\s*[.][.]\\s+\\{r(.*)\\}\\s*$',
-    chunk.end = '^\\s*[.][.]\\s+[.][.]\\s*$', chunk.code = '^[.][.]',
+    chunk.end = '^\\s*[.][.]\\s+[.][.]\\s*$', chunk.code = '^\\s*[.][.]',
     ref.chunk = '^\\.*\\s*<<(.+)>>\\s*$', inline.code = ':r:`([^`]+)`'),
 
   `asciidoc` = list(

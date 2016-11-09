@@ -37,7 +37,7 @@ vweave = function(file, driver, syntax, encoding = 'UTF-8', quiet = FALSE, ...) 
   }
   opts_chunk$set(error = FALSE)  # should not hide errors
   knit_hooks$set(purl = hook_purl)  # write out code while weaving
-  (if (grepl('\\.[Rr]md$', file)) knit2html else if (grepl('\\.[Rr]rst$', file)) knit2pdf else knit)(
+  (if (grepl('\\.[Rr]md$', file)) knit2html_v1 else if (grepl('\\.[Rr]rst$', file)) knit2pdf else knit)(
     file, encoding = encoding, quiet = quiet, envir = globalenv()
   )
 }
@@ -91,8 +91,10 @@ register_vignette_engines = function(pkg) {
     if (pandoc_available()) {
       vweave_rmarkdown(...)
     } else {
-      if (!is_R_CMD_check())
-        warning('Pandoc (>= 1.12.3) and/or pandoc-citeproc is not available. Please install both.')
+      warning(
+        'Pandoc (>= 1.12.3) and/or pandoc-citeproc not available. ',
+        'Falling back to R Markdown v1.'
+      )
       vweave(...)
     }
   } else {

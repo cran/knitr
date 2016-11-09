@@ -51,7 +51,7 @@ call_block = function(block) {
       warning("The option hook '", opt, "' should be a function")
       next
     }
-    if (!is.null(params[[opt]])) params = hook(params)
+    if (!is.null(params[[opt]])) params = as.strict_list(hook(params))
     if (!is.list(params))
       stop("The option hook '", opt, "' should return a list of chunk options")
   }
@@ -63,7 +63,7 @@ call_block = function(block) {
       getOption('width'), if (params$cache == 2) params[cache2.opts]
     )
     if (params$engine == 'R' && isFALSE(params$cache.comments)) {
-      content[['code']] = formatR:::parse_only(content[['code']])
+      content[['code']] = parse_only(content[['code']])
     }
     hash = paste(valid_path(params$cache.path, label), digest::digest(content), sep = '_')
     params$hash = hash
@@ -103,7 +103,7 @@ block_exec = function(options) {
   if (options$engine != 'R') {
     res.before = run_hooks(before = TRUE, options)
     engine = get_engine(options$engine)
-    output = in_dir(opts_knit$get('root.dir') %n% input_dir(), engine(options))
+    output = in_dir(input_dir(), engine(options))
     res.after = run_hooks(before = FALSE, options)
     output = paste(c(res.before, output, res.after), collapse = '')
     output = knit_hooks$get('chunk')(output, options)
@@ -124,9 +124,10 @@ block_exec = function(options) {
     keep.idx = keep
     keep = "index"
   }
+  tmp.fig = tempfile(); on.exit(unlink(tmp.fig), add = TRUE)
   # open a device to record plots
   if (chunk_device(options$fig.width[1L], options$fig.height[1L], keep != 'none',
-                   options$dev, options$dev.args, options$dpi, options)) {
+                   options$dev, options$dev.args, options$dpi, options, tmp.fig)) {
     # preserve par() settings from the last code chunk
     if (keep.pars <- opts_knit$get('global.par'))
       par2(opts_knit$get('global.pars'))
@@ -162,11 +163,6 @@ block_exec = function(options) {
   if (keep != 'none' && is.null(options$fig.ext))
     options$fig.ext = dev2ext(options$dev)
 
-  if (!is.null(err.code <- opts_knit$get('stop_on_error'))) {
-    warning('the package option stop_on_error was deprecated;',
-            ' use the chunk option error = ', err.code != 2L, ' instead')
-    options$error = err.code != 2L
-  }
   cache.exists = cache$exists(options$hash, options$cache.lazy)
   evaluate = knit_hooks$get('evaluate')
   # return code with class 'source' if not eval chunks
@@ -175,7 +171,7 @@ block_exec = function(options) {
   } else if (cache.exists && isFALSE(options$cache.rebuild)) {
     fix_evaluate(cache$output(options$hash, 'list'), options$cache == 1)
   } else in_dir(
-    opts_knit$get('root.dir') %n% input_dir(),
+    input_dir(),
     evaluate(
       code, envir = env, new_device = FALSE,
       keep_warning = !isFALSE(options$warning),
@@ -208,7 +204,7 @@ block_exec = function(options) {
   if (options$results == 'hide') res = Filter(Negate(is.character), res)
   if (options$results == 'hold') {
     i = vapply(res, is.character, logical(1))
-    if (any(i)) res = c(res[!i], list(paste(unlist(res[i]), collapse = '')))
+    if (any(i)) res = c(res[!i], merge_character(res[i]))
   }
   res = filter_evaluate(res, options$warning, evaluate::is.warning)
   res = filter_evaluate(res, options$message, evaluate::is.message)
@@ -254,7 +250,9 @@ block_exec = function(options) {
   output = knit_hooks$get('chunk')(output, options)
 
   if (options$cache > 0) {
-    obj.new = setdiff(ls(globalenv(), all.names = TRUE), obj.before)
+    # if cache.vars has been specifically provided, only cache these vars and no
+    # need to look for objects in globalenv()
+    obj.new = if (is.null(options$cache.vars)) setdiff(ls(globalenv(), all.names = TRUE), obj.before)
     copy_env(globalenv(), env, obj.new)
     objs = if (isFALSE(ev) || length(code) == 0) character(0) else
       options$cache.vars %n% codetools::findLocalsList(parse_only(code))
@@ -290,7 +288,9 @@ purge_cache = function(options) {
 
 # open a device for a chunk; depending on the option global.device, may or may
 # not need to close the device on exit
-chunk_device = function(width, height, record = TRUE, dev, dev.args, dpi, options) {
+chunk_device = function(
+  width, height, record = TRUE, dev, dev.args, dpi, options, tmp = tempfile()
+) {
   dev_new = function() {
     # actually I should adjust the recording device according to dev, but here I
     # have only considered the png and tikz devices (because the measurement
@@ -298,18 +298,18 @@ chunk_device = function(width, height, record = TRUE, dev, dev.args, dpi, option
     # also the cairo_pdf device (#1235)
     if (identical(dev, 'png')) {
       do.call(grDevices::png, c(list(
-        filename = tempfile(), width = width, height = height, units = 'in', res = dpi
+        filename = tmp, width = width, height = height, units = 'in', res = dpi
       ), get_dargs(dev.args, 'png')))
     } else if (identical(dev, 'tikz')) {
       dargs = c(list(
-        file = paste0(tempfile(), ".tex"), width = width, height = height
+        file = tmp, width = width, height = height
       ), get_dargs(dev.args, 'tikz'))
       dargs$sanitize = options$sanitize; dargs$standAlone = options$external
       if (is.null(dargs$verbose)) dargs$verbose = FALSE
       do.call(tikz_dev, dargs)
     } else if (identical(dev, 'cairo_pdf')) {
       do.call(grDevices::cairo_pdf, c(list(
-        filename = tempfile(), width = width, height = height
+        filename = tmp, width = width, height = height
       ), get_dargs(dev.args, 'cairo_pdf')))
     } else if (identical(getOption('device'), pdf_null)) {
       if (!is.null(dev.args)) {
@@ -389,9 +389,27 @@ merge_class = function(res, class = c('source', 'message', 'warning')) {
 
 }
 
+# merge character output for output='hold', if the subsequent character is of
+# the same class(es) as the previous one (e.g. should not merge normal
+# characters with asis_output())
+merge_character = function(res) {
+  if ((n <- length(res)) <= 1) return(res)
+  k = NULL
+  for (i in 1:(n - 1)) {
+    cls = class(res[[i]])
+    if (identical(cls, class(res[[i + 1]]))) {
+      res[[i + 1]] = paste0(res[[i]], res[[i + 1]])
+      class(res[[i + 1]]) = cls
+      k = c(k, i)
+    }
+  }
+  if (length(k)) res = res[-k]
+  res
+}
+
 call_inline = function(block) {
   if (opts_knit$get('progress')) print(block)
-  in_dir(opts_knit$get('root.dir') %n% input_dir(), inline_exec(block))
+  in_dir(input_dir(), inline_exec(block))
 }
 
 inline_exec = function(block, envir = knit_global(), hook = knit_hooks$get('inline')) {

@@ -139,7 +139,7 @@ knit = function(input, output = NULL, tangle = FALSE, text = NULL, quiet = FALSE
     # in child mode, input path needs to be adjusted
     if (in.file && !is_abs_path(input)) {
       input = paste0(opts_knit$get('child.path'), input)
-      input = input2 = file.path(input_dir(), input)
+      input = input2 = file.path(input_dir(TRUE), input)
     }
     # respect the quiet argument in child mode (#741)
     optk = opts_knit$get(); on.exit(opts_knit$set(optk), add = TRUE)
@@ -470,6 +470,11 @@ wrap.knit_asis = function(x, options, inline = FALSE) {
     # store metadata in an object named of the form .hash_meta when cache=TRUE
     if (length(m) && options$cache == 3)
       assign(cache_meta_name(options$hash), m, envir = knit_global())
+    if (inherits(x, 'knit_asis_htmlwidget')) {
+      options$fig.cur = plot_counter()
+      options = reduce_plot_opts(options)
+      return(add_html_caption(options, x))
+    }
   }
   x = as.character(x)
   if (!out_format('latex') || inline) return(x)
@@ -595,15 +600,18 @@ wrap.html_screenshot = function(x, options = opts_chunk$get(), inline = FALSE) {
 wrap.knit_embed_url = function(x, options = opts_chunk$get(), inline = FALSE) {
   options$fig.cur = plot_counter()
   options = reduce_plot_opts(options)
-  iframe = sprintf(
+  add_html_caption(options, sprintf(
     '<iframe src="%s" width="%s" height="%s"></iframe>',
     escape_html(x$url), options$out.width %n% '100%', x$height %n% '400px'
-  )
+  ))
+}
+
+add_html_caption = function(options, code) {
   cap = .img.cap(options)
-  if (cap == '') return(iframe)
+  if (cap == '') return(code)
   sprintf(
     '<div class="figure"%s>\n%s\n<p class="caption">%s</p>\n</div>',
-    css_text_align(options$fig.align), iframe, cap
+    css_text_align(options$fig.align), code, cap
   )
 }
 

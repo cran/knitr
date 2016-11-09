@@ -289,7 +289,7 @@ fig_process = function(FUN, path) {
 #'   \command{convert} command in ImageMagick:
 #'   \url{http://www.imagemagick.org/script/convert.php}
 #' @return The original filename.
-plot_crop = function(x, quiet = !opts_knit$get('progress')) {
+plot_crop = function(x, quiet = TRUE) {
   ext = tolower(file_ext(x))
   if (ext == 'pdf') {
     if (!has_utility('pdfcrop')) return(x)
@@ -335,7 +335,9 @@ par2 = function(x) {
     # drawn at (1, 1) instead of (1, 2)
     x$mfg = NULL
   }
-  x$usr = NULL  # you are unlikely to want to reset usr
+  # you are unlikely to want to reset these pars
+  x$fig = x$fin = x$pin = x$plt = x$usr = NULL
+  x$ask = NULL  # does not make sense for typical non-interactive R sessions
   par(x)
 }
 
