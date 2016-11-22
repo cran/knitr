@@ -79,8 +79,7 @@ knit_params = function(text, evaluate = TRUE) {
   yaml = yaml_front_matter(text)
   if (is.null(yaml)) return(list())
 
-  yaml = enc2utf8(yaml)
-  knit_params_yaml(yaml, evaluate = evaluate)
+  knit_params_yaml(enc2utf8(yaml), evaluate = evaluate)
 }
 
 #' Extract knit parameters from YAML text
@@ -106,7 +105,7 @@ knit_params_yaml = function(yaml, evaluate = TRUE) {
 
   # if we found paramters then resolve and return them
   if (is.list(parsed_yaml) && !is.null(parsed_yaml$params)) {
-    resolve_params(mark_utf8(parsed_yaml$params), evaluate = evaluate)
+    resolve_params(parsed_yaml$params, evaluate = evaluate)
   } else {
     list()
   }
@@ -116,19 +115,6 @@ knit_params_yaml = function(yaml, evaluate = TRUE) {
 flatten_params = function(params) {
   res = list()
   for (param in params) res[[param$name]] = param$value
-  res
-}
-
-# copied from rmarkdown:::mark_utf8
-mark_utf8 = function(x) {
-  if (is.character(x)) {
-    Encoding(x) = 'UTF-8'
-    return(x)
-  }
-  if (!is.list(x)) return(x)
-  attrs = attributes(x)
-  res = lapply(x, mark_utf8)
-  attributes(res) = attrs
   res
 }
 
@@ -161,14 +147,12 @@ yaml_front_matter = function(lines) {
 
   front_matter = front_matter_lines
   front_matter = front_matter[2:(length(front_matter) - 1)]
-  # FIXME: this is only for apex on CRAN (https://github.com/thibautjombart/apex/pull/15)
-  if (length(grep('^params:', front_matter)) == 0) return()
+  if (length(grep('^params:', front_matter)) == 0) return()  # no params in YAML
   front_matter = paste(front_matter, collapse = "\n")
 
   # ensure that the front-matter doesn't terminate with ':', so it won't cause a
   # crash when passed to yaml::load
   if (!grepl(":\\s*$", front_matter)) front_matter
-
 }
 
 
