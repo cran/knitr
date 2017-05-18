@@ -27,8 +27,8 @@
 #' @export
 #' @note The Leiningen engine \code{lein} requires lein-exec plugin; see
 #'   \url{https://github.com/yihui/knitr/issues/1176} for details.
-#' @references Usage: \url{http://yihui.name/knitr/objects}; examples:
-#'   \url{http://yihui.name/knitr/demo/engines/}
+#' @references Usage: \url{https://yihui.name/knitr/objects/}; examples:
+#'   \url{https://yihui.name/knitr/demo/engines/}
 #' @examples knit_engines$get('python'); knit_engines$get('awk')
 #' names(knit_engines$get())
 knit_engines = new_defaults()
@@ -100,7 +100,10 @@ eng_interpreted = function(options) {
       stata = {
         logf = sub('[.]do$', '.log', f)
         on.exit(unlink(c(logf)), add = TRUE)
-        paste(switch(Sys.info()[['sysname']], Windows='/q /e do', Darwin='-q -e do', Linux='-q -b do', '-q -b do'), f)
+        paste(switch(
+          Sys.info()[['sysname']], Windows = '/q /e do', Darwin = '-q -e do',
+          Linux = '-q -b do', '-q -b do'
+        ), shQuote(normalizePath(f)))
       },
       f
     )
@@ -317,7 +320,8 @@ eng_cat = function(options) {
     if (!identical(file, '')) cat(..., file = file)
   }
   do.call(cat2, c(list(options$code, sep = '\n'), options$engine.opts))
-  if (is.null(lang <- options$engine.opts$lang)) return('')
+  if (is.null(lang <- options$engine.opts$lang) && is.null(lang <- options$class.source))
+    return('')
   options$engine = lang
   engine_output(options, options$code, NULL)
 }
@@ -383,7 +387,7 @@ eng_block2 = function(options) {
   # {}; when encoded in integers, they won't be escaped, but will need to
   # restore them later; see bookdown:::restore_block2
   if (l1 != '') l1 = paste(
-    c('\\iffalse{', utf8ToInt(enc2utf8(l1)), '}\\fi'), collapse = '-'
+    c('\\iffalse{', utf8ToInt(enc2utf8(l1)), '}\\fi{}'), collapse = '-'
   )
   h2 = options$html.tag %n% 'div'
   h3 = options$html.before %n% ''
@@ -425,7 +429,10 @@ is_sql_update_query = function(query) {
 
 # sql engine
 eng_sql = function(options) {
-  if (isFALSE(options$eval)) return(engine_output(options, options$code, ''))
+  # return chunk before interpolation eagerly to avoid connection option check
+  if (isFALSE(options$eval) && !isTRUE(options$sql.show_interpolated)) {
+    return(engine_output(options, options$code, ''))
+  }
 
   # Return char vector of sql interpolation param names
   varnames_from_sql = function(conn, sql) {
@@ -458,6 +465,7 @@ eng_sql = function(options) {
 
   # extract options
   conn = options$connection
+  if (is.character(conn)) conn = get(conn, envir = knit_global())
   if (is.null(conn)) stop2(
     "The 'connection' option (DBI connection) is required for sql chunks."
   )
@@ -467,9 +475,11 @@ eng_sql = function(options) {
     max.print = -1
   sql = paste(options$code, collapse = '\n')
 
+  query = interpolate_from_env(conn, sql)
+  if (isFALSE(options$eval)) return(engine_output(options, query, ''))
+
   # execute query -- when we are printing with an enforced max.print we
   # use dbFetch so as to only pull down the required number of records
-  query = interpolate_from_env(conn, sql)
   if (is.null(varname) && max.print > 0 && !is_sql_update_query(query)) {
     res = DBI::dbSendQuery(conn, query)
     data = DBI::dbFetch(res, n = max.print)
@@ -535,8 +545,45 @@ eng_sql = function(options) {
   # assign varname if requested
   if (!is.null(varname)) assign(varname, data, envir = knit_global())
 
+  # reset query to pre-interpolated if not expanding
+  if (!isTRUE(options$sql.show_interpolated)) query <- options$code
+
   # return output
-  engine_output(options, options$code, output)
+  engine_output(options, query, output)
+}
+
+# go engine, added by @hodgesds https://github.com/yihui/knitr/pull/1330
+eng_go = function(options) {
+  f = tempfile('code', '.', fileext = ".go")
+  writeLines(code <- options$code, f)
+  on.exit(unlink(f), add = TRUE)
+  cmd = get_engine_path(options$engine.path, options$engine)
+
+  fmt_args = sprintf('fmt %s', f)
+
+  tryCatch(
+    system2(cmd, fmt_args, stdout = TRUE, stderr = TRUE, env = options$engine.env),
+    error = function(e) {
+      if (!options$error) stop(e)
+    }
+  )
+
+  run_args = sprintf(" run %s", f)
+
+  extra = if (options$eval) {
+    message('running: ', cmd, run_args)
+    tryCatch(
+      system2(cmd, run_args, stdout = TRUE, stderr = TRUE, env = options$engine.env),
+      error = function(e) {
+        if (!options$error) stop(e)
+        'Error in executing go code'
+      }
+    )
+  }
+
+  if (options$results == 'hide') extra = NULL
+
+  engine_output(options, code, extra)
 }
 
 # set engines for interpreted languages
@@ -553,7 +600,7 @@ knit_engines$set(
   highlight = eng_highlight, Rcpp = eng_Rcpp, tikz = eng_tikz, dot = eng_dot,
   c = eng_shlib, fortran = eng_shlib, fortran95 = eng_shlib, asy = eng_dot,
   cat = eng_cat, asis = eng_asis, stan = eng_stan, block = eng_block,
-  block2 = eng_block2, js = eng_js, css = eng_css, sql = eng_sql
+  block2 = eng_block2, js = eng_js, css = eng_css, sql = eng_sql, go = eng_go
 )
 
 get_engine = function(name) {

@@ -2,7 +2,7 @@
 #'
 #' Since R 3.0.0, package vignettes can use non-Sweave engines, and \pkg{knitr}
 #' has provided a few engines to compile vignettes via \code{\link{knit}()} with
-#' different templates. See \url{http://yihui.name/knitr/demo/vignette/} for
+#' different templates. See \url{https://yihui.name/knitr/demo/vignette/} for
 #' more information.
 #' @name vignette_engines
 #' @note If you use the \code{knitr::rmarkdown} engine, please make sure that
@@ -37,7 +37,7 @@ vweave = function(file, driver, syntax, encoding = 'UTF-8', quiet = FALSE, ...) 
   }
   opts_chunk$set(error = FALSE)  # should not hide errors
   knit_hooks$set(purl = hook_purl)  # write out code while weaving
-  (if (grepl('\\.[Rr]md$', file)) knit2html_v1 else if (grepl('\\.[Rr]rst$', file)) knit2pdf else knit)(
+  (if (grepl('\\.[Rr]md$', file)) knit2html_v1 else if (grepl('\\.[Rr]rst$', file)) knit2pandoc else knit)(
     file, encoding = encoding, quiet = quiet, envir = globalenv()
   )
 }

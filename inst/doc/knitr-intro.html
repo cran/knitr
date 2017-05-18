@@ -4,7 +4,7 @@
 
 <head>
 
-<meta charset="utf-8">
+<meta charset="utf-8" />
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
 <meta name="generator" content="pandoc" />
 
@@ -12,7 +12,7 @@
 
 <meta name="author" content="Yihui Xie" />
 
-<meta name="date" content="2016-11-21" />
+<meta name="date" content="2017-05-17" />
 
 <title>Not An Introduction to knitr</title>
 
@@ -70,7 +70,7 @@ code > span.in { color: #60a0b0; font-weight: bold; font-style: italic; } /* Inf
 
 <h1 class="title toc-ignore">Not An Introduction to knitr</h1>
 <h4 class="author"><em>Yihui Xie</em></h4>
-<h4 class="date"><em>2016-11-21</em></h4>
+<h4 class="date"><em>2017-05-17</em></h4>
 
 
 
@@ -78,9 +78,9 @@ code > span.in { color: #60a0b0; font-weight: bold; font-style: italic; } /* Inf
 <p>Anyway, here is a code chunk that shows you can compile vignettes with <strong>knitr</strong> as well using R 3.0.x, which supports non-Sweave vignettes:</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">options</span>(<span class="dt">digits =</span> <span class="dv">4</span>)
 <span class="kw">rnorm</span>(<span class="dv">20</span>)</code></pre></div>
-<pre><code>##  [1] -0.980131  0.338629 -0.865409  0.158610 -0.396432  2.177146  1.117703
-##  [8]  0.118996  0.961367 -0.381617  1.125110 -0.281236 -0.399513  1.859193
-## [15]  0.418742 -1.364225 -0.008645  0.254989  0.385174  0.816111</code></pre>
+<pre><code>##  [1]  1.14241 -0.06596 -0.04932 -0.01794 -0.32703  1.13619 -0.49862
+##  [8]  0.69627 -1.46082 -0.15826 -1.18668  0.90296 -0.88339 -0.88122
+## [15]  0.68114 -0.09012  0.65127  0.54746  0.01149 -0.50950</code></pre>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">fit =<span class="st"> </span><span class="kw">lm</span>(dist ~<span class="st"> </span>speed, <span class="dt">data =</span> cars)
 b =<span class="st"> </span><span class="kw">coef</span>(fit)</code></pre></div>
 <table>
@@ -166,7 +166,7 @@ window.onload = function() {
   (function () {
     var script = document.createElement("script");
     script.type = "text/javascript";
-    script.src  = "https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML";
+    script.src  = "https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML";
     document.getElementsByTagName("head")[0].appendChild(script);
   })();
 </script>

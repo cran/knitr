@@ -18,6 +18,10 @@ hook_plot_md = function(x, options) {
       options$fig.align = 'default'
     }
   }
+  if (options$fig.show == 'hold' && to == 'docx') {
+    warning('The chunk option fig.show="hold" is not supported for Word output')
+    options$fig.show = 'asis'
+  }
   hook_plot_md_base(x, options)
 }
 
@@ -89,6 +93,15 @@ css_text_align = function(align) {
   if (align == 'default') '' else sprintf(' style="text-align: %s"', align)
 }
 
+# helper function to manage HTML classes; turn "a b" to "{.a .b}" for Pandoc
+# fenced code blocks
+block_class = function(x){
+  if (length(x) == 0) return()
+  classes = unlist(strsplit(x, '\\s+'))
+  .classes = paste0('.', classes, collapse = ' ')
+  paste0('{', .classes, '}')
+}
+
 #' @rdname output_hooks
 #' @export
 #' @param strict whether to use strict markdown or reST syntax; for markdown: if
@@ -104,7 +117,8 @@ render_markdown = function(strict = FALSE, fence_char = '`') {
   opts_knit$set(out.format = 'markdown')
   fence = paste(rep(fence_char, 3), collapse = '')
   # four spaces lead to <pre></pre>
-  hook.t = function(x, options) {
+  hook.t = function(x, options, class = NULL) {
+    # this code-block duplicated from hook.t()
     if (strict) {
       paste('\n', indent_block(x), '', sep = '\n')
     } else {
@@ -115,20 +129,27 @@ render_markdown = function(strict = FALSE, fence_char = '`') {
         l = max(l)
         if (l >= 4) fence = paste(rep(fence_char, l), collapse = '')
       }
-      paste0('\n\n', fence, x, fence, '\n\n')
+      paste0('\n\n', fence, block_class(class), x, fence, '\n\n')
     }
+  }
+  hook.o = function(x, options) {
+    hook.t(x, options, options$class.output)
   }
   hook.r = function(x, options) {
     language = tolower(options$engine)
     if (language == 'node') language = 'javascript'
     if (!options$highlight) language = 'text'
+    if (!is.null(options$class.source)) {
+      language = block_class(c(language, options$class.source))
+    }
     paste0('\n\n', fence, language, '\n', x, fence, '\n\n')
   }
   knit_hooks$set(
     source = function(x, options) {
       x = hilight_source(x, 'markdown', options)
       (if (strict) hook.t else hook.r)(paste(c(x, ''), collapse = '\n'), options)
-    }, output = hook.t, warning = hook.t, error = hook.t, message = hook.t,
+    },
+    output = hook.o, warning = hook.t, error = hook.t, message = hook.t,
     inline = function(x) {
       fmt = pandoc_to()
       fmt = if (length(fmt) == 1L) 'latex' else 'html'

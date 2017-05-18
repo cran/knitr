@@ -61,7 +61,7 @@ color_def = function(col, variable = 'shadecolor') {
       x = switch(variable, shadecolor = rep(.97, 3), fgcolor = rep(0, 3))
       warning("the color '", col, "' is invalid;",
               'using default color...',
-              'see http://yihui.name/knitr/options')
+              'see https://yihui.name/knitr/options')
     }
   }
   if (length(x) != 3L) stop('invalid color:', col)
@@ -73,7 +73,7 @@ color_def = function(col, variable = 'shadecolor') {
 # split by semicolon or colon
 sc_split = function(string) {
   if (is.call(string)) string = eval(string)
-  if (is.numeric(string) || length(string) > 1L) return(string)
+  if (is.numeric(string) || length(string) != 1L) return(string)
   stringr::str_trim(stringr::str_split(string, ';|,')[[1]])
 }
 
@@ -127,7 +127,7 @@ pure_preamble = function(preamble, patterns) {
 #'   standalone mode using \code{\link{knit}()} (instead of being called in
 #'   \code{\link{knit_child}()}); when the parent document is compiled, this
 #'   function in the child document will be ignored.
-#' @references \url{http://yihui.name/knitr/demo/child/}
+#' @references \url{https://yihui.name/knitr/demo/child/}
 #' @export
 #' @examples ## can use, e.g. \Sexpr{set_parent('parent_doc.Rnw')} or
 #'
@@ -245,6 +245,8 @@ fix_options = function(options) {
   if (length(options$fig.subcap)) options$fig.show = 'hold'
   # the default device NULL is not valid; use pdf is not set
   if (is.null(options$dev)) options$dev = 'pdf'
+  # FALSE means hide for options$results
+  if (isFALSE(options$results)) options$results = 'hide'
 
   # the figure/cache filenames may contain UTF-8 chars, which won't work on
   # Windows, e.g. png() fails if filename contains UTF-8 chars (must use native
@@ -901,3 +903,45 @@ restore_raw_output = function(text, chunks, markers = raw_markers) {
 raw_output = function(x, markers = raw_markers, ...) {
   asis_output(paste(c(markers[1], x, markers[2]), collapse = ''), ...)
 }
+
+# a simple JSON serializer
+tojson = function(x) {
+  if (is.null(x)) return('null')
+  if (is.logical(x)) {
+    if (length(x) != 1 || any(is.na(x)))
+      stop('Logical values of length > 1 and NA are not supported')
+    return(tolower(as.character(x)))
+  }
+  if (is.character(x) || is.numeric(x)) {
+    return(json_vector(x, length(x) != 1 || inherits(x, 'AsIs'), is.character(x)))
+  }
+  if (is.list(x)) {
+    if (length(x) == 0) return('{}')
+    return(if (is.null(names(x))) {
+      json_vector(unlist(lapply(x, tojson)), TRUE, quote = FALSE)
+    } else {
+      nms = paste0('"', names(x), '"')
+      paste0('{\n', paste(nms, unlist(lapply(x, tojson)), sep = ': ', collapse = ',\n'), '\n}')
+    })
+  }
+  stop('The class of x is not supported: ', paste(class(x), collapse = ', '))
+}
+
+json_vector = function(x, toArray = FALSE, quote = TRUE) {
+  if (quote) {
+    x = gsub('(["\\])', "\\\\\\1", x)
+    x = gsub('[[:space:]]', " ", x)
+    if (length(x)) x = paste0('"', x, '"')
+  }
+  if (toArray) paste0('[', paste(x, collapse = ', '), ']') else x
+}
+
+writeUTF8 = function(text, file, ...) {
+  if (identical(file, '')) {
+    cat(text, sep = '\n', file = file)
+  } else {
+    writeLines(enc2utf8(text), file, ..., useBytes = TRUE)
+  }
+}
+
+trimws = function(x) gsub('^\\s+|\\s+$', '', x)

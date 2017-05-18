@@ -19,6 +19,32 @@ rst2pdf = function(input, command = 'rst2pdf', options = '') {
   if (file.exists(out)) out else stop('conversion by rst2pdf failed!')
 }
 
+#' Convert various input files to various output files using \code{knit()} and
+#' Pandoc
+#'
+#' Knits the input file and compiles to an output format using Pandoc.
+#' @inheritParams knit
+#' @param to a character string describing the Pandoc output format to use
+#' @param pandoc_wrapper an R function used to call Pandoc; by default, if
+#'   \pkg{rmarkdown} installed uses
+#'   \code{rmarkdown::\link[rmarkdown]{pandoc_convert}()} else
+#'   \code{\link{pandoc}()}.
+#' @param ... options to be passed to the \code{pandoc_wrapper} function
+#' @author Trevor L. Davis
+#' @return Returns the output of the \code{pandoc_wrapper} function.
+#' @export
+knit2pandoc = function(
+  input, output = NULL, tangle = FALSE, text = NULL, quiet = FALSE,
+  envir = parent.frame(), encoding = getOption('encoding'),
+  to = 'html', pandoc_wrapper = NULL, ...
+) {
+  knit_output = knit(input, output, tangle, text, quiet, envir, encoding)
+  if (!is.null(pandoc_wrapper)) return(pandoc_wrapper(knit_output, to, ...))
+  if (!has_package('rmarkdown')) return(pandoc(knit_output, to, ...))
+  output = gsub(paste0(file_ext(knit_output), '$'), to, knit_output)
+  rmarkdown::pandoc_convert(knit_output, to, output = output, ...)
+}
+
 #' Convert Rnw or Rrst files to PDF using knit() and texi2pdf() or rst2pdf()
 #'
 #' Knit the input Rnw or Rrst document, and compile to PDF using \code{texi2pdf}
@@ -133,7 +159,7 @@ knit2html_v1 = function(...) knit2html(..., force_v1 = TRUE)
 #' @param publish whether to publish the post immediately
 #' @inheritParams knit
 #' @export
-#' @references \url{http://yihui.name/knitr/demo/wordpress/}
+#' @references \url{https://yihui.name/knitr/demo/wordpress/}
 #' @author William K. Morris, Yihui Xie, and Jared Lander
 #' @note This function will convert the encoding of the post and the title to
 #'   UTF-8 internally. If you have additional data to send to WordPress (e.g.

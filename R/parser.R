@@ -46,7 +46,11 @@ knit_code = new_defaults()
 
 # strip the pattern in code
 strip_block = function(x, prefix = NULL) {
-  if (!is.null(prefix) && (length(x) > 1)) x[-1L] = sub(prefix, '', x[-1L])
+  if (!is.null(prefix) && (length(x) > 1)) {
+    x[-1L] = sub(prefix, '', x[-1L])
+    spaces = min(attr(regexpr("^ *", x[-1L]), "match.length"))
+    if (spaces > 0) x[-1L] = substring(x[-1L], spaces + 1)
+  }
   x
 }
 
@@ -117,7 +121,7 @@ parse_params = function(params) {
     eval(parse_only(paste('alist(', quote_label(params), ')'))),
     error = function(e) {
       message('(*) NOTE: I saw chunk options "', params,
-              '"\n please go to http://yihui.name/knitr/options',
+              '"\n please go to https://yihui.name/knitr/options',
               '\n (it is likely that you forgot to quote "character" options)')
     })
 
@@ -243,7 +247,7 @@ print.inline = function(x, ...) {
 #' @param from.offset,to.offset an offset to be added to \code{from}/\code{to}
 #' @return As a side effect, code chunks are read into the current session so
 #'   that future chunks can (re)use the code by chunk label references.
-#' @references \url{http://yihui.name/knitr/demo/externalization/}
+#' @references \url{https://yihui.name/knitr/demo/externalization/}
 #' @note This function can only be used in a chunk which is \emph{not} cached
 #'   (chunk option \code{cache = FALSE}), and the code is read and stored in the
 #'   current session \emph{without} being executed (to actually run the code,

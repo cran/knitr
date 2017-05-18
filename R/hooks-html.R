@@ -30,8 +30,12 @@ hook_plot_html = function(x, options) {
   caption = if (length(caption) == 1 && caption != '') {
     paste0('title="', caption, '" alt="', caption, '" ')
   }
+  tag = if (grepl('[.]pdf$', src, ignore.case = TRUE)) {
+    extra = c(extra, 'type="application/pdf"')
+    'embed'
+  } else 'img'
   paste0(
-    '<img src="', opts_knit$get('base.url'), src, '" ', caption,
+    '<', tag, ' src="', opts_knit$get('base.url'), src, '" ', caption,
     .img.attr(w, h, extra), ' />'
   )
 }
@@ -85,8 +89,9 @@ hook_ffmpeg = function(x, options, format = 'webm') {
   fig.num = options$fig.num
   format = sub('^[.]', '', format)
   # set up the ffmpeg run
-  fig.fname = paste0(sub(paste0(fig.num, '$'), '%d', x[1]), '.', x[2])
-  mov.fname = paste0(sub(paste0(fig.num, '$'), '', x[1]), '.', format)
+  base = sub(paste0(fig.num, '$'), '', x[1])
+  fig.fname = paste0(base, '%d', '.', x[2])
+  mov.fname = paste0(sub('-$', '', base), '.', format)
 
   extra = if (format == 'webm') {
     paste('-b:v', options$ffmpeg.bitrate %n% '1M', '-crf 10')
@@ -114,8 +119,12 @@ hook_ffmpeg = function(x, options, format = 'webm') {
     sprintf('width="%s"', options$out.width),
     sprintf('height="%s"', options$out.height), opts
   )
-  sprintf('<video %s><source src="%s" /><p>video of chunk %s</p></video>',
-          opts, paste0(opts_knit$get('base.url'), mov.fname), options$label)
+  cap = .img.cap(options, alt = TRUE)
+  if (cap != '') cap = sprintf('<p>%s</p>', cap)
+  sprintf(
+    '<video %s><source src="%s" />%s</video>', trimws(opts),
+    paste0(opts_knit$get('base.url'), mov.fname), cap
+  )
 }
 
 # use SciAnimator to create animations

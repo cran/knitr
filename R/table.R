@@ -33,9 +33,10 @@
 #' @param escape escape special characters when producing HTML or LaTeX tables
 #' @param ... other arguments (see examples)
 #' @return A character vector of the table source code.
-#' @seealso Other R packages such as \pkg{xtable} and \pkg{tables} for HTML and
-#'   LaTeX tables, and \pkg{ascii} and \pkg{pander} for different flavors of
-#'   markdown output and some advanced features and table styles.
+#' @seealso Other R packages such as \pkg{huxtable}, \pkg{xtable},
+#'   \pkg{kableExtra}, and \pkg{tables} for HTML and LaTeX tables, and
+#'   \pkg{ascii} and \pkg{pander} for different flavors of markdown output and
+#'   some advanced features and table styles.
 #' @note The tables for \code{format = 'markdown'} also work for Pandoc when the
 #'   \code{pipe_tables} extension is enabled (this is the default behavior for
 #'   Pandoc >= 1.10).
@@ -102,8 +103,8 @@ kable = function(
 
   # create a label for bookdown if applicable
   if (!is.null(caption) && !is.na(caption)) caption = paste0(
-    create_label('tab:', opts_current$get('label'), latex = (format == 'latex')), 
-                 caption 
+    create_label('tab:', opts_current$get('label'), latex = (format == 'latex')),
+                 caption
   )
   if (inherits(x, 'list')) {
     # if the output is for Pandoc and we want multiple tabular in one table, we
@@ -121,7 +122,10 @@ kable = function(
     } else if (format == 'html' || (format == 'pandoc' && is_html_output())) kable_html(
       matrix(paste0('\n\n', res, '\n\n'), 1), caption = caption, escape = FALSE,
       table.attr = 'class="kable_wrapper"'
-    ) else paste(res, collapse = '\n\n')
+    ) else {
+      res = paste(res, collapse = '\n\n')
+      if (format == 'pandoc') kable_pandoc_caption(res, caption) else res
+    }
     return(structure(res, format = format, class = 'knitr_kable'))
   }
   if (identical(col.names, NA)) col.names = colnames(x)
@@ -152,7 +156,7 @@ kable = function(
   n = nrow(x)
   x = replace_na(base::format(as.matrix(x), trim = TRUE, justify = 'none'), is.na(x))
   if (!is.matrix(x)) x = matrix(x, nrow = n)
-  x = gsub('^\\s*|\\s*$', '', x)
+  x = trimws(x)
   colnames(x) = col.names
   if (format != 'latex' && length(align) && !all(align %in% c('l', 'r', 'c')))
     stop("'align' must be a character vector of possible values 'l', 'r', and 'c'")
@@ -265,7 +269,7 @@ kable_latex_caption = function(x, caption) {
 }
 
 kable_html = function(x, table.attr = '', caption = NULL, escape = TRUE, ...) {
-  table.attr = gsub('^\\s+|\\s+$', '', table.attr)
+  table.attr = trimws(table.attr)
   # need a space between <table and attributes
   if (nzchar(table.attr)) table.attr = paste('', table.attr)
   align = if (is.null(align <- attr(x, 'align'))) '' else {
@@ -335,7 +339,10 @@ kable_rst = function(x, rownames.name = '\\', ...) {
 
 # actually R Markdown
 kable_markdown = function(x, padding = 1, ...) {
-  if (is.null(colnames(x))) stop('the table must have a header (column names)')
+  if (is.null(colnames(x))) {
+    warning('The table should have a header (column names)')
+    colnames(x) = rep('', ncol(x))
+  }
   res = kable_mark(x, c(NA, '-', NA), '|', padding, align.fun = function(s, a) {
     if (is.null(a)) return(s)
     r = c(l = '^.', c = '^.|.$', r = '.$')
@@ -352,8 +359,12 @@ kable_pandoc = function(x, caption = NULL, padding = 1, ...) {
     x, c(NA, '-', if (is_blank(colnames(x))) '-' else NA),
     padding = padding, ...
   )
+  kable_pandoc_caption(tab, caption)
+}
+
+kable_pandoc_caption = function(x, caption) {
   if (identical(caption, NA)) caption = NULL
-  if (length(caption)) c(paste('Table:', caption), "", tab) else tab
+  if (length(caption)) c(paste('Table:', caption), "", x) else x
 }
 
 # pad a matrix

@@ -24,7 +24,7 @@ dev2ext = function(x) {
     for (i in x[idx]) check_dev(i)
     stop2(
       'cannot find appropriate filename extensions for device ', x[idx], '; ',
-      "please use chunk option 'fig.ext' (http://yihui.name/knitr/options)"
+      "please use chunk option 'fig.ext' (https://yihui.name/knitr/options)"
     )
   }
   unname(res)
@@ -62,7 +62,7 @@ save_plot = function(plot, name, dev, width, height, ext, dpi, options) {
   path = paste(name, ext, sep = '.')
   # when cache=2 and plot file exists, just return the filename
   if (options$cache == 2 && cache$exists(options$hash, options$cache.lazy)) {
-    if (!file.exists(path)) {
+    if (in_base_dir(!file.exists(path))) {
       purge_cache(options)
       stop('cannot find ', path, '; the cache has been purged; please re-compile')
     }
@@ -124,6 +124,13 @@ plot2dev = function(plot, name, dev, device, path, width, height, options) {
   showtext(options$fig.showtext)  # showtext support
   print(plot)
   dev.off()
+
+  # Cairo::CairoPS always adds the extension .ps, even if you have specified an
+  # extension like .eps (https://github.com/yihui/knitr/issues/1364)
+  if (dev == 'CairoPS') {
+    path2 = paste0(path, '.ps')
+    if (file.exists(path2)) file.rename(path2, path)
+  }
 
   # compile tikz to pdf
   if (dev == 'tikz' && options$external) {

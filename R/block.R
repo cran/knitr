@@ -343,7 +343,11 @@ filter_evaluate = function(res, opt, test) {
 
 # find recorded plots in the output of evaluate()
 find_recordedplot = function(x) {
-  vapply(x, evaluate::is.recordedplot, logical(1))
+  vapply(x, is_plot_output, logical(1))
+}
+
+is_plot_output = function(x) {
+  evaluate::is.recordedplot(x) || inherits(x, 'knit_image_paths')
 }
 
 # move plots before source code
@@ -444,6 +448,7 @@ process_tangle.block = function(x) {
     try(params[o] <- list(eval_lang(params[[o]])))
   if (isFALSE(params$purl)) return('')
   label = params$label; ev = params$eval
+  if (params$engine != 'R') return(comment_out(knit_code$get(label)))
   code = if (!isFALSE(ev) && !is.null(params$child)) {
     cmds = lapply(sc_split(params$child), knit_child)
     paste(unlist(cmds), collapse = '\n')
@@ -459,13 +464,23 @@ process_tangle.block = function(x) {
 }
 #' @export
 process_tangle.inline = function(x) {
-  if (opts_knit$get('documentation') == 2L) {
-    return(paste(line_prompt(x$input.src, "#' ", "#' "), collapse = '\n'))
-  }
+
+  output = if (opts_knit$get('documentation') == 2L) {
+    output = paste(line_prompt(x$input.src, "#' ", "#' "), collapse = '\n')
+  } else ''
+
   code = x$code
-  if (length(code) == 0L || !any(idx <- grepl('knit_child\\(.+\\)', code)))
-    return('')
-  paste(c(sapply(code[idx], function(z) eval(parse_only(z))), ''), collapse = '\n')
+  if (length(code) == 0L) return(output)
+
+  if (getOption('knitr.purl.inline', FALSE)) output = c(output, code)
+
+  idx = grepl('knit_child\\(.+\\)', code)
+  if (any(idx)) {
+    cout = sapply(code[idx], function(z) eval(parse_only(z)))
+    output = c(output, cout, '')
+  }
+
+  paste(output, collapse = '\n')
 }
 
 
