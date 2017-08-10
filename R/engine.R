@@ -20,10 +20,8 @@
 #' passed through \code{options$engine.opts}, e.g. \code{engine='ruby',
 #' engine.opts='-v'}.
 #'
-#' Below is a list of built-in language engines, retrieved via
-#' \code{knit_engines$get()}:
-#'
-#' \Sexpr[results=verbatim]{str(knitr::knit_engines$get())}
+#' See \code{str(knitr::knit_engines$get())} for a list of built-in language
+#' engines.
 #' @export
 #' @note The Leiningen engine \code{lein} requires lein-exec plugin; see
 #'   \url{https://github.com/yihui/knitr/issues/1176} for details.
@@ -404,10 +402,12 @@ eng_block2 = function(options) {
 # helper to create engines the wrap embedded html assets (e.g. css,js)
 eng_html_asset = function(prefix, postfix) {
   function(options) {
-    if (options$eval && is_html_output(excludes = 'markdown')) {
+    out = if (options$eval && is_html_output(excludes = 'markdown')) {
       code = c(prefix, options$code, postfix)
       paste(code, collapse = '\n')
     }
+    options$results = 'asis'
+    engine_output(options, options$code, out)
   }
 }
 

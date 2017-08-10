@@ -259,7 +259,11 @@ block_exec = function(options) {
     # make sure all objects to be saved exist in env
     objs = intersect(c(objs, obj.new), ls(env, all.names = TRUE))
     if (options$autodep) {
-      cache$objects(objs, code, options$label, options$cache.path)
+      # you shall manually specify global object names if find_symbols() is not reliable
+      cache$objects(
+        objs, options$cache.globals %n% find_symbols(code), options$label,
+        options$cache.path
+      )
       dep_auto()
     }
     if (options$cache < 3) {
@@ -379,7 +383,8 @@ merge_class = function(res, class = c('source', 'message', 'warning')) {
     if (idx2 - idx1 == 1) {
       res2 = res[[idx2]]
       # merge warnings/messages only if next one is identical to previous one
-      if (class == 'source' || identical(res1, res2)) {
+      if (class == 'source' || identical(res1, res2) ||
+          (class == 'message' && !grepl('\n$', tail(res1[[el]], 1)))) {
         res[[k1]][[el]] = c(res[[k1]][[el]], res2[[el]])
         k2 = c(k2, idx2)
       } else {

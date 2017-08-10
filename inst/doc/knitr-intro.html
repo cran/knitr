@@ -12,7 +12,7 @@
 
 <meta name="author" content="Yihui Xie" />
 
-<meta name="date" content="2017-05-17" />
+<meta name="date" content="2017-08-09" />
 
 <title>Not An Introduction to knitr</title>
 
@@ -70,18 +70,18 @@ code > span.in { color: #60a0b0; font-weight: bold; font-style: italic; } /* Inf
 
 <h1 class="title toc-ignore">Not An Introduction to knitr</h1>
 <h4 class="author"><em>Yihui Xie</em></h4>
-<h4 class="date"><em>2017-05-17</em></h4>
+<h4 class="date"><em>2017-08-09</em></h4>
 
 
 
-<p>The <strong>knitr</strong> package <span class="citation">(Xie 2016)</span> is an alternative tool to Sweave based on a different design with more features. This document is not an introduction, but only serves as a placeholder to guide you to the real manuals, which are available on the package website <a href="http://yihui.name/knitr" class="uri">http://yihui.name/knitr</a><a href="#fn1" class="footnoteRef" id="fnref1"><sup>1</sup></a>, and remember to read the help pages of functions in this package. There is a book <span class="citation">(Xie 2015)</span> for this package, but it may not be useful to those who prefer digging out information on the web.</p>
+<p>The <strong>knitr</strong> package <span class="citation">(Xie 2016)</span> is an alternative tool to Sweave based on a different design with more features. This document is not an introduction, but only serves as a placeholder to guide you to the real manuals, which are available on the package website <a href="https://yihui.name/knitr/" class="uri">https://yihui.name/knitr/</a><a href="#fn1" class="footnoteRef" id="fnref1"><sup>1</sup></a>, and remember to read the help pages of functions in this package. There is a book <span class="citation">(Xie 2015)</span> for this package, but it may not be useful to those who prefer digging out information on the web.</p>
 <p>Anyway, here is a code chunk that shows you can compile vignettes with <strong>knitr</strong> as well using R 3.0.x, which supports non-Sweave vignettes:</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">options</span>(<span class="dt">digits =</span> <span class="dv">4</span>)
 <span class="kw">rnorm</span>(<span class="dv">20</span>)</code></pre></div>
-<pre><code>##  [1]  1.14241 -0.06596 -0.04932 -0.01794 -0.32703  1.13619 -0.49862
-##  [8]  0.69627 -1.46082 -0.15826 -1.18668  0.90296 -0.88339 -0.88122
-## [15]  0.68114 -0.09012  0.65127  0.54746  0.01149 -0.50950</code></pre>
-<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">fit =<span class="st"> </span><span class="kw">lm</span>(dist ~<span class="st"> </span>speed, <span class="dt">data =</span> cars)
+<pre><code>##  [1] -0.18780  1.23830  0.19112  0.48441  0.63060  0.19872  0.41142
+##  [8] -1.78417  0.95042 -0.87437 -0.29234  0.27153  0.92738 -0.55520
+## [15] -0.36554  1.40357 -1.21470  0.04969  0.90935 -1.27031</code></pre>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">fit =<span class="st"> </span><span class="kw">lm</span>(dist <span class="op">~</span><span class="st"> </span>speed, <span class="dt">data =</span> cars)
 b =<span class="st"> </span><span class="kw">coef</span>(fit)</code></pre></div>
 <table>
 <caption>Regression coefficients.</caption>
@@ -135,7 +135,7 @@ A scatterplot with a regression line.
 <div class="footnotes">
 <hr />
 <ol>
-<li id="fn1"><p>e.g. the <a href="http://yihui.name/knitr/demo/manual/">main manual</a> and the <a href="http://yihui.name/knitr/demo/graphics/">graphics manual</a><a href="#fnref1">↩</a></p></li>
+<li id="fn1"><p>e.g. the <a href="https://yihui.name/knitr/demo/manual/">main manual</a> and the <a href="https://yihui.name/knitr/demo/graphics/">graphics manual</a><a href="#fnref1">↩</a></p></li>
 </ol>
 </div>
 

@@ -34,7 +34,7 @@ cat('This is cool.')
 #  knit_print.classB = function(x, options, ...) {
 #    # use the chunk option out.height
 #    asis_output(paste(
-#      '<iframe src="http://yihui.name" height="', options$out.height, '"></iframe>',
+#      '<iframe src="https://yihui.name" height="', options$out.height, '"></iframe>',
 #    ))
 #  }
 #  knit_print.classC = function(x, inline = FALSE, ...) {
