@@ -128,8 +128,8 @@ kable = function(
     }
     return(structure(res, format = format, class = 'knitr_kable'))
   }
-  if (identical(col.names, NA)) col.names = colnames(x)
   if (!is.matrix(x)) x = as.data.frame(x)
+  if (identical(col.names, NA)) col.names = colnames(x)
   m = ncol(x)
   # numeric columns
   isn = if (is.matrix(x)) rep(is.numeric(x), m) else sapply(x, is.numeric)
@@ -156,7 +156,6 @@ kable = function(
   n = nrow(x)
   x = replace_na(base::format(as.matrix(x), trim = TRUE, justify = 'none'), is.na(x))
   if (!is.matrix(x)) x = matrix(x, nrow = n)
-  if (ncol(x) == 1 && format == 'pandoc') format = 'markdown'
   x = trimws(x)
   colnames(x) = col.names
   if (format != 'latex' && length(align) && !all(align %in% c('l', 'r', 'c')))
@@ -356,7 +355,9 @@ kable_markdown = function(x, padding = 1, ...) {
 }
 
 kable_pandoc = function(x, caption = NULL, padding = 1, ...) {
-  tab = kable_mark(
+  tab = if (ncol(x) == 1) kable_markdown(
+    x, padding = padding, ...
+  ) else kable_mark(
     x, c(NA, '-', if (is_blank(colnames(x))) '-' else NA),
     padding = padding, ...
   )

@@ -10,7 +10,11 @@
   source = .out.hook, output = .out.hook, warning = .out.hook,
   message = .out.hook, error = .out.hook, plot = .plot.hook,
   inline = .inline.hook, chunk = .out.hook, text = identity,
-  evaluate = evaluate::evaluate, document = identity
+  evaluate.inline = function(code, envir = knit_global()) {
+    v = withVisible(eval(parse_only(code), envir = envir))
+    if (v$visible) knit_print(v$value, inline = TRUE, options = opts_chunk$get())
+  },
+  evaluate = function(...) evaluate::evaluate(...), document = identity
 )
 
 #' Hooks for R code chunks, inline R code and output

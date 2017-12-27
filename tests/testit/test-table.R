@@ -138,9 +138,15 @@ for (f in c('pandoc', 'html', 'latex', 'rst')) {
 
 colnames(x2) = 'a'
 assert(
-  'kable(, "markdown") works for a 0 zero 1 column matrix',
+  'kable(, "markdown") works for a 0 row 1 column matrix',
   identical(kable2(x2, 'markdown'), c('|a  |', '|:--|'))
 )
+
+assert('kable(, "pandoc", caption = "Table Caption") works for a 1-column matrix', {
+  x4 = matrix(1:2, ncol = 1, dimnames = list(NULL, 'a'))
+  kable2(x4, 'pandoc', caption = 'Table Caption') %==%
+    c('Table: Table Caption', '', '|  a|', '|--:|', '|  1|', '|  2|')
+})
 
 assert(
   'kable() works on an irregular matrix',

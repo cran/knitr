@@ -1,7 +1,7 @@
 #' Upload an image to imgur.com
 #'
-#' This function uses the \pkg{RCurl} package to upload a image to
-#' \url{imgur.com}, and parses the XML response to a list with \pkg{XML} which
+#' This function uses the \pkg{httr} package to upload a image to
+#' \url{imgur.com}, and parses the XML response to a list with \pkg{xml2} which
 #' contains information about the image in the Imgur website.
 #'
 #' When the output format from \code{\link{knit}()} is HTML or Markdown, this
@@ -19,7 +19,7 @@
 #' @note Please register your own Imgur application to get your client id; you
 #'   can certainly use mine, but this id is in the public domain so everyone
 #'   has access to all images associated to it.
-#' @references Imgur API version 3: \url{http://api.imgur.com/}; a demo:
+#' @references Imgur API version 3: \url{https://apidocs.imgur.com}; a demo:
 #'   \url{https://yihui.name/knitr/demo/upload/}
 #' @export
 #' @examples \dontrun{
@@ -35,13 +35,15 @@
 #' opts_knit$set(upload.fun = function(file) imgur_upload(file, key = 'your imgur key'))
 #' }
 imgur_upload = function(file, key = '9f3460e67f308f6') {
+
   if (!is.character(key)) stop('The Imgur API Key must be a character string!')
-  res = RCurl::postForm(
-    'https://api.imgur.com/3/image.xml', image = RCurl::fileUpload(file),
-    .opts = RCurl::curlOptions(httpheader = c(Authorization = paste('Client-ID', key)),
-                               cainfo = system.file("CurlSSL", "cacert.pem", package = "RCurl"))
+  resp = httr::POST(
+    "https://api.imgur.com/3/image.xml",
+    config = httr::add_headers(Authorization = paste("Client-ID", key)),
+    body = list(image = httr::upload_file(file))
   )
-  res = XML::xmlToList(res)
-  if (is.null(res$link)) stop('failed to upload ', file)
-  structure(res$link, XML = res)
+  res = httr::content(resp, as = "raw")
+  res = if (length(res)) xml2::as_list(xml2::read_xml(res))
+  if (is.null(res$link[[1]])) stop('failed to upload ', file)
+  structure(res$link[[1]], XML = res)
 }

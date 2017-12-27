@@ -323,7 +323,7 @@ plot_crop = function(x, quiet = TRUE) {
 
 # a wrapper of showtext::showtext.begin()
 showtext = function(show) {
-  if (isTRUE(show)) getFromNamespace('showtext.begin', 'showtext')()
+  if (isTRUE(show)) getFromNamespace('showtext_begin', 'showtext')()
 }
 
 # handle some special cases of par()
@@ -381,7 +381,9 @@ par2 = function(x) {
 #'   with special internal S3 classes so that \pkg{knitr} will convert the file
 #'   paths to proper output code according to the output format.
 #' @export
-include_graphics = function(path, auto_pdf = TRUE, dpi = NULL) {
+include_graphics = function(
+  path, auto_pdf = getOption('knitr.graphics.auto_pdf', FALSE), dpi = NULL
+) {
   if (auto_pdf && is_latex_output()) {
     path2 = sub_ext(path, 'pdf')
     i = file.exists(path2)
@@ -458,7 +460,7 @@ need_screenshot = function(x, ...) {
   i3 = inherits(x, 'knit_embed_url')
   # not R Markdown v2, always screenshot htmlwidgets and shiny apps
   if (length(fmt) == 0 || force) return(i1 || i2 || i3)
-  html_format = fmt %in% c('html', 'html5', 'revealjs', 's5', 'slideous', 'slidy')
+  html_format = fmt %in% c('html', 'html4', 'html5', 'revealjs', 's5', 'slideous', 'slidy')
   res = ((i1 || i3) && !html_format) || (i2 && !(html_format && runtime_shiny()))
   res && webshot_available()
 }
@@ -490,7 +492,9 @@ html_screenshot = function(x, options = opts_current$get(), ...) {
     return(structure(list(file = shots[i]), class = 'html_screenshot'))
   }
 
-  ext = switch(options$dev, pdf = '.pdf', jpeg = '.jpeg', '.png')
+  ext = if (length(options$dev)) {
+    switch(options$dev[1], pdf = '.pdf', jpeg = '.jpeg', '.png')
+  } else '.png'
   wargs = options$screenshot.opts %n% list()
   if (is.null(wargs$vwidth)) wargs$vwidth = options$out.width.px
   if (is.null(wargs$vheight)) wargs$vheight = options$out.height.px

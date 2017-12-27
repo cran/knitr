@@ -80,6 +80,9 @@ parse_block = function(code, header, params.src) {
   if (nzchar(spaces <- gsub('^([\t >]*).*', '\\1', header))) {
     params$indent = spaces
     code = gsub(sprintf('^%s', spaces), '', code)
+    # in case the trailing spaces of the indent string are trimmed on certain
+    # lines (e.g. in blockquotes https://github.com/yihui/knitr/issues/1446)
+    code = gsub(sprintf('^%s', gsub('\\s+$', '', spaces)), '', code)
   }
 
   label = params$label; .knitEnv$labels = c(.knitEnv$labels, label)
@@ -304,7 +307,7 @@ read_chunk = function(path, lines = readLines(path, warn = FALSE),
     idx = c(0, idx); lines = c('', lines)  # no chunk header in the beginning
   }
   groups = unname(split(lines, idx))
-  labels = stringr::str_trim(gsub(lab, '\\2', sapply(groups, `[`, 1)))
+  labels = stringr::str_trim(gsub(lab, '\\3', sapply(groups, `[`, 1)))
   labels = gsub(',.*', '', labels)  # strip off possible chunk options
   code = lapply(groups, strip_chunk)
   for (i in which(!nzchar(labels))) labels[i] = unnamed_chunk()

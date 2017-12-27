@@ -35,6 +35,13 @@ knit_engines = new_defaults()
 #'
 #' If you have designed a language engine, you may call this function in the end
 #' to format and return the text output from your engine.
+#'
+#' For expert users, an advanced usage of this function is
+#' \code{engine_output(options, out = LIST)} where \code{LIST} is a list that
+#' has the same structure as the output of \code{evaluate::evaluate()}. In this
+#' case, the arguments \code{code} and \code{extra} are ignored, and the list is
+#' passed to an internal function \code{knitr:::wrap()} to return a character
+#' vector of final output.
 #' @param options a list of chunk options (usually this is just the object
 #'   \code{options} passed to the engine function; see
 #'   \code{\link{knit_engines}})
@@ -46,7 +53,14 @@ knit_engines = new_defaults()
 #' @return A character string generated from the source code and output using
 #'   the appropriate output hooks.
 #' @export
+#' @examples library(knitr)
+#' engine_output(opts_chunk$merge(list(engine = 'Rscript')), code = '1 + 1', out = '[1] 2')
+#' engine_output(opts_chunk$merge(list(echo = FALSE, engine = 'Rscript')), code = '1 + 1', out = '[1] 2')
+#'
+#' # expert use only
+#' engine_output(opts_chunk$merge(list(engine = 'python')), out = list(structure(list(src = '1 + 1'), class = 'source'), '2'))
 engine_output = function(options, code, out, extra = NULL) {
+  if (missing(code) && is.list(out)) return(unlist(wrap(out, options)))
   if (!is.logical(options$echo)) code = code[options$echo]
   if (length(code) != 1L) code = paste(code, collapse = '\n')
   if (options$engine == 'sas' && length(out) > 1L && !grepl('[[:alnum:]]', out[2]))
@@ -72,9 +86,7 @@ engine_output = function(options, code, out, extra = NULL) {
   ), collapse = '\n')
 }
 
-## TODO: how to emulate the console?? e.g. for Python
-#  see some experiments at https://github.com/yihui/runr
-
+## command-line tools
 eng_interpreted = function(options) {
   engine = options$engine
   code = if (engine %in% c('highlight', 'Rscript', 'sas', 'haskell', 'stata')) {
@@ -106,7 +118,7 @@ eng_interpreted = function(options) {
       f
     )
   } else paste(switch(
-    engine, bash = '-c', coffee = '-e', groovy = '-e', lein = 'exec -e',
+    engine, bash = '-c', coffee = '-e', groovy = '-e', lein = 'exec -ep',
     mysql = '-e', node = '-e', octave = '--eval', perl = '-e', psql = '-c',
     python = '-c', ruby = '-e', scala = '-e', sh = '-c', zsh = '-c', NULL
   ), shQuote(paste(options$code, collapse = '\n')))
@@ -152,6 +164,20 @@ eng_shlib = function(options) {
   engine_output(options, options$code, out)
 }
 
+## Python
+eng_python = function(options) {
+  if (isFALSE(options$python.reticulate)) {
+    eng_interpreted(options)
+  } else {
+    if (!loadable('reticulate')) warning2(
+      "The 'python' engine in knitr requires the reticulate package. ",
+      "If you do not want to use the reticulate package, set the chunk option ",
+      "python.reticulate = FALSE."
+    )
+    reticulate::eng_python(options)
+  }
+}
+
 ## Java
 #  e.g. see http://cran.rstudio.com/package=jvmr
 
@@ -180,6 +206,11 @@ eng_Rcpp = function(options) {
 
   options$engine = 'cpp' # wrap up source code in cpp syntax instead of Rcpp
   engine_output(options, code, '')
+}
+
+## Julia
+eng_julia = function(options) {
+  JuliaCall::eng_juliacall(options)
 }
 
 ## Stan
@@ -590,7 +621,7 @@ eng_go = function(options) {
 local({
   for (i in c(
     'awk', 'bash', 'coffee', 'gawk', 'groovy', 'haskell', 'lein', 'mysql',
-    'node', 'octave', 'perl', 'psql', 'python', 'Rscript', 'ruby', 'sas',
+    'node', 'octave', 'perl', 'psql', 'Rscript', 'ruby', 'sas',
     'scala', 'sed', 'sh', 'stata', 'zsh'
   )) knit_engines$set(setNames(list(eng_interpreted), i))
 })
@@ -600,7 +631,8 @@ knit_engines$set(
   highlight = eng_highlight, Rcpp = eng_Rcpp, tikz = eng_tikz, dot = eng_dot,
   c = eng_shlib, fortran = eng_shlib, fortran95 = eng_shlib, asy = eng_dot,
   cat = eng_cat, asis = eng_asis, stan = eng_stan, block = eng_block,
-  block2 = eng_block2, js = eng_js, css = eng_css, sql = eng_sql, go = eng_go
+  block2 = eng_block2, js = eng_js, css = eng_css, sql = eng_sql, go = eng_go,
+  python = eng_python, julia = eng_julia
 )
 
 get_engine = function(name) {

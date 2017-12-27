@@ -1,10 +1,10 @@
 Package: knitr
 Type: Package
 Title: A General-Purpose Package for Dynamic Report Generation in R
-Version: 1.17
-Date: 2017-08-09
+Version: 1.18
+Date: 2017-11-26
 Authors@R: c(
-    person("Yihui", "Xie", email = "xie@yihui.name", role = c("aut", "cre")),
+    person("Yihui", "Xie", role = c("aut", "cre"), email = "xie@yihui.name", comment = c(ORCID = "0000-0003-0645-5666")),
     person("Adam", "Vogt", role = "ctb"),
     person("Alastair", "Andrew", role = "ctb"),
     person("Alex", "Zvoleff", role = "ctb"),
@@ -15,10 +15,12 @@ Authors@R: c(
     person("Ben", "Baumer", role = "ctb"),
     person("Brian", "Diggs", role = "ctb"),
     person("Cassio", "Pereira", role = "ctb"),
+    person("Christophe", "Dervieux", role = "ctb"),
     person("David", "Robinson", role = "ctb"),
     person("Donald", "Arseneau", role = c("ctb", "cph"), comment = "the framed package at inst/misc/framed.sty"),
     person("Doug", "Hemken", role = "ctb"),
     person("Duncan", "Murdoch", role = "ctb"),
+    person("Elio", "Campitelli", role = "ctb"),
     person("Fabian", "Hirschmann", role = "ctb"),
     person("Fitch", "Simeon", role = "ctb"),
     person("Forest", "Fang", role = "ctb"),
@@ -47,6 +49,7 @@ Authors@R: c(
     person("Jonathan", "Keane", role = "ctb"),
     person("JJ", "Allaire", role = "ctb"),
     person("Johan", "Toloe", role = "ctb"),
+    person("Jonathan", "Sidi", role = "ctb"),
     person("Joseph", "Larmarange", role = "ctb"),
     person("Julien", "Barnier", role = "ctb"),
     person("Kaiyin", "Zhong", role = "ctb"),
@@ -55,6 +58,7 @@ Authors@R: c(
     person(c("Kevin", "K."), "Smith", role = "ctb"),
     person("Kirill", "Mueller", role = "ctb"),
     person("Kohske", "Takahashi", role = "ctb"),
+    person("Michael", "Chirico", role = "ctb"),
     person("Michael", "Friendly", role = "ctb"),
     person("Michal", "Bojanowski", role = "ctb"),
     person("Michel", "Kuhlmann", role = "ctb"),
@@ -89,8 +93,9 @@ Depends: R (>= 3.1.0)
 Imports: evaluate (>= 0.10), digest, highr, markdown, stringr (>= 0.6),
         yaml, methods, tools
 Suggests: formatR, testit, rgl (>= 0.95.1201), codetools, rmarkdown,
-        htmlwidgets (>= 0.7), webshot, tikzDevice (>= 0.10), png, jpeg,
-        XML, RCurl, DBI (>= 0.4-1), tibble
+        htmlwidgets (>= 0.7), webshot, tikzDevice (>= 0.10), reticulate
+        (>= 1.3.1), JuliaCall (>= 0.11.1), png, jpeg, xml2, httr, DBI
+        (>= 0.4-1), tibble
 License: GPL
 URL: https://yihui.name/knitr/
 BugReports: https://github.com/yihui/knitr/issues
@@ -110,8 +115,8 @@ Collate: 'block.R' 'cache.R' 'utils.R' 'citation.R' 'hooks-html.R'
         'utils-vignettes.R' 'zzz.R'
 RoxygenNote: 6.0.1
 NeedsCompilation: no
-Packaged: 2017-08-09 06:32:13 UTC; yihui
-Author: Yihui Xie [aut, cre],
+Packaged: 2017-11-26 15:36:08 UTC; yihui
+Author: Yihui Xie [aut, cre] (0000-0003-0645-5666),
   Adam Vogt [ctb],
   Alastair Andrew [ctb],
   Alex Zvoleff [ctb],
@@ -123,10 +128,12 @@ Author: Yihui Xie [aut, cre],
   Ben Baumer [ctb],
   Brian Diggs [ctb],
   Cassio Pereira [ctb],
+  Christophe Dervieux [ctb],
   David Robinson [ctb],
   Donald Arseneau [ctb, cph] (the framed package at inst/misc/framed.sty),
   Doug Hemken [ctb],
   Duncan Murdoch [ctb],
+  Elio Campitelli [ctb],
   Fabian Hirschmann [ctb],
   Fitch Simeon [ctb],
   Forest Fang [ctb],
@@ -156,6 +163,7 @@ Author: Yihui Xie [aut, cre],
   Jonathan Keane [ctb],
   JJ Allaire [ctb],
   Johan Toloe [ctb],
+  Jonathan Sidi [ctb],
   Joseph Larmarange [ctb],
   Julien Barnier [ctb],
   Kaiyin Zhong [ctb],
@@ -164,6 +172,7 @@ Author: Yihui Xie [aut, cre],
   Kevin K. Smith [ctb],
   Kirill Mueller [ctb],
   Kohske Takahashi [ctb],
+  Michael Chirico [ctb],
   Michael Friendly [ctb],
   Michal Bojanowski [ctb],
   Michel Kuhlmann [ctb],
@@ -191,4 +200,4 @@ Author: Yihui Xie [aut, cre],
   Wush Wu [ctb],
   Zachary Foster [ctb]
 Repository: CRAN
-Date/Publication: 2017-08-10 04:27:37 UTC
+Date/Publication: 2017-12-27 22:55:21 UTC

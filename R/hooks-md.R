@@ -5,7 +5,8 @@ hook_plot_md = function(x, options) {
   if (is.null(to <- pandoc_to()) || is_html_output(to))
     return(hook_plot_md_base(x, options))
   if (!is.null(options$out.width) || !is.null(options$out.height) ||
-        !is.null(options$out.extra) || options$fig.align != 'default') {
+      !is.null(options$out.extra) || options$fig.align != 'default' ||
+      !is.null(options$fig.subcap)) {
     if (to %in% c('beamer', 'latex')) {
       # Pandoc < 1.13 does not support \caption[]{} so suppress short caption
       if (is.null(options$fig.scap)) options$fig.scap = NA
@@ -23,15 +24,6 @@ hook_plot_md = function(x, options) {
     options$fig.show = 'asis'
   }
   hook_plot_md_base(x, options)
-}
-
-# excludes can be a vector of 'markdown', 'epub', etc
-is_html_output = function(fmt = pandoc_to(), excludes = NULL) {
-  if (length(fmt) == 0) return(FALSE)
-  if (grepl('^markdown', fmt)) fmt = 'markdown'
-  if (fmt == 'epub3') fmt = 'epub'
-  fmts = c('markdown', 'epub', 'html', 'html5', 'revealjs', 's5', 'slideous', 'slidy')
-  fmt %in% setdiff(fmts, excludes)
 }
 
 hook_plot_md_base = function(x, options) {
