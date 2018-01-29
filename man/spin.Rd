@@ -10,39 +10,38 @@ spin(hair, knit = TRUE, report = TRUE, text = NULL, envir = parent.frame(),
     precious = !knit && is.null(text))
 }
 \arguments{
-\item{hair}{the path to the R script}
+\item{hair}{Path to the R script.}
 
-\item{knit}{logical: whether to compile the document after conversion}
+\item{knit}{Logical; whether to compile the document after conversion.}
 
-\item{report}{logical: whether to generate report for \file{Rmd}, \file{Rnw}
-and \file{Rtex} output (ignored if \code{knit = FALSE})}
+\item{report}{Logical; whether to generate a report for \file{Rmd}, \file{Rnw}
+and \file{Rtex} output. Ignored if \code{knit = FALSE}.}
 
-\item{text}{a character vector as an alternative way to \code{hair} to
-provide the R source; if \code{text} is not \code{NULL}, \code{hair} will
-be ignored}
+\item{text}{A character vector of code, as an alternative way to
+provide the R source. If \code{text} is not \code{NULL}, \code{hair} will
+be ignored.}
 
-\item{envir}{the environment for \code{\link{knit}()} to evaluate the code}
+\item{envir}{Environment for \code{\link{knit}()} to evaluate the code.}
 
-\item{format}{character: the output format (it takes five possible values);
-the default is R Markdown}
+\item{format}{Character; the output format. The default is R Markdown.}
 
-\item{doc}{a regular expression to identify the documentation lines; by
+\item{doc}{A regular expression to identify the documentation lines; by
 default it follows the roxygen convention, but it can be customized, e.g.
 if you want to use \code{##} to denote documentation, you can use
-\code{'^##\\\\s*'}}
+\code{'^##\\\\s*'}.}
 
-\item{inline}{a regular expression to identify inline R expressions; by
+\item{inline}{A regular expression to identify inline R expressions; by
 default, code of the form \code{((code))} on its own line is treated as an
-inline expression}
+inline expression.}
 
-\item{comment}{a pair of regular expressions for the start and end delimiters
+\item{comment}{A pair of regular expressions for the start and end delimiters
 of comments; the lines between a start and an end delimiter will be
-ignored; by default, the delimiters are \verb{/*} in the beginning and
-\verb{*/} in the end of a line (following the convention of C comments)}
+ignored. By default, the delimiters are \verb{/*} at the beginning of a line,
+ and \verb{*/} at the end, following the convention of C comments.}
 
 \item{precious}{logical: whether intermediate files (e.g., \code{.Rmd} files
-when \code{format} is \code{"Rmd"}) should be preserved; default
-\code{FALSE} if \code{knit == TRUE} and input is a file}
+when \code{format} is \code{"Rmd"}) should be preserved. The default is
+\code{FALSE} if \code{knit} is \code{TRUE} and the input is a file.}
 }
 \value{
 If \code{text} is \code{NULL}, the path of the final output document,
@@ -52,7 +51,8 @@ If \code{text} is \code{NULL}, the path of the final output document,
 This function takes a specially formatted R script and converts it to a
 literate programming document. By default normal text (documentation) should
 be written after the roxygen comment (\code{#'}) and code chunk options are
-written after \code{#+} or \code{#-} or \code{# ----}.
+written after \code{#+} or \code{#-} or \code{# ----} or any of these
+combinations replacing \code{#} with \code{--}.
 }
 \details{
 Obviously the goat's hair is the original R script, and the wool is the
@@ -69,27 +69,6 @@ If the output format is Rnw and no document class is specified in
   \code{\link{knit2html}()}, which uses R Markdown v1 instead of v2. If you
   want to use the latter, you should call
   \code{rmarkdown::\link[rmarkdown]{render}()} instead.
-}
-\examples{
-#' write normal text like this and chunk options like below
-
-#+ label, opt=value
-
-# /*
-#' these lines are treated as comments in spin()
-1 + 1
-# */
-
-(s = system.file("examples", "knitr-spin.R", package = "knitr"))
-spin(s)  # default markdown
-o = spin(s, knit = FALSE)  # convert only; do not make a purse yet
-knit2html(o)  # compile to HTML
-
-# other formats
-spin(s, FALSE, format = "Rnw")  # you need to write documentclass after #'
-spin(s, FALSE, format = "Rhtml")
-spin(s, FALSE, format = "Rtex")
-spin(s, FALSE, format = "Rrst")
 }
 \references{
 \url{https://yihui.name/knitr/demo/stitch/}

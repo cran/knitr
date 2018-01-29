@@ -9,7 +9,7 @@ with lightweight API's designed to give users full control of the output
 without heavy coding work. It combines many features into one package with
 slight tweaks motivated from my everyday use of Sweave. See the package
 [homepage](https://yihui.name/knitr/) for details and examples. See
-[FAQ's](https://github.com/yihui/knitr/blob/master/FAQ.md) for a list of
+[FAQ's](https://yihui.name/knitr/faq/) for a list of
 frequently asked questions (including where to ask questions).
 
 ## Installation
@@ -69,7 +69,7 @@ for example:
 - ...
 
 
-[<img src="http://i.imgur.com/yYw46aF.jpg" align="right" alt="The book Dynamic Documents with R and knitr" />](http://amzn.com/1498716962)
+[<img src="http://i.imgur.com/yYw46aF.jpg" align="right" alt="The book Dynamic Documents with R and knitr" />](https://amzn.com/1498716962)
 
 The package **knitr** was designed to give the user access to every part of
 the process of dealing with a literate programming document, so there is no
@@ -93,7 +93,7 @@ reasonable default settings. A few manuals are available such as the [main
 manual](https://yihui.name/knitr/demo/manual/), and the
 [graphics
 manual](https://yihui.name/knitr/demo/graphics/). For a
-more organized reference, see the [knitr book](http://amzn.com/1498716962).
+more organized reference, see the [knitr book](https://amzn.com/1498716962).
 
 ## License
 

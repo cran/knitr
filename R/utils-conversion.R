@@ -2,11 +2,11 @@
 #'
 #' Convert reST to PDF using \command{rst2pdf} (which converts from rst to PDF
 #' using the ReportLab open-source library).
-#' @param input the input rst file
-#' @param command a character string which gives the path of the
-#'   \command{rst2pdf} program (if it is not in PATH, the full path has to be
-#'   given)
-#' @param options extra command line options, e.g. \code{'-v'}
+#' @param input The input rst file.
+#' @param command Character string giving the path of the
+#'   \command{rst2pdf} program. If the program is not in your PATH, the full path has to be
+#'   given here.
+#' @param options Extra command line options, e.g. \code{'-v'}.
 #' @author Alex Zvoleff and Yihui Xie
 #' @return An input file \file{*.rst} will produce \file{*.pdf} and this output
 #'   filename is returned if the conversion was successful.
@@ -24,12 +24,12 @@ rst2pdf = function(input, command = 'rst2pdf', options = '') {
 #'
 #' Knits the input file and compiles to an output format using Pandoc.
 #' @inheritParams knit
-#' @param to a character string describing the Pandoc output format to use
-#' @param pandoc_wrapper an R function used to call Pandoc; by default, if
-#'   \pkg{rmarkdown} installed uses
-#'   \code{rmarkdown::\link[rmarkdown]{pandoc_convert}()} else
+#' @param to Character string giving the Pandoc output format to use.
+#' @param pandoc_wrapper An R function used to call Pandoc; by default, if
+#'   \pkg{rmarkdown} is installed, this uses
+#'   \code{rmarkdown::\link[rmarkdown]{pandoc_convert}()}, otherwise it
 #'   \code{\link{pandoc}()}.
-#' @param ... options to be passed to the \code{pandoc_wrapper} function
+#' @param ... Options to be passed to the \code{pandoc_wrapper} function.
 #' @author Trevor L. Davis
 #' @return Returns the output of the \code{pandoc_wrapper} function.
 #' @export
@@ -45,54 +45,43 @@ knit2pandoc = function(
   rmarkdown::pandoc_convert(knit_output, to, output = output, ...)
 }
 
-#' Convert Rnw or Rrst files to PDF using knit() and texi2pdf() or rst2pdf()
+#' Convert Rnw or Rrst files to PDF
 #'
-#' Knit the input Rnw or Rrst document, and compile to PDF using \code{texi2pdf}
-#' or \code{rst2pdf}.
+#' Knit the input Rnw or Rrst document, and compile to PDF using
+#' \code{tinytex::\link[tinytex]{latexmk}()} or \code{\link{rst2pdf}()}.
 #' @inheritParams knit
-#' @param compiler a character string which gives the LaTeX program used to
-#'   compile the tex document to PDF (by default it uses the default setting of
-#'   \code{\link[tools]{texi2pdf}}, which is often PDFLaTeX); this argument will
-#'   be used to temporarily set the environmental variable \samp{PDFLATEX}. For
-#'   an Rrst file, setting compiler to \code{'rst2pdf'} will use
-#'   \code{\link{rst2pdf}} to compiles the rst file to PDF using the ReportLab
-#'   open-source library.
-#' @param ... options to be passed to \code{\link[tools]{texi2pdf}} or
-#'   \code{\link{rst2pdf}}
+#' @param compiler A character string giving the LaTeX engine used to
+#'   compile the tex document to PDF. For an Rrst file, setting \code{compiler} to
+#'   \code{'rst2pdf'} will use \code{\link{rst2pdf}} to compile the rst file to
+#'   PDF using the ReportLab open-source library.
+#' @param ... Options to be passed to \code{tinytex::\link[tinytex]{latexmk}} or
+#'   \code{\link{rst2pdf}}.
 #' @author Ramnath Vaidyanathan, Alex Zvoleff and Yihui Xie
 #' @return The filename of the PDF file.
 #' @note The \code{output} argument specifies the output filename to be passed
 #'   to the PDF compiler (e.g. a tex document) instead of the PDF filename.
 #' @export
-#' @seealso \code{\link{knit}}, \code{\link[tools]{texi2pdf}},
-#'   \code{\link{rst2pdf}}
 #' @examples #' compile with xelatex
 #' ## knit2pdf(..., compiler = 'xelatex')
 #'
 #' #' compile a reST file with rst2pdf
 #' ## knit2pdf(..., compiler = 'rst2pdf')
-knit2pdf = function(input, output = NULL, compiler = NULL, envir = parent.frame(),
-                    quiet = FALSE, encoding = getOption('encoding'), ...) {
+knit2pdf = function(
+  input, output = NULL, compiler = NULL, envir = parent.frame(), quiet = FALSE,
+  encoding = getOption('encoding'), ...
+) {
   out = knit(input, output = output, envir = envir, quiet = quiet, encoding = encoding)
   owd = setwd(dirname(out)); on.exit(setwd(owd))
-  if (is.null(compiler) && grepl('\\.rst$', out)) compiler = 'rst2pdf'
-  if (!is.null(compiler)) {
-    if (compiler == 'rst2pdf') {
-      if (tolower(file_ext(out)) != 'rst')
-        stop('for rst2pdf compiler input must be a .rst file')
-      rst2pdf(basename(out), ...)
-      return(sub_ext(out, 'pdf'))
-    } else {
-      # use the specified PDFLATEX command
-      oc = Sys.getenv('PDFLATEX', NA)
-      on.exit(
-        if (is.na(oc)) Sys.unsetenv('PDFLATEX') else Sys.setenv(PDFLATEX = oc),
-        add = TRUE
-      )
-      Sys.setenv(PDFLATEX = compiler)
-    }
+  if (is.null(compiler)) {
+    compiler = if (grepl('\\.rst$', out)) 'rst2pdf' else 'pdflatex'
   }
-  tools::texi2pdf(basename(out), ...)
+  if (identical(compiler, 'rst2pdf')) {
+    if (tolower(file_ext(out)) != 'rst')
+      stop('for rst2pdf compiler input must be a .rst file')
+    rst2pdf(basename(out), ...)
+  } else {
+    tinytex::latexmk(basename(out), engine = compiler, ...)
+  }
   sub_ext(out, 'pdf')
 }
 
@@ -102,9 +91,9 @@ knit2pdf = function(input, output = NULL, compiler = NULL, envir = parent.frame(
 #' \code{\link[markdown]{markdownToHTML}()} in the \pkg{markdown} package to
 #' convert the result to HTML.
 #' @inheritParams knit
-#' @param ... options passed to \code{\link[markdown]{markdownToHTML}}
-#' @param force_v1 whether to force rendering the input document as an R
-#'   Markdown v1 document (even if it is for v2)
+#' @param ... Options passed to \code{\link[markdown]{markdownToHTML}}.
+#' @param force_v1 Boolean; whether to force rendering the input document as an R
+#'   Markdown v1 document, even if it is for v2.
 #' @export
 #' @seealso \code{\link{knit}}, \code{\link[markdown]{markdownToHTML}}
 #' @return If the argument \code{text} is NULL, a character string (HTML code)
@@ -143,20 +132,20 @@ knit2html_v1 = function(...) knit2html(..., force_v1 = TRUE)
 #'
 #' This function is a wrapper around the \pkg{RWordPress} package. It compiles
 #' an R Markdown document to HTML and post the results to WordPress.
-#' @param input the filename of the Rmd document
-#' @param title the post title
-#' @param ... other meta information of the post, e.g. \code{categories = c('R',
-#'   'Stats')} and \code{mt_keywords = c('knitr', 'wordpress')}, etc
-#' @param shortcode a logical vector of length 2: whether to use the shortcode
-#'   \samp{[sourcecode lang='lang']} which can be useful to WordPress.com users
-#'   for syntax highlighting of source code and output; the first element
-#'   applies to source code, and the second applies to text output (by default,
-#'   both are \code{FALSE})
-#' @param action to create a new post, update an existing post, or create a new
-#'   page
-#' @param postid if action is \code{editPost}, the post id \code{postid} must be
-#'   specified
-#' @param publish whether to publish the post immediately
+#' @param input Filename of the Rmd document.
+#' @param title Title of the post.
+#' @param ... Other meta information of the post, e.g. \code{categories = c('R',
+#'   'Stats')} and \code{mt_keywords = c('knitr', 'wordpress')}, et cetera.
+#' @param shortcode A length-2 logical vector: whether to use the shortcode
+#'   \samp{[sourcecode lang='lang']}, which can be useful to WordPress.com users
+#'   for syntax highlighting of source code and output. The first element
+#'   applies to source code, and the second applies to text output. By default,
+#'   both are \code{FALSE}.
+#' @param action Whether to create a new post, update an existing post, or create a new
+#'   page.
+#' @param postid If \code{action} is \code{editPost}, the post id \code{postid} must be
+#'   specified.
+#' @param publish Boolean: publish the post immediately?
 #' @inheritParams knit
 #' @export
 #' @references \url{https://yihui.name/knitr/demo/wordpress/}
@@ -219,13 +208,12 @@ knit2wp = function(
 #' process the \code{input} file. To stop the infinite loop, press the
 #' \samp{Escape} key or \samp{Ctrl + C} (depending on your editing environment
 #' and operating system).
-#' @param input an input file path (or a character vector of mutiple paths of
-#'   input files)
-#' @param compile a function to compile the \code{input} file, e.g. it can be
-#'   \code{\link{knit}} or \code{\link{knit2pdf}} depending on the input file
-#'   and the output you want
-#' @param interval a time interval to pause in each cycle of the infinite loop
-#' @param ... other arguments to be passed to the \code{compile} function
+#' @param input An input file path, or a character vector of mutiple input file paths.
+#' @param compile A function to compile the \code{input} file. This could be e.g.
+#'   \code{\link{knit}} or \code{\link{knit2pdf}}, depending on the input file
+#'   and the output you want.
+#' @param interval A time interval to pause in each cycle of the infinite loop.
+#' @param ... Other arguments to be passed to the \code{compile} function.
 #' @export
 #' @examples # knit_watch('foo.Rnw', knit2pdf)
 #'

@@ -42,14 +42,14 @@ knit_engines = new_defaults()
 #' case, the arguments \code{code} and \code{extra} are ignored, and the list is
 #' passed to an internal function \code{knitr:::wrap()} to return a character
 #' vector of final output.
-#' @param options a list of chunk options (usually this is just the object
+#' @param options A list of chunk options. Usually this is just the object
 #'   \code{options} passed to the engine function; see
-#'   \code{\link{knit_engines}})
-#' @param code the source code of the chunk, to which the output hook
-#'   \code{source} is applied, unless the chunk option \code{echo == FALSE}
-#' @param out the text output from the engine, to which the hook \code{output}
-#'   is applied, unless the chunk option \code{results == 'hide'}
-#' @param extra any additional text output that you want to include
+#'   \code{\link{knit_engines}}.
+#' @param code Source code of the chunk, to which the output hook
+#'   \code{source} is applied, unless the chunk option \code{echo} is \code{FALSE}.
+#' @param out Text output from the engine, to which the hook \code{output}
+#'   is applied, unless the chunk option \code{results} is \code{'hide'}
+#' @param extra Any additional text output that you want to include.
 #' @return A character string generated from the source code and output using
 #'   the appropriate output hooks.
 #' @export
@@ -379,7 +379,7 @@ eng_block = function(options) {
   # convert the chunk content to HTML or LaTeX (ideally I only need to specify
   # the markdown extension, but it is not implemented yet for LaTeX:
   # https://github.com/jgm/pandoc/issues/2453)
-  if (is_pandoc) code = pandoc_fragment(code, to)
+  if (is_pandoc) code = pandoc_fragment(code, if (to == 'html') 'html4' else to)
   l1 = options$latex.options
   if (is.null(l1)) l1 = ''
   h2 = options$html.tag %n% 'div'
