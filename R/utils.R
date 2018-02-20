@@ -954,39 +954,6 @@ raw_output = function(x, markers = raw_markers, ...) {
   asis_output(paste(c(markers[1], x, markers[2]), collapse = ''), ...)
 }
 
-# TODO: use xfun::tojson
-tojson = function(x) {
-  if (is.null(x)) return('null')
-  if (is.logical(x)) {
-    if (length(x) != 1 || any(is.na(x)))
-      stop('Logical values of length > 1 and NA are not supported')
-    return(tolower(as.character(x)))
-  }
-  if (is.character(x) || is.numeric(x)) {
-    return(json_vector(x, length(x) != 1 || inherits(x, 'AsIs'), is.character(x)))
-  }
-  if (is.list(x)) {
-    if (length(x) == 0) return('{}')
-    return(if (is.null(names(x))) {
-      json_vector(unlist(lapply(x, tojson)), TRUE, quote = FALSE)
-    } else {
-      nms = paste0('"', names(x), '"')
-      paste0('{\n', paste(nms, unlist(lapply(x, tojson)), sep = ': ', collapse = ',\n'), '\n}')
-    })
-  }
-  stop('The class of x is not supported: ', paste(class(x), collapse = ', '))
-}
-
-# TODO: use xfun::json_vector
-json_vector = function(x, toArray = FALSE, quote = TRUE) {
-  if (quote) {
-    x = gsub('(["\\])', "\\\\\\1", x)
-    x = gsub('[[:space:]]', " ", x)
-    if (length(x)) x = paste0('"', x, '"')
-  }
-  if (toArray) paste0('[', paste(x, collapse = ', '), ']') else x
-}
-
 # TODO: use xfun::write_utf8
 writeUTF8 = function(text, file, ...) {
   if (identical(file, '')) {
@@ -998,15 +965,29 @@ writeUTF8 = function(text, file, ...) {
 
 trimws = function(x) gsub('^\\s+|\\s+$', '', x)
 
-# TODO: use xfun::optipng
-optipng = function(dir = '.') {
-  files = list.files(dir, '[.]png$', recursive = TRUE, full.names = TRUE)
-  for (f in files) system2('optipng', shQuote(f))
+optipng = function(...) {
+  warning2('knitr:::optipng() has been deprecated; please use xfun::optipng()')
+  xfun::optipng(...)
 }
 
-digest = function(...) {
-  if (!loadable('digest')) warning2(
-    'You used a knitr feature that depends on the digest package. Make sure it is installed.'
-  )
-  digest::digest(...)
+digest = function(x) {
+  if (loadable('digest')) digest::digest(x) else digest2(x)
+}
+
+# compatible with digest::digest() but definitely slower because of file I/O
+digest2 = function(x) {
+  s = serialize(x, NULL, ascii = FALSE)
+  if (length(s) > 14) s = s[-(1:14)]  # https://d.cosx.org/d/419804
+  writeBin(s, f <- tempfile())
+  on.exit(unlink(f), add = TRUE)
+  unname(tools::md5sum(f))
+}
+
+# not removing the serialize() header (first few bytes)
+digest3 = function(x) {
+  f = tempfile(); on.exit(unlink(f), add = TRUE)
+  s = file(f, open = 'wb')
+  serialize(x, s, ascii = FALSE)
+  close(s)
+  unname(tools::md5sum(f))
 }
