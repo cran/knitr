@@ -7,9 +7,9 @@
 \title{A general-purpose tool for dynamic report generation in R}
 \description{
 This is an alternative tool to Sweave with a more flexible design and new
-features like caching and finer control of graphics. It is not limited to LaTeX
-and is ready to be customized to process other file formats. See the package
-website in the references for more information and examples.
+features like caching and finer control of graphics. It is not limited to
+LaTeX and is ready to be customized to process other file formats. See the
+package website in the references for more information and examples.
 }
 \note{
 The pronunciation of \pkg{knitr} is similar to \emph{neater} (neater
@@ -19,7 +19,7 @@ The pronunciation of \pkg{knitr} is similar to \emph{neater} (neater
 }
 \references{
 Full documentation and demos: \url{https://yihui.name/knitr/};
-  FAQ's: \url{http://bit.ly/knitr-faq}
+  FAQ's: \url{https://yihui.name/knitr/faq/}
 }
 \seealso{
 The core function in this package: \code{\link{knit}}. If you are an

@@ -108,8 +108,10 @@ opts_chunk_attr = local({
   opts$external = opts$sanitize = NULL  # hide these two rare options
   opts$fig.process = 'function'
   opts$fig.asp = 'numeric'
+  opts$fig.dim = 'list'
   opts$R.options = 'list'
   opts$cache.comments = 'logical'
+  opts$animation.hook = list('ffmpeg', 'gifski')
   opts
 })
 
@@ -157,8 +159,7 @@ set_alias = function(...) {
 opts_knit = new_defaults(list(
   progress = TRUE, verbose = FALSE, width = 75L, eval.after = 'fig.cap',
   base.dir = NULL, base.url = NULL, root.dir = NULL, child.path = '',
-  upload.fun = identity, animation.fun = hook_ffmpeg_html,
-  global.device = FALSE, global.par = FALSE,
+  upload.fun = identity, global.device = FALSE, global.par = FALSE,
   concordance = FALSE, documentation = 1L, self.contained = TRUE,
   unnamed.chunk.label = 'unnamed-chunk', highr.opts = NULL,
 

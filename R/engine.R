@@ -31,6 +31,26 @@
 #' names(knit_engines$get())
 knit_engines = new_defaults()
 
+
+#' Cache engines of other languages
+#'
+#' This object controls how to load cached environments from languages other
+#' than R (when the chunk option \code{engine} is not \code{'R'}). Each
+#' component in this object is a function that takes the current path to the
+#' chunk cache and loads it into the language environment.
+#'
+#' The cache engine function has one argument \code{options}, a list containing
+#' all chunk options. Note that \code{options$hash} is the path to the current
+#' chunk cache with the chunk's hash, but without any file extension, and the
+#' language engine may write a cache database to this path (with an extension).
+#'
+#' The cache engine function should load the cache environment and should know
+#' the extension appropriate for the language.
+#' @references See \url{https://github.com/rstudio/reticulate/pull/167} for an
+#'   implementation of a cache engine for Python.
+#' @export
+cache_engines = new_defaults()
+
 #' An output wrapper for language engine output
 #'
 #' If you have designed a language engine, you may call this function in the end
@@ -110,10 +130,13 @@ eng_interpreted = function(options) {
       stata = {
         logf = sub('[.]do$', '.log', f)
         on.exit(unlink(c(logf)), add = TRUE)
-        paste(switch(
-          Sys.info()[['sysname']], Windows = '/q /e do', Darwin = '-q -e do',
-          Linux = '-q -b do', '-q -b do'
-        ), shQuote(normalizePath(f)))
+        sprintf(switch(
+          Sys.info()[['sysname']],
+          Windows = '/q /e do %s',
+          Darwin = paste('-q < %s >', shQuote(xfun::normalize_path(logf))),
+          Linux = '-q -e do %s',
+          '-q -b do %s'
+         ), shQuote(normalizePath(f)))
       },
       f
     )
@@ -123,9 +146,10 @@ eng_interpreted = function(options) {
     python = '-c', ruby = '-e', scala = '-e', sh = '-c', zsh = '-c', NULL
   ), shQuote(paste(options$code, collapse = '\n')))
 
+  opts = get_engine_opts(options$engine.opts, engine)
   # FIXME: for these engines, the correct order is options + code + file
   code = if (engine %in% c('awk', 'gawk', 'sed', 'sas'))
-    paste(code, options$engine.opts) else paste(options$engine.opts, code)
+    paste(code, opts) else paste(opts, code)
   cmd = get_engine_path(options$engine.path, engine)
   out = if (options$eval) {
     message('running: ', cmd, ' ', code)
@@ -145,18 +169,21 @@ eng_interpreted = function(options) {
   engine_output(options, options$code, out)
 }
 
-# options$engine.path can be list(name1 = path1, name2 = path2, ...)
-get_engine_path = function(path, engine) {
-  if (is.list(path)) path = path[[engine]]
-  path %n% engine
+# options$engine.path can be list(name1 = path1, name2 = path2, ...); similarly,
+# options$engine.opts can be list(name1 = opts1, ...)
+get_engine_opts = function(opts, engine, fallback = '') {
+  if (is.list(opts)) opts = opts[[engine]]
+  opts %n% fallback
 }
+
+get_engine_path = function(path, engine) get_engine_opts(path, engine, engine)
 
 ## C and Fortran (via R CMD SHLIB)
 eng_shlib = function(options) {
   n = switch(options$engine, c = 'c', fortran = 'f', fortran95 = 'f95')
   f = basename(tempfile(n, '.', paste0('.', n)))
   writeLines(options$code, f)
-  on.exit(unlink(c(f, sub_ext(f, c('o', 'so', 'dll')))), add = TRUE)
+  on.exit(unlink(c(f, with_ext(f, c('o', 'so', 'dll')))), add = TRUE)
   if (options$eval) {
     out = system(paste('R CMD SHLIB', f), intern = TRUE)
     dyn.load(sub(sprintf('[.]%s$', n), .Platform$dynlib.ext, f))
@@ -176,6 +203,15 @@ eng_python = function(options) {
     )
     reticulate::eng_python(options)
   }
+}
+
+cache_eng_python = function(options) {
+  if (isFALSE(options$python.reticulate)) return()
+  # TODO: change this hack to reticulate::cache_eng_python(options) after
+  # https://github.com/rstudio/reticulate/pull/167 is merged and released
+  if (!'cache_eng_python' %in% ls(asNamespace('reticulate'))) return()
+  fun = getFromNamespace('cache_eng_python', 'reticulate')
+  fun(options)
 }
 
 ## Java
@@ -265,7 +301,7 @@ eng_tikz = function(options) {
   dir.create(dirname(fig), recursive = TRUE, showWarnings = FALSE)
   file.rename(outf, fig)
 
-  fig2 = sub_ext(fig, ext)
+  fig2 = with_ext(fig, ext)
   if (to_svg) {
     # dvisvgm needs to be on the path
     # dvisvgm for windows needs ghostscript bin dir on the path also
@@ -276,7 +312,7 @@ eng_tikz = function(options) {
     # convert to the desired output-format, calling `convert`
     conv = 0
     if (ext != 'pdf') {
-      conv = system2(options$engine.opts$convert %n% 'convert', c(
+      conv = system2(options$engine.opts[['convert']] %n% 'convert', c(
         options$engine.opts$convert.opts, sprintf('%s %s', fig, fig2)
       ))
     }
@@ -308,9 +344,11 @@ eng_dot = function(options) {
   }
 
   # prepare system command
-  cmd = sprintf(command_string, shQuote(options$engine %n% options$engine.path),
-                shQuote(f), ext <- options$fig.ext %n% dev2ext(options$dev),
-                shQuote(paste0(fig <- fig_path(), '.', ext)))
+  cmd = sprintf(
+    command_string, shQuote(get_engine_path(options$engine.path, options$engine)),
+    shQuote(f), ext <- options$fig.ext %n% dev2ext(options$dev),
+    shQuote(paste0(fig <- fig_path(), '.', ext))
+  )
 
   # generate output
   dir.create(dirname(fig), recursive = TRUE, showWarnings = FALSE)
@@ -455,7 +493,7 @@ is_sql_update_query = function(query) {
   query = gsub('^\\s*--.*\n', '', query)
   # remove multi-line comments
   if (grepl('^\\s*\\/\\*.*', query)) query = gsub('.*\\*\\/', '', query)
-  grepl('^\\s*(INSERT|UPDATE|DELETE|CREATE).*', query, ignore.case = TRUE)
+  grepl('^\\s*(INSERT|UPDATE|DELETE|CREATE|DROP).*', query, ignore.case = TRUE)
 }
 
 # sql engine
@@ -509,9 +547,12 @@ eng_sql = function(options) {
   query = interpolate_from_env(conn, sql)
   if (isFALSE(options$eval)) return(engine_output(options, query, ''))
 
-  # execute query -- when we are printing with an enforced max.print we
-  # use dbFetch so as to only pull down the required number of records
-  if (is.null(varname) && max.print > 0 && !is_sql_update_query(query)) {
+  if (is_sql_update_query(query)) {
+    DBI::dbExecute(conn, query)
+    data = NULL
+  } else if (is.null(varname) && max.print > 0) {
+    # execute query -- when we are printing with an enforced max.print we
+    # use dbFetch so as to only pull down the required number of records
     res = DBI::dbSendQuery(conn, query)
     data = DBI::dbFetch(res, n = max.print)
     DBI::dbClearResult(res)
@@ -520,7 +561,7 @@ eng_sql = function(options) {
   }
 
   # create output if needed (we have data and we aren't assigning it to a variable)
-  output = if (!is.null(data) && ncol(data) > 0 && is.null(varname)) capture.output({
+  output = if (length(dim(data)) == 2 && ncol(data) > 0 && is.null(varname)) capture.output({
 
     # apply max.print to data
     display_data = if (max.print == -1) data else head(data, n = max.print)
@@ -635,6 +676,8 @@ knit_engines$set(
   python = eng_python, julia = eng_julia
 )
 
+cache_engines$set(python = cache_eng_python)
+
 get_engine = function(name) {
   fun = knit_engines$get(name)
   if (is.function(fun)) return(fun)
@@ -645,6 +688,12 @@ get_engine = function(name) {
   function(options) {
     engine_output(options, options$code, '')
   }
+}
+
+cache_engine = function(options) {
+  cache_fun = cache_engines$get(options$engine)
+  if (!is.function(cache_fun)) return()
+  cache_fun(options)
 }
 
 # possible values for engines (for auto-completion in RStudio)

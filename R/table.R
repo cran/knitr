@@ -57,6 +57,8 @@
 #' kable(mtcars, format = 'latex', booktabs = TRUE)
 #' # use the longtable package
 #' kable(matrix(1000, ncol=5), format = 'latex', digits = 2, longtable = TRUE)
+#' # change LaTeX default table environment
+#' kable(head(iris), format = "latex", caption = "My table", table.envir='table*')
 #' # add some table attributes
 #' kable(head(iris), format = 'html', table.attr = 'id="mytable"')
 #' # reST output
@@ -235,7 +237,7 @@ kable_latex = function(
     sprintf('[%s]', valign)
   } else ''
   if (identical(caption, NA)) caption = NULL
-  env1 = sprintf('\\begin{%s}\n', table.envir)
+  env1 = sprintf('\\begin{%s}%s\n', table.envir, valign)
   env2 = sprintf('\n\\end{%s}',   table.envir)
   if (caption.short != '') caption.short = paste0('[', caption.short, ']')
   cap = if (is.null(caption)) '' else sprintf('\n\\caption%s{%s}', caption.short, caption)
@@ -243,7 +245,7 @@ kable_latex = function(
   if (nrow(x) == 0) midrule = ""
 
   linesep = if (nrow(x) > 1) {
-    c(rep(linesep, length.out = nrow(x) - 2), linesep[[1L]], '')
+    c(rep(linesep, length.out = nrow(x) - 1), '')
   } else rep('', nrow(x))
   linesep = ifelse(linesep == "", linesep, paste0('\n', linesep))
 
@@ -254,7 +256,7 @@ kable_latex = function(
 
   paste(c(
     if (!longtable) c(env1, cap, centering),
-    sprintf('\n\\begin{%s}%s', tabular, valign), align,
+    sprintf('\n\\begin{%s}', tabular), align,
     if (longtable && cap != '') c(cap, '\\\\'),
     sprintf('\n%s', toprule), '\n',
     if (!is.null(cn <- colnames(x))) {

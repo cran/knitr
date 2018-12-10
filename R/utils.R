@@ -219,6 +219,7 @@ sci_notation = function(format, base, times, power) {
 
 # vectorized version of format_sci_one()
 format_sci = function(x, ...) {
+  if (inherits(x, 'roman')) return(as.character(x))
   vapply(x, format_sci_one, character(1L), ..., USE.NAMES = FALSE)
 }
 
@@ -243,6 +244,8 @@ fix_options = function(options) {
 
   # if you want to use subfloats, fig.show must be 'hold'
   if (length(options$fig.subcap)) options$fig.show = 'hold'
+  # if the animation hook has been set, fig.show must be 'animate'
+  if (!is.null(options$animation.hook)) options$fig.show = 'animate'
   # the default device NULL is not valid; use pdf is not set
   if (is.null(options$dev)) options$dev = 'pdf'
   # FALSE means hide for options$results
@@ -354,20 +357,11 @@ latex_percent_size = function(x, which = c('width', 'height')) {
   x
 }
 
-# TODO: use xfun::parse_only
-parse_only = function(code) {
-  if (length(code) == 0) return(expression())
-  parse(text = code, keep.source = FALSE)
-}
-
 # eval options as symbol/language objects
 eval_lang = function(x, envir = knit_global()) {
   if (!is.symbol(x) && !is.language(x)) return(x)
   eval(x, envir = envir)
 }
-
-# TODO: use xfun::isFALSE
-isFALSE = function(x) identical(x, FALSE)
 
 # check latex packages; if not exist, copy them over to ./
 test_latex_pkg = function(name, path) {
@@ -529,8 +523,7 @@ print_knitlog = function() {
 # count the number of lines
 line_count = function(x) stringr::str_count(x, '\n') + 1L
 
-# TODO: use xfun::loadable(pkg, FALSE)
-has_package = function(pkg) pkg %in% .packages(TRUE)
+has_package = function(pkg) xfun::loadable(pkg, FALSE)
 
 # if LHS is NULL, return the RHS
 `%n%` = function(x, y) if (is.null(x)) y else x
@@ -602,12 +595,13 @@ read_rforge = function(path, project, extra = '') {
   readLines(sprintf('%s/%s?root=%s%s', base, path, project, extra))
 }
 
-# because I think strsplit('', 'foo') should return '' instead of character(0)
+# strsplit('', 'foo') should return '' instead of character(0), and I also need
+# strsplit('a\n', '\n') to return c('a', '') instead of c('a')
 split_lines = function(x) {
   if (length(grep('\n', x)) == 0L) return(x)
-  con = textConnection(x)
-  on.exit(close(con))
-  readLines(con)
+  x = gsub('\n$', '\n\n', x)
+  x[x == ''] = '\n'
+  unlist(strsplit(x, '\n'))
 }
 
 # if a string is encoded in UTF-8, convert it to native encoding
@@ -639,16 +633,6 @@ encode_utf8 = function(input, encoding = getOption('encoding'), output = input) 
   con = file(input, encoding = encoding)
   tryCatch(txt <- readLines(con), finally = close(con))
   writeLines(enc2utf8(txt), output, useBytes = TRUE)
-}
-
-# TODO: use xfun::file_ext, xfun::sans_ext, xfun::with_ext
-file_ext = tools::file_ext
-sans_ext = tools::file_path_sans_ext
-# substitute extension
-sub_ext = function(x, ext) {
-  i = grep('\\.([[:alnum:]]+)$', x)
-  x[i] = sans_ext(x[i])
-  paste(x, ext, sep = '.')
 }
 
 #' Wrap long lines in Rmd files
@@ -737,9 +721,6 @@ kpsewhich = function() {
     'kpsewhich' else x
 }
 
-# TODO: use xfun::try_silent
-try_silent = function(expr) try(expr, silent = TRUE)
-
 # check if a utility exists; if it does, save its availability in opts_knit
 has_utility = function(name, package = name) {
   name2 = paste('util', name, sep = '_')  # e.g. util_pdfcrop
@@ -749,9 +730,6 @@ has_utility = function(name, package = name) {
   opts_knit$set(setNames(list(yes), name2))
   yes
 }
-
-# TODO: use xfun::is_windows
-is_windows = function() .Platform$OS.type == 'windows'
 
 #' Query the current input filename
 #'
@@ -807,13 +785,6 @@ inst_dir = function(...) {
   p[file.exists(p)]
 }
 
-# TODO: use xfun::same_path
-same_file = function(f1, f2) {
-  f1 = normalizePath(f1, mustWork = FALSE)
-  f2 = normalizePath(f2, mustWork = FALSE)
-  f1 == f2
-}
-
 # a restricted version of is.numeric (e.g. do not treat chron::chron() as
 # numeric since their behavior may be somewhat unpredictable, e.g. through
 # round(), #1118); see #1396 for difftime
@@ -832,9 +803,6 @@ create_label = function(..., latex = FALSE) {
   }
   paste0(lab1, ..., lab2)
 }
-
-# TODO: use xfun::attr
-attr = function(...) base::attr(..., exact = TRUE)
 
 #' Combine multiple words into a single string
 #'
@@ -869,12 +837,8 @@ combine_words = function(words, sep = ', ', and = ' and ', before = '', after = 
   paste(words, collapse = sep)
 }
 
-# TODO: use xfun::loadable
-loadable = function(pkg) requireNamespace(pkg, quietly = TRUE)
-
 warning2 = function(...) warning(..., call. = FALSE)
 stop2 = function(...) stop(..., call. = FALSE)
-
 
 raw_markers = c('!!!!!RAW-KNITR-CONTENT', 'RAW-KNITR-CONTENT!!!!!')
 
@@ -954,14 +918,35 @@ raw_output = function(x, markers = raw_markers, ...) {
   asis_output(paste(c(markers[1], x, markers[2]), collapse = ''), ...)
 }
 
-# TODO: use xfun::write_utf8
-writeUTF8 = function(text, file, ...) {
-  if (identical(file, '')) {
-    cat(text, sep = '\n', file = file)
-  } else {
-    writeLines(enc2utf8(text), file, ..., useBytes = TRUE)
-  }
+
+#' Mark character strings as raw blocks in R Markdown
+#'
+#' Wraps content in a raw attribute block, which protects it from being escaped
+#' by Pandoc. See \url{https://pandoc.org/MANUAL.html#generic-raw-attribute}.
+#' Functions \code{raw_latex()} and \code{raw_html()} are shorthands of
+#' \code{raw_block(x, 'latex')} and \code{raw_block(x, 'html')}, respectively.
+#' @param x The character vector to be protected.
+#' @param type The type of raw blocks (i.e., the Pandoc output format). If you
+#'   are not sure about the Pandoc output format of your document, insert a code
+#'   chunk \code{knitr:::pandoc_to()} and see what it returns after the document
+#'   is compiled.
+#' @param ... Arguments to be passed to \code{\link{asis_output}()}.
+#' @export
+#' @examples
+#' knitr::raw_latex('\\emph{some text}')
+raw_block = function(x, type = 'latex', ...) {
+  if (rmarkdown::pandoc_version() < '2.0.0') warning('raw_block() requires Pandoc >= 2.0.0')
+  x = c(sprintf('\n```{=%s}', type), x, '```\n')
+  asis_output(paste(x, collapse = '\n'), ...)
 }
+
+#' @rdname raw_block
+#' @export
+raw_latex = function(x, ...) raw_block(x, 'latex')
+
+#' @rdname raw_block
+#' @export
+raw_html = function(x, ...) raw_block(x, 'html')
 
 trimws = function(x) gsub('^\\s+|\\s+$', '', x)
 

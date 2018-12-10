@@ -1,9 +1,9 @@
 #' A general-purpose tool for dynamic report generation in R
 #'
 #' This is an alternative tool to Sweave with a more flexible design and new
-#' features like caching and finer control of graphics. It is not limited to LaTeX
-#' and is ready to be customized to process other file formats. See the package
-#' website in the references for more information and examples.
+#' features like caching and finer control of graphics. It is not limited to
+#' LaTeX and is ready to be customized to process other file formats. See the
+#' package website in the references for more information and examples.
 #' @docType package
 #' @name knitr-package
 #' @aliases knitr
@@ -17,7 +17,9 @@
 #'   The name comes from \code{knit} + \code{R} (while \code{Sweave} = \code{S}
 #'   + \code{weave}).
 #' @references Full documentation and demos: \url{https://yihui.name/knitr/};
-#'   FAQ's: \url{http://bit.ly/knitr-faq}
+#'   FAQ's: \url{https://yihui.name/knitr/faq/}
+#' @importFrom xfun attr file_ext isFALSE is_windows loadable parse_only
+#'   sans_ext try_silent with_ext
 NULL
 
 .knitEnv = new.env()
@@ -33,3 +35,7 @@ as.strict_list = function(x) {
   class(x) = 'knitr_strict_list'
   x
 }
+
+# TODO: remove this after the next release of spelling:
+# https://github.com/ropensci/spelling/issues/12
+file_ext = function(...) xfun::file_ext(...)

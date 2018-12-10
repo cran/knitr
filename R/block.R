@@ -72,6 +72,7 @@ call_block = function(block) {
         params$engine != 'Rcpp') {
       if (opts_knit$get('verbose')) message('  loading cache from ', hash)
       cache$load(hash, lazy = params$cache.lazy)
+      cache_engine(params)
       if (!params$include) return('')
       if (params$cache == 3) return(cache$output(hash))
     }
@@ -108,10 +109,10 @@ block_exec = function(options) {
     res.after = run_hooks(before = FALSE, options)
     output = paste(c(res.before, output, res.after), collapse = '')
     output = knit_hooks$get('chunk')(output, options)
-    if (options$cache) block_cache(
-      options, output,
-      if (options$engine == 'stan') options$engine.opts$x else character(0)
-    )
+    if (options$cache) block_cache(options, output, switch(
+      options$engine,
+      'stan' = options$output.var, 'sql' = options$output.var, character(0)
+    ))
     return(if (options$include) output else '')
   }
 
@@ -144,19 +145,23 @@ block_exec = function(options) {
 
   code = options$code
   echo = options$echo  # tidy code if echo
-  if (!isFALSE(echo) && options$tidy && length(code)) {
-    res = try_silent(do.call(
-      formatR::tidy_source, c(list(text = code, output = FALSE), options$tidy.opts)
-    ))
-    if (!inherits(res, 'try-error')) {
-      code = res$text.tidy
-    } else warning('failed to tidy R code in chunk <', options$label, '>\n',
-                   'reason: ', res)
+  if (!isFALSE(echo) && !isFALSE(options$tidy) && length(code)) {
+    tidy.method = if (isTRUE(options$tidy)) 'formatR' else options$tidy
+    if (is.character(tidy.method)) tidy.method = switch(
+      tidy.method,
+      formatR = function(code, ...) formatR::tidy_source(text = code, output = FALSE, ...)$text.tidy,
+      styler = function(code, ...) unclass(styler::style_text(text = code, ...))
+    )
+    res = try_silent(do.call(tidy.method, c(list(code), options$tidy.opts)))
+
+    if (!inherits(res, 'try-error')) code = res else warning(
+      "Failed to tidy R code in chunk '", options$label, "'. Reason:\n", res
+    )
   }
   # only evaluate certain lines
   if (is.numeric(ev <- options$eval)) {
     # group source code into syntactically complete expressions
-    if (!options$tidy) code = sapply(highr:::group_src(code), paste, collapse = '\n')
+    if (isFALSE(options$tidy)) code = sapply(highr:::group_src(code), paste, collapse = '\n')
     iss = seq_along(code)
     code = comment_out(code, '##', setdiff(iss, iss[ev]), newline = FALSE)
   }
@@ -452,8 +457,11 @@ process_tangle = function(x) {
 #' @export
 process_tangle.block = function(x) {
   params = opts_chunk$merge(x$params)
-  for (o in c('purl', 'eval', 'child'))
-    try(params[o] <- list(eval_lang(params[[o]])))
+  for (o in c('purl', 'eval', 'child')) {
+    if (inherits(try(params[o] <- list(eval_lang(params[[o]]))), 'try-error')) {
+      params[['purl']] = FALSE  # if any of these options cannot be determined, don't purl
+    }
+  }
   if (isFALSE(params$purl)) return('')
   label = params$label; ev = params$eval
   if (params$engine != 'R') return(comment_out(knit_code$get(label)))
@@ -462,7 +470,7 @@ process_tangle.block = function(x) {
     paste(unlist(cmds), collapse = '\n')
   } else knit_code$get(label)
   # read external code if exists
-  if (!isFALSE(ev) && length(code) && grepl('read_chunk\\(.+\\)', code)) {
+  if (!isFALSE(ev) && length(code) && any(grepl('read_chunk\\(.+\\)', code))) {
     eval(parse_only(unlist(stringr::str_extract_all(code, 'read_chunk\\(([^)]+)\\)'))))
   }
   code = parse_chunk(code)
