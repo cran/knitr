@@ -225,8 +225,7 @@ format_sci = function(x, ...) {
 
 # absolute path?
 is_abs_path = function(x) {
-  if (is_windows())
-    grepl(':', x, fixed = TRUE) || grepl('^\\\\', x) else grepl('^[/~]', x)
+  if (is_windows()) grepl('^(\\\\|[A-Za-z]:)', x) else grepl('^[/~]', x)
 }
 
 # is tikz device without externalization?
@@ -382,6 +381,9 @@ out_format = function(x) {
   if (missing(x)) fmt else !is.null(fmt) && (fmt %in% x)
 }
 
+# tempfile under the current working directory
+wd_tempfile = function(...) basename(tempfile(tmpdir = '.', ...))
+
 # rmarkdown sets an option for the Pandoc output format from markdown
 pandoc_to = function(x) {
   fmt = opts_knit$get('rmarkdown.pandoc.to')
@@ -395,12 +397,11 @@ pandoc_from = function() {
 
 pandoc_fragment = function(text, to = pandoc_to(), from = pandoc_from()) {
   if (length(text) == 0) return(text)
-  f1 = tempfile('pandoc', '.', '.md'); f2 = tempfile('pandoc', '.')
+  f1 = wd_tempfile('pandoc', '.md'); f2 = wd_tempfile('pandoc')
   on.exit(unlink(c(f1, f2)), add = TRUE)
-  writeLines(enc2utf8(text), f1, useBytes = TRUE)
+  xfun::write_utf8(text, f1)
   rmarkdown::pandoc_convert(f1, to, from, f2, options = if (is_html_output(to)) '--mathjax')
-  code = readLines(f2, encoding = 'UTF-8', warn = FALSE)
-  paste(code, collapse = '\n')
+  file_string(f2)
 }
 
 #' Path for figure files
@@ -606,8 +607,8 @@ split_lines = function(x) {
 
 # if a string is encoded in UTF-8, convert it to native encoding
 native_encode = function(x, to = '') {
-  idx = Encoding(x) == 'UTF-8'
-  x2 = iconv(x, if (any(idx)) 'UTF-8' else '', to)
+  from = if (any(Encoding(x) == 'UTF-8')) 'UTF-8' else ''
+  x2 = iconv(x, from, to)
   if (!any(is.na(x2))) return(x2)  # use conversion only if it succeeds
   warning('some characters may not work under the current locale')
   x
@@ -615,7 +616,7 @@ native_encode = function(x, to = '') {
 
 # make the encoding case-insensitive, e.g. LyX uses ISO-8859-15 but R uses iso-8859-15
 correct_encode = function(encoding) {
-  if (encoding == 'native.enc' || encoding == '') return('')
+  if (is_native_enc(encoding)) return('')
   lcc = localeToCharset()[1L]
   if (!is.na(lcc) && encoding == lcc) return('')
   if (is.na(idx <- match(tolower(encoding), tolower(iconvlist())))) {
@@ -624,15 +625,18 @@ correct_encode = function(encoding) {
   } else iconvlist()[idx]
 }
 
-# re-encode an input file to UTF-8
-encode_utf8 = function(input, encoding = getOption('encoding'), output = input) {
-  if (encoding == 'UTF-8') {
-    if (input != output) file.copy(input, output)
-    return()
-  }
-  con = file(input, encoding = encoding)
-  tryCatch(txt <- readLines(con), finally = close(con))
-  writeLines(enc2utf8(txt), output, useBytes = TRUE)
+# is the encoding name UTF-8 / native?
+is_utf8_enc = function(x) {
+  x == 'UTF-8' || (is_native_enc(x) && localeToCharset()[1] == 'UTF-8')
+}
+
+is_native_enc = function(x) {
+  x == 'native.enc' || x == ''
+}
+
+is_utf8_file = function(f) {
+  x = readLines(f, encoding = 'UTF-8', warn = FALSE)
+  !any(is.na(iconv(x, 'UTF-8', 'UTF-8')))
 }
 
 #' Wrap long lines in Rmd files
@@ -789,7 +793,7 @@ inst_dir = function(...) {
 # numeric since their behavior may be somewhat unpredictable, e.g. through
 # round(), #1118); see #1396 for difftime
 is_numeric = function(x) {
-  class(x)[1] %in% c('numeric', 'integer', 'difftime')
+  class(x)[1] %in% c('numeric', 'integer', 'difftime', 'complex')
 }
 
 # create \label{x} or (\#x); the latter is current an internal hack for bookdown
@@ -935,7 +939,7 @@ raw_output = function(x, markers = raw_markers, ...) {
 #' @examples
 #' knitr::raw_latex('\\emph{some text}')
 raw_block = function(x, type = 'latex', ...) {
-  if (rmarkdown::pandoc_version() < '2.0.0') warning('raw_block() requires Pandoc >= 2.0.0')
+  if (!rmarkdown::pandoc_available('2.0.0')) warning('raw_block() requires Pandoc >= 2.0.0')
   x = c(sprintf('\n```{=%s}', type), x, '```\n')
   asis_output(paste(x, collapse = '\n'), ...)
 }

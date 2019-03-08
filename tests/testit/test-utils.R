@@ -1,12 +1,11 @@
 library(testit)
 
-assert(
-  'abs_path() recognizes absolute paths under Windows and *nix',
-  !is_abs_path('abc/def'),
-  is_abs_path(if (.Platform$OS.type == 'windows') {
+assert('abs_path() recognizes absolute paths under Windows and *nix', {
+  (!is_abs_path('abc/def'))
+  (is_abs_path(if (.Platform$OS.type == 'windows') {
     c('D:\\abc', '\\\\netdrive\\somewhere')
-  } else '/abc/def')
-)
+  } else '/abc/def'))
+})
 
 op = options(digits = 3, scipen = 0, knitr.digits.signif = TRUE)
 
@@ -189,3 +188,9 @@ assert(
   block_class('a b') %==% '{.a .b}',
   block_class(c('a', 'b')) %==% '{.a .b}'
 )
+
+assert('is_utf8_enc() identifies UTF-8 encodings', {
+  (is_utf8_enc('UTF-8'))
+  (!is_utf8_enc('GBK'))
+  (localeToCharset()[1] != 'UTF-8' || is_utf8_enc(''))
+})

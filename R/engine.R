@@ -110,9 +110,7 @@ engine_output = function(options, code, out, extra = NULL) {
 eng_interpreted = function(options) {
   engine = options$engine
   code = if (engine %in% c('highlight', 'Rscript', 'sas', 'haskell', 'stata')) {
-    f = basename(tempfile(engine, '.', switch(
-      engine, sas = '.sas', Rscript = '.R', stata = '.do', '.txt'
-    )))
+    f = wd_tempfile(engine, switch(engine, sas = '.sas', Rscript = '.R', stata = '.do', '.txt'))
     writeLines(c(switch(
       engine,
       sas = "OPTIONS NONUMBER NODATE PAGESIZE = MAX FORMCHAR = '|----|+|---+=|-/<>*' FORMDLIM=' ';title;",
@@ -136,7 +134,7 @@ eng_interpreted = function(options) {
           Darwin = paste('-q < %s >', shQuote(xfun::normalize_path(logf))),
           Linux = '-q -e do %s',
           '-q -b do %s'
-         ), shQuote(normalizePath(f)))
+        ), shQuote(normalizePath(f)))
       },
       f
     )
@@ -181,7 +179,7 @@ get_engine_path = function(path, engine) get_engine_opts(path, engine, engine)
 ## C and Fortran (via R CMD SHLIB)
 eng_shlib = function(options) {
   n = switch(options$engine, c = 'c', fortran = 'f', fortran95 = 'f95')
-  f = basename(tempfile(n, '.', paste0('.', n)))
+  f = wd_tempfile(n, paste0('.', n))
   writeLines(options$code, f)
   on.exit(unlink(c(f, with_ext(f, c('o', 'so', 'dll')))), add = TRUE)
   if (options$eval) {
@@ -280,22 +278,20 @@ eng_stan = function(options) {
 eng_tikz = function(options) {
   if (!options$eval) return(engine_output(options, options$code, ''))
 
-  lines = readLines(tmpl <- options$engine.opts$template %n%
-                      system.file('misc', 'tikz2pdf.tex', package = 'knitr'))
+  lines = readLines(options$engine.opts$template %n%
+                    system.file('misc', 'tikz2pdf.tex', package = 'knitr'))
   i = grep('%% TIKZ_CODE %%', lines)
   if (length(i) != 1L)
     stop("Couldn't find replacement string; or the are multiple of them.")
 
   s = append(lines, options$code, i)  # insert tikz into tex-template
-  writeLines(s, texf <- paste0(f <- tempfile('tikz', '.'), '.tex'))
+  writeLines(s, texf <- wd_tempfile('tikz', '.tex'))
   on.exit(unlink(texf), add = TRUE)
 
   ext = tolower(options$fig.ext %n% dev2ext(options$dev))
 
   to_svg = ext == 'svg'
-  unlink(outf <- paste0(f, if (to_svg) '.dvi' else '.pdf'))
-  tools::texi2dvi(texf, pdf = !to_svg, clean = TRUE)
-  if (!file.exists(outf)) stop('Failed to compile tikz; check the template: ', tmpl)
+  outf = if (to_svg) tinytex::latexmk(texf, 'latex') else tinytex::latexmk(texf)
 
   fig = fig_path(if (to_svg) '.dvi' else '.pdf', options)
   dir.create(dirname(fig), recursive = TRUE, showWarnings = FALSE)
@@ -305,19 +301,16 @@ eng_tikz = function(options) {
   if (to_svg) {
     # dvisvgm needs to be on the path
     # dvisvgm for windows needs ghostscript bin dir on the path also
-    conv = system2('dvisvgm', fig)
+    if (Sys.which('dvisvgm') == '') tinytex::tlmgr_install('dvisvgm')
+    if (system2('dvisvgm', fig) != 0) stop('Failed to compile ', fig, ' to ', fig2)
     # copy the svg to figure subdir
     file.rename(basename(fig2), fig2)
   } else {
-    # convert to the desired output-format, calling `convert`
-    conv = 0
-    if (ext != 'pdf') {
-      conv = system2(options$engine.opts[['convert']] %n% 'convert', c(
-        options$engine.opts$convert.opts, sprintf('%s %s', fig, fig2)
-      ))
-    }
+    # convert to the desired output-format using magick
+    if (ext != 'pdf') magick::image_write(do.call(magick::image_convert, c(
+      list(magick::image_read_pdf(fig), ext), options$engine.opts$convert.opts
+    )), fig2)
   }
-  if (conv != 0 && !options$error) stop('Failed to compile ', fig, ' to ', fig2)
   fig = fig2
 
   options$fig.num = 1L; options$fig.cur = 1L
@@ -330,7 +323,7 @@ eng_tikz = function(options) {
 eng_dot = function(options) {
 
   # create temporary file
-  f = tempfile('code', '.')
+  f = wd_tempfile('code')
   writeLines(code <- options$code, f)
   on.exit(unlink(f), add = TRUE)
 
@@ -386,7 +379,9 @@ eng_cat = function(options) {
     # do not write to stdout like the default behavior of cat()
     if (!identical(file, '')) cat(..., file = file)
   }
-  do.call(cat2, c(list(options$code, sep = '\n'), options$engine.opts))
+  if (options$eval)
+    do.call(cat2, c(list(options$code, sep = '\n'), options$engine.opts))
+
   if (is.null(lang <- options$engine.opts$lang) && is.null(lang <- options$class.source))
     return('')
   options$engine = lang
@@ -626,7 +621,7 @@ eng_sql = function(options) {
 
 # go engine, added by @hodgesds https://github.com/yihui/knitr/pull/1330
 eng_go = function(options) {
-  f = tempfile('code', '.', fileext = ".go")
+  f = wd_tempfile('code', '.go')
   writeLines(code <- options$code, f)
   on.exit(unlink(f), add = TRUE)
   cmd = get_engine_path(options$engine.path, options$engine)
@@ -658,6 +653,91 @@ eng_go = function(options) {
   engine_output(options, code, extra)
 }
 
+# SASS / SCSS engine (contributed via https://github.com/yihui/knitr/pull/1666)
+#
+# Converts SASS / SCSS -> CSS (with same treatments as CSS engine) using either:
+# LibSass sass R package (https://github.com/rstudio/sass) when
+#   + the package is installed
+#   + engine.opts does not set package = FALSE (e.g. engine.opts = list(package = FALSE))
+#   + an explicit path to the executable is not provided through engine.path, or
+# dart-sass standalone executable (https://sass-lang.com/install) otherwise
+#
+# CSS output is compressed by default but formatting can be set through style in engine.opts
+#  For the sass R package, valid styles are "compressed","expanded", "nested", and "compact"
+#  For the executable, valid styles are "compressed" and "expanded"
+#  Please refer to respective package / executable documentation for more details
+eng_sxss = function(options) {
+
+  # early exit if evaluated output not requested
+  options$results = 'asis'
+  if (!options$eval) return(engine_output(options, options$code, ''))
+
+  # create temporary file with input code
+  f = wd_tempfile('code', paste0('.', options$engine))
+  xfun::write_utf8(options$code , f)
+  on.exit(unlink(f), add = TRUE)
+
+  # process provided engine options
+  package = options$engine.opts$package %n% TRUE
+  style = options$engine.opts$style %n% "compressed"
+  cmd = get_engine_path(options$engine.path, "sass")
+
+  use_package = loadable("sass") && package && cmd == "sass"
+
+  style = match.arg(style, c("compressed", "expanded", if (use_package) c("compact", "nested")))
+  # convert sass/sxss -> css
+  if (use_package) {
+    message("Converting with the R package sass")
+
+    # TODO: after sass R package (https://github.com/rstudio/sass) is released on CRAN
+    # delete calls to get and replace sass, sass_file, sass_options with sass::function_name()
+    # add sass to Suggests
+    sass = getFromNamespace("sass", "sass")
+    sass_file = getFromNamespace("sass_file", "sass")
+    sass_options = getFromNamespace("sass_options", "sass")
+
+    out = tryCatch(
+      sass(sass_file(f), options = sass_options(output_style = style)),
+      error = function(e) {
+        if (!options$error) stop(e)
+        warning2(paste('Error in converting to CSS using sass R package:', e, sep = "\n"))
+        NULL
+      }
+    )
+
+    # remove final newline chars from output
+    if (!is.null(out)) out = sub("\\n$", "", out)
+  } else {
+    message("Converting sass with ", cmd)
+    style = paste0("--style=", style)
+
+    # attempt execution of sass
+    out = tryCatch(
+      system2(cmd, args = c(f, style), stdout = TRUE, stderr = TRUE),
+      error = function(e) {
+        if (!options$error) stop2(e)
+        warning2(paste('Error in converting to CSS using executable:', e, sep = "\n"))
+        NULL
+      }
+    )
+
+    # handle execution errors (status codes) or otherwise reformat valid output
+    out = if (!is.null(attr(out, 'status'))) {
+      if (!options$error) stop2(paste(out, collapse = '\n'))
+    } else if (!is.null(out)) {
+      paste(out, collapse = "\n")
+    }
+  }
+
+  # wrap final output for correct rendering
+  final_out = if (!is.null(out) && is_html_output(excludes = 'markdown')) {
+    paste(c('<style type="text/css">', out, '</style>'), collapse = "\n")
+  }
+
+  engine_output(options, options$code, final_out)
+
+}
+
 # set engines for interpreted languages
 local({
   for (i in c(
@@ -673,7 +753,7 @@ knit_engines$set(
   c = eng_shlib, fortran = eng_shlib, fortran95 = eng_shlib, asy = eng_dot,
   cat = eng_cat, asis = eng_asis, stan = eng_stan, block = eng_block,
   block2 = eng_block2, js = eng_js, css = eng_css, sql = eng_sql, go = eng_go,
-  python = eng_python, julia = eng_julia
+  python = eng_python, julia = eng_julia, sass = eng_sxss, scss = eng_sxss
 )
 
 cache_engines$set(python = cache_eng_python)

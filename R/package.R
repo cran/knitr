@@ -19,7 +19,7 @@
 #' @references Full documentation and demos: \url{https://yihui.name/knitr/};
 #'   FAQ's: \url{https://yihui.name/knitr/faq/}
 #' @importFrom xfun attr file_ext isFALSE is_windows loadable parse_only
-#'   sans_ext try_silent with_ext
+#'   sans_ext try_silent with_ext read_utf8 write_utf8 file_string
 NULL
 
 .knitEnv = new.env()
@@ -35,7 +35,3 @@ as.strict_list = function(x) {
   class(x) = 'knitr_strict_list'
   x
 }
-
-# TODO: remove this after the next release of spelling:
-# https://github.com/ropensci/spelling/issues/12
-file_ext = function(...) xfun::file_ext(...)

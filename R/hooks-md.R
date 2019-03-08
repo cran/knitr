@@ -4,7 +4,7 @@ hook_plot_md = function(x, options) {
   # if not using R Markdown v2 or output is HTML, just return v1 output
   if (is.null(to <- pandoc_to()) || is_html_output(to))
     return(hook_plot_md_base(x, options))
-  if (options$fig.show == 'animate' && is_latex_output())
+  if ((options$fig.show == 'animate' || !options$external) && is_latex_output())
     return(hook_plot_tex(x, options))
   office_output = to %in% c('docx', 'pptx', 'rtf', 'odt')
   if (!is.null(options$out.width) || !is.null(options$out.height) ||
@@ -127,8 +127,11 @@ render_markdown = function(strict = FALSE, fence_char = '`') {
       paste0('\n\n', fence, block_class(class), x, fence, '\n\n')
     }
   }
-  hook.o = function(x, options) {
-    hook.t(x, options, options$class.output)
+  hook.o = function(class) {
+    force(class)
+    function(x, options) {
+      hook.t(x, options, options[[paste0('class.', class)]])
+    }
   }
   hook.r = function(x, options) {
     language = tolower(options$engine)
@@ -139,12 +142,14 @@ render_markdown = function(strict = FALSE, fence_char = '`') {
     }
     paste0('\n\n', fence, language, '\n', x, fence, '\n\n')
   }
+  hooks = list()
+  for (i in c('output', 'warning', 'error', 'message')) hooks[[i]] = hook.o(i)
+  knit_hooks$set(hooks)
   knit_hooks$set(
     source = function(x, options) {
       x = hilight_source(x, 'markdown', options)
       (if (strict) hook.t else hook.r)(paste(c(x, ''), collapse = '\n'), options)
     },
-    output = hook.o, warning = hook.t, error = hook.t, message = hook.t,
     inline = function(x) {
       fmt = pandoc_to()
       fmt = if (length(fmt) == 1L) 'latex' else 'html'

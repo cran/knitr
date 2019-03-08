@@ -134,7 +134,16 @@ knit = function(input, output = NULL, tangle = FALSE, text = NULL, quiet = FALSE
   oconc = knit_concord$get(); on.exit(knit_concord$set(oconc), add = TRUE)
   # make a copy of the input path in input2 and change input to file path
   if (!missing(input)) input2 = input
-  if (in.file && !is.character(input)) input = summary(input)$description
+  if (in.file) if (is.character(input)) {
+    if (!missing(encoding) && !is_utf8_enc(encoding) && !is_utf8_file(input)) warning(
+      'The encoding ("', encoding, '") is not UTF-8. We will only support UTF-8 in',
+      ' the future. Please re-save your file "', input, '" with the UTF-8 encoding.',
+      ' See https://yihui.name/en/2018/11/biggest-regret-knitr/ for more info.'
+    )
+  } else {
+    warning('The input is a connection. We will only support file input in the future.')
+    input = summary(input)$description
+  }
 
   if (child_mode()) {
     setwd(opts_knit$get('output.dir')) # always restore original working dir
@@ -328,7 +337,7 @@ process_file = function(text, output) {
   # output line numbers
   if (concord_mode()) knit_concord$set(outlines = line_count(res))
   print_knitlog()
-  if (tangle) res = res[res != '']
+  if (tangle) res = strip_white(res)
 
   res
 }
@@ -560,6 +569,7 @@ wrap.recordedplot = function(x, options) {
 
 #' @export
 wrap.knit_image_paths = function(x, options = opts_chunk$get(), inline = FALSE) {
+  if (options$fig.show == 'hide') return('')
   hook_plot = knit_hooks$get('plot')
   options$fig.num = length(x)
   # remove the automatically set out.width when fig.retina is set, otherwise the
@@ -604,9 +614,10 @@ wrap.html_screenshot = function(x, options = opts_chunk$get(), inline = FALSE) {
 wrap.knit_embed_url = function(x, options = opts_chunk$get(), inline = FALSE) {
   options$fig.cur = plot_counter()
   options = reduce_plot_opts(options)
+  if (length(extra <- options$out.extra)) extra = paste('', extra, collapse = '')
   add_html_caption(options, sprintf(
-    '<iframe src="%s" width="%s" height="%s"></iframe>',
-    escape_html(x$url), options$out.width %n% '100%', x$height %n% '400px'
+    '<iframe src="%s" width="%s" height="%s"%s></iframe>',
+    escape_html(x$url), options$out.width %n% '100%', x$height %n% '400px', extra
   ))
 }
 
@@ -759,7 +770,7 @@ knit_meta_add = function(meta, label = '') {
   if (length(meta)) {
     meta_id = attr(.knitEnv$meta, 'knit_meta_id')
     .knitEnv$meta = c(.knitEnv$meta, meta)
-    attr(.knitEnv$meta, 'knit_meta_id') = c(meta_id, rep(label, length(meta)))
+    attr(.knitEnv$meta, 'knit_meta_id') = c(meta_id, rep_len(label, length(meta)))
   }
   .knitEnv$meta
 }

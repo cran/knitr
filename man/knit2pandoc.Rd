@@ -6,8 +6,7 @@
 Pandoc}
 \usage{
 knit2pandoc(input, output = NULL, tangle = FALSE, text = NULL, quiet = FALSE, 
-    envir = parent.frame(), encoding = getOption("encoding"), to = "html", 
-    pandoc_wrapper = NULL, ...)
+    envir = parent.frame(), to = "html", pandoc_wrapper = NULL, ..., encoding = "UTF-8")
 }
 \arguments{
 \item{input}{Path to the input file.}
@@ -28,8 +27,6 @@ file.}
 for example, \code{\link{parent.frame}()}, \code{\link{new.env}()}, or
 \code{\link{globalenv}()}).}
 
-\item{encoding}{Encoding of the input file; see \code{\link{file}}.}
-
 \item{to}{Character string giving the Pandoc output format to use.}
 
 \item{pandoc_wrapper}{An R function used to call Pandoc; by default, if
@@ -38,6 +35,8 @@ for example, \code{\link{parent.frame}()}, \code{\link{new.env}()}, or
 \code{\link{pandoc}()}.}
 
 \item{...}{Options to be passed to the \code{pandoc_wrapper} function.}
+
+\item{encoding}{Ignored (always assumes UTF-8).}
 }
 \value{
 Returns the output of the \code{pandoc_wrapper} function.

@@ -30,15 +30,15 @@ rst2pdf = function(input, command = 'rst2pdf', options = '') {
 #'   \code{rmarkdown::\link[rmarkdown]{pandoc_convert}()}, otherwise it
 #'   \code{\link{pandoc}()}.
 #' @param ... Options to be passed to the \code{pandoc_wrapper} function.
+#' @param encoding Ignored (always assumes UTF-8).
 #' @author Trevor L. Davis
 #' @return Returns the output of the \code{pandoc_wrapper} function.
 #' @export
 knit2pandoc = function(
   input, output = NULL, tangle = FALSE, text = NULL, quiet = FALSE,
-  envir = parent.frame(), encoding = getOption('encoding'),
-  to = 'html', pandoc_wrapper = NULL, ...
+  envir = parent.frame(), to = 'html', pandoc_wrapper = NULL, ..., encoding = 'UTF-8'
 ) {
-  knit_output = knit(input, output, tangle, text, quiet, envir, encoding)
+  knit_output = knit(input, output, tangle, text, quiet, envir, encoding = 'UTF-8')
   if (!is.null(pandoc_wrapper)) return(pandoc_wrapper(knit_output, to, ...))
   if (!has_package('rmarkdown')) return(pandoc(knit_output, to, ...))
   output = gsub(paste0(file_ext(knit_output), '$'), to, knit_output)
@@ -67,10 +67,9 @@ knit2pandoc = function(
 #' #' compile a reST file with rst2pdf
 #' ## knit2pdf(..., compiler = 'rst2pdf')
 knit2pdf = function(
-  input, output = NULL, compiler = NULL, envir = parent.frame(), quiet = FALSE,
-  encoding = getOption('encoding'), ...
+  input, output = NULL, compiler = NULL, envir = parent.frame(), quiet = FALSE, ...
 ) {
-  out = knit(input, output = output, envir = envir, quiet = quiet, encoding = encoding)
+  out = knit(input, output = output, envir = envir, quiet = quiet, encoding = 'UTF-8')
   owd = setwd(dirname(out)); on.exit(setwd(owd))
   if (is.null(compiler)) {
     compiler = if (grepl('\\.rst$', out)) 'rst2pdf' else 'pdflatex'
@@ -101,27 +100,25 @@ knit2pdf = function(
 #'   is returned.
 #' @note The \pkg{markdown} package is for R Markdown v1, which is much less
 #'   powerful than R Markdown v2, i.e. the \pkg{rmarkdown} package
-#'   (\url{http://rmarkdown.rstudio.com}). To render R Markdown v2 documents to
+#'   (\url{https://rmarkdown.rstudio.com}). To render R Markdown v2 documents to
 #'   HTML, please use \code{rmarkdown::render()} instead.
 #' @examples # a minimal example
 #' writeLines(c("# hello markdown", '```{r hello-random, echo=TRUE}', 'rnorm(5)', '```'), 'test.Rmd')
 #' knit2html('test.Rmd')
 #' if (interactive()) browseURL('test.html')
 knit2html = function(input, output = NULL, ..., envir = parent.frame(), text = NULL,
-                     quiet = FALSE, encoding = getOption('encoding'), force_v1 = FALSE) {
+                     quiet = FALSE, encoding = 'UTF-8', force_v1 = FALSE) {
   if (!force_v1 && is.null(text)) {
-    con = file(input, encoding = encoding)
-    on.exit(close(con), add = TRUE)
     signal = if (is_R_CMD_check()) warning2 else stop2
-    if (length(grep('^---\\s*$', head(readLines(con), 1)))) signal(
+    if (length(grep('^---\\s*$', head(read_utf8(input), 1)))) signal(
       'It seems you should call rmarkdown::render() instead of knitr::knit2html() ',
       'because ', input, ' appears to be an R Markdown v2 document.'
     )
   }
-  out = knit(input, text = text, envir = envir, encoding = encoding, quiet = quiet)
+  out = knit(input, text = text, envir = envir, encoding = 'UTF-8', quiet = quiet)
   if (is.null(text)) {
     output = with_ext(if (is.null(output) || is.na(output)) out else output, 'html')
-    markdown::markdownToHTML(out, output, encoding = encoding, ...)
+    markdown::markdownToHTML(out, output, encoding = 'UTF-8', ...)
     invisible(output)
   } else markdown::markdownToHTML(text = out, ...)
 }
@@ -158,13 +155,10 @@ knit2html_v1 = function(...) knit2html(..., force_v1 = TRUE)
 #' @examples # see the reference
 knit2wp = function(
   input, title = 'A post from knitr', ..., envir = parent.frame(), shortcode = FALSE,
-  action = c('newPost', 'editPost', 'newPage'), postid,
-  encoding = getOption('encoding'), publish = TRUE
+  action = c('newPost', 'editPost', 'newPage'), postid, publish = TRUE
 ) {
-  out = knit(input, encoding = encoding, envir = envir); on.exit(unlink(out))
-  con = file(out, encoding = encoding); on.exit(close(con), add = TRUE)
-  content = native_encode(readLines(con, warn = FALSE))
-  content = paste(content, collapse = '\n')
+  out = knit(input, encoding = 'UTF-8', envir = envir); on.exit(unlink(out))
+  content = file_string(out)
   content = markdown::markdownToHTML(text = content, fragment.only = TRUE)
   shortcode = rep(shortcode, length.out = 2L)
   if (shortcode[1]) content = gsub(
@@ -176,8 +170,8 @@ knit2wp = function(
     if (shortcode[2]) '[sourcecode]\\2[/sourcecode]' else '<pre>\\2</pre>', content
   )
 
-  content = native_encode(content, 'UTF-8')
-  title = native_encode(title, 'UTF-8')
+  content = enc2utf8(content)
+  title = enc2utf8(title)
 
   # figure out if we are making a newPost or overwriting an existing post
   action = match.arg(action)
