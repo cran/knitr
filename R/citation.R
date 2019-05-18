@@ -94,7 +94,7 @@ write_bib = function(
     })
   }
   bib = bib[sort(x)]
-  if (!is.null(file) && length(x)) xfun::write_utf8(unlist(bib), file)
+  if (!is.null(file) && length(x)) write_utf8(unlist(bib), file)
   invisible(bib)
 }
 
@@ -103,7 +103,7 @@ write_bib = function(
 #' @include utils.R
 
 # hack non-standard author fields
-.tweak.bib = local({
+.tweak.bib = local(if (Sys.info()[['sysname']] == 'Darwin') {
   x = read.csv(inst_dir('misc/tweak_bib.csv'), stringsAsFactors = FALSE)
   x = x[order(xtfrm(x$package)), , drop = FALSE]  # reorder entries by package names
   try_silent(write.csv(x, inst_dir('misc/tweak_bib.csv'), row.names = FALSE))

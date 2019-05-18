@@ -4,7 +4,7 @@ hook_plot_md = function(x, options) {
   # if not using R Markdown v2 or output is HTML, just return v1 output
   if (is.null(to <- pandoc_to()) || is_html_output(to))
     return(hook_plot_md_base(x, options))
-  if ((options$fig.show == 'animate' || !options$external) && is_latex_output())
+  if ((options$fig.show == 'animate' || is_tikz_dev(options)) && is_latex_output())
     return(hook_plot_tex(x, options))
   office_output = to %in% c('docx', 'pptx', 'rtf', 'odt')
   if (!is.null(options$out.width) || !is.null(options$out.height) ||
@@ -88,13 +88,17 @@ css_text_align = function(align) {
   if (align == 'default') '' else sprintf(' style="text-align: %s"', align)
 }
 
-# helper function to manage HTML classes; turn "a b" to "{.a .b}" for Pandoc
-# fenced code blocks
-block_class = function(x){
-  if (length(x) == 0) return()
-  classes = unlist(strsplit(x, '\\s+'))
-  .classes = paste0('.', classes, collapse = ' ')
-  paste0('{', .classes, '}')
+# turn a class string "a b" to c(".a", ".b") for Pandoc fenced code blocks
+block_class = function(x) {
+  if (length(x) > 0) gsub('^[.]*', '.', unlist(strsplit(x, '\\s+')))
+}
+
+# concatenate block attributes (including classes) for Pandoc fenced code blocks
+block_attr = function(attr, class = NULL, lang = NULL) {
+  x = c(block_class(class), attr)
+  if (length(x) == 0) return(lang)
+  x = c(sprintf('.%s', lang), x)
+  paste0('{', paste0(x, collapse = ' '), '}')
 }
 
 #' @rdname output_hooks
@@ -112,35 +116,33 @@ render_markdown = function(strict = FALSE, fence_char = '`') {
   opts_knit$set(out.format = 'markdown')
   fence = paste(rep(fence_char, 3), collapse = '')
   # four spaces lead to <pre></pre>
-  hook.t = function(x, options, class = NULL) {
+  hook.t = function(x, options, attr = NULL, class = NULL) {
     # this code-block duplicated from hook.t()
     if (strict) {
       paste('\n', indent_block(x), '', sep = '\n')
     } else {
-      x = paste(c('', x), collapse = '\n')
+      x = one_string(c('', x))
       r = paste0('\n', fence_char, '{3,}')
       if (grepl(r, x)) {
         l = attr(gregexpr(r, x)[[1]], 'match.length')
         l = max(l)
         if (l >= 4) fence = paste(rep(fence_char, l), collapse = '')
       }
-      paste0('\n\n', fence, block_class(class), x, fence, '\n\n')
+      paste0('\n\n', fence, block_attr(attr, class), x, fence, '\n\n')
     }
   }
   hook.o = function(class) {
     force(class)
     function(x, options) {
-      hook.t(x, options, options[[paste0('class.', class)]])
+      hook.t(x, options, options[[paste0('attr.', class)]], options[[paste0('class.', class)]])
     }
   }
   hook.r = function(x, options) {
     language = tolower(options$engine)
     if (language == 'node') language = 'javascript'
     if (!options$highlight) language = 'text'
-    if (!is.null(options$class.source)) {
-      language = block_class(c(language, options$class.source))
-    }
-    paste0('\n\n', fence, language, '\n', x, fence, '\n\n')
+    attrs = block_attr(options$attr.source, options$class.source, language)
+    paste0('\n\n', fence, attrs, '\n', x, fence, '\n\n')
   }
   hooks = list()
   for (i in c('output', 'warning', 'error', 'message')) hooks[[i]] = hook.o(i)
@@ -148,12 +150,12 @@ render_markdown = function(strict = FALSE, fence_char = '`') {
   knit_hooks$set(
     source = function(x, options) {
       x = hilight_source(x, 'markdown', options)
-      (if (strict) hook.t else hook.r)(paste(c(x, ''), collapse = '\n'), options)
+      (if (strict) hook.t else hook.r)(one_string(c(x, '')), options)
     },
     inline = function(x) {
-      fmt = pandoc_to()
-      fmt = if (length(fmt) == 1L) 'latex' else 'html'
-      .inline.hook(format_sci(x, fmt))
+      if (is_latex_output()) .inline.hook.tex(x) else {
+        .inline.hook(format_sci(x, if (length(pandoc_to()) == 1L) 'latex' else 'html'))
+      }
     },
     plot = hook_plot_md,
     chunk = function(x, options) {
@@ -203,7 +205,7 @@ render_jekyll = function(highlight = c('pygments', 'prettify', 'none'), extra = 
     )
   })
   knit_hooks$set(source = function(x, options) {
-    x = paste(hilight_source(x, 'markdown', options), collapse = '\n')
+    x = one_string(hilight_source(x, 'markdown', options))
     hook.r(x, options)
   }, output = hook.t, warning = hook.t, error = hook.t, message = hook.t)
 }

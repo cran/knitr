@@ -41,7 +41,20 @@ split_file = function(lines, set.preamble = TRUE, patterns = knit_patterns$get()
   })
 }
 
-# a code manager to manage R code in all chunks
+#' The code manager to manage code in all chunks
+#'
+#' This object provides methods to manage code (as character vectors) in all
+#' chunks in \pkg{knitr} source documents. For example,
+#' \code{knitr::knit_code$get()} returns a named list of all code chunks (the
+#' names are chunk labels), and \code{knitr::knit_code$get('foo')} returns the
+#' character vector of the code in the chunk with the label \code{foo}.
+#' @note The methods on this object include the \code{set()} method (i.e., you
+#'   could do something like \code{knitr::knit_code$set(foo = "'my precious new
+#'   code'")}), but we recommend that you do not use this method to modify the
+#'   content of code chunks, unless you are
+#'   \href{https://emitanaka.rbind.io/post/knitr-knitr-code/}{as creative as Emi
+#'   Tanaka} and know what you are doing.
+#' @export
 knit_code = new_defaults()
 
 # strip the pattern in code
@@ -169,7 +182,7 @@ print.block = function(x, ...) {
     code = knit_code$get(params$label)
     if (length(code) && !is_blank(code)) {
       cat('\n  ', stringr::str_pad(' R code chunk ', getOption('width') - 10L, 'both', '~'), '\n')
-      cat(paste('  ', code, collapse = '\n'), '\n')
+      cat(one_string('  ', code), '\n')
       cat('  ', stringr::str_dup('~', getOption('width') - 10L), '\n')
     }
     cat(paste('##------', date(), '------##'), sep = '\n')
@@ -187,7 +200,7 @@ parse_inline = function(input, patterns) {
     # strip off inline code
     input[idx] = gsub(inline.code, '\\1', input[idx])
   }
-  input = paste(input, collapse = '\n') # merge into one line
+  input = one_string(input) # merge into one line
 
   loc = cbind(start = numeric(0), end = numeric(0))
   if (group_pattern(inline.code)) loc = stringr::str_locate_all(input, inline.code)[[1]]
@@ -284,7 +297,7 @@ print.inline = function(x, ...) {
 #' knitr:::knit_code$get() # use this to check chunks in the current session
 #' knitr:::knit_code$restore() # clean up the session
 read_chunk = function(
-  path, lines = readLines(path, warn = FALSE), labels = NULL, from = NULL, to = NULL,
+  path, lines = read_utf8(path), labels = NULL, from = NULL, to = NULL,
   from.offset = 0L, to.offset = 0L, roxygen_comments = TRUE
 ) {
   if (!length(lines)) {
@@ -376,7 +389,7 @@ parse_chunk = function(x, rc = knit_patterns$get('ref.chunk')) {
   code = mapply(indent_block, code, indent, SIMPLIFY = FALSE, USE.NAMES = FALSE)
 
   x[idx] = unlist(lapply(code, function(z) {
-    paste(parse_chunk(z, rc), collapse = '\n')
+    one_string(parse_chunk(z, rc))
   }), use.names = FALSE)
   x
 }

@@ -26,6 +26,11 @@
 #' provide additional parameters to the program \command{pngquant}, e.g.
 #' \code{pngquant = '--speed=1 --quality=0-50'}.
 #'
+#' The function \code{hook_mogrify()} calls the program \command{mogrify}.  Note
+#' the chunk option \code{mogrify} can be used to provide additional parameters
+#' to the program \command{mogrify} (with default \code{-trim} to trim PNG
+#' files).
+#'
 #' When the plots are not recordable via \code{\link[grDevices]{recordPlot}} and
 #' we save the plots to files manually via other functions (e.g. \pkg{rgl}
 #' plots), we can use the chunk hook \code{hook_plot_custom} to help write code
@@ -71,7 +76,7 @@ hook_optipng = function(before, options, envir) {
 }
 
 hook_png = function(
-  before, options, envir, cmd = c('optipng', 'pngquant'), post_process = identity
+  before, options, envir, cmd = c('optipng', 'pngquant', 'mogrify'), post_process = identity
 ) {
   if (before) return()
   num = options$fig.num
@@ -111,6 +116,13 @@ hook_pngquant = function(before, options, envir) {
 
 #' @export
 #' @rdname chunk_hook
+hook_mogrify = function(before, options, envir) {
+  if (is.null(options[['mogrify']])) options$mogrify = '-trim'
+  hook_png(before, options, envir, cmd = 'mogrify', identity)
+}
+
+#' @export
+#' @rdname chunk_hook
 hook_plot_custom = function(before, options, envir){
   if (before) return() # run hook after the chunk
   if (options$fig.show == 'hide') return() # do not show figures
@@ -140,13 +152,17 @@ hook_purl = function(before, options, envir) {
     unlink(output)
     # write out knit_params() data from YAML
     params = .knitEnv$tangle.params
-    if (length(params)) writeLines(params, output)
+    if (length(params)) write_utf8(params, output)
     .knitEnv$tangle.params = NULL
   }
 
   code = options$code
   if (isFALSE(options$eval)) code = comment_out(code, '# ', newline = FALSE)
   if (is.character(output)) {
-    cat(label_code(code, options$params.src), file = output, sep = '\n', append = TRUE)
+    code = c(
+      if (file.exists(output)) read_utf8(output),
+      label_code(code, options$params.src)
+    )
+    write_utf8(code, output)
   }
 }
