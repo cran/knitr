@@ -25,7 +25,8 @@ file.}
 
 \item{quiet}{Boolean; suppress the progress bar and messages?}
 
-\item{encoding}{Encoding of the input file; see \code{\link{file}}.}
+\item{encoding}{Encoding of the input file; always assumed to be UTF-8 (i.e.,
+this argument is effectively ignored).}
 
 \item{force_v1}{Boolean; whether to force rendering the input document as an R
 Markdown v1 document, even if it is for v2.}
@@ -52,6 +53,8 @@ writeLines(c("# hello markdown", "```{r hello-random, echo=TRUE}", "rnorm(5)", "
     "test.Rmd")
 knit2html("test.Rmd")
 if (interactive()) browseURL("test.html")
+
+unlink(c("test.Rmd", "test.html", "test.md"))
 }
 \seealso{
 \code{\link{knit}}, \code{\link[markdown]{markdownToHTML}}

@@ -67,7 +67,8 @@
 #' @param envir Environment in which code chunks are to be evaluated,
 #'   for example, \code{\link{parent.frame}()}, \code{\link{new.env}()}, or
 #'   \code{\link{globalenv}()}).
-#' @param encoding Encoding of the input file; see \code{\link{file}}.
+#' @param encoding Encoding of the input file; always assumed to be UTF-8 (i.e.,
+#'   this argument is effectively ignored).
 #' @return The compiled document is written into the output file, and the path
 #'   of the output file is returned. If the \code{text} argument is not
 #'   \code{NULL}, the compiled output is returned as a character vector. In
@@ -86,13 +87,6 @@
 #'   will always restore the working directory to the original one. Whenever you
 #'   feel confused, print \code{getwd()} in a code chunk to see what the working
 #'   directory really is.
-#'
-#'   The arguments \code{input} and \code{output} do not have to be restricted
-#'   to files; they can be \code{stdin()}/\code{stdout()} or other types of
-#'   connections, but the pattern list to read the input has to be set in
-#'   advance (see \code{\link{pat_rnw}}), and the output hooks should also be
-#'   set (see \code{\link{render_latex}}), otherwise \pkg{knitr} will try to
-#'   guess the patterns and output format.
 #'
 #'   If the \code{output} argument is a file path, it is strongly recommended to
 #'   be in the current working directory (e.g. \file{foo.tex} instead of
@@ -125,26 +119,22 @@
 #' purl(f)  # tangle R code
 #' purl(f, documentation = 0)  # extract R code only
 #' purl(f, documentation = 2)  # also include documentation
-knit = function(input, output = NULL, tangle = FALSE, text = NULL, quiet = FALSE,
-                envir = parent.frame(), encoding = 'UTF-8') {
+#'
+#' unlink(c('knitr-minimal.tex', 'knitr-minimal.R', 'figure'), recursive = TRUE)
+knit = function(
+  input, output = NULL, tangle = FALSE, text = NULL, quiet = FALSE,
+  envir = parent.frame(), encoding = 'UTF-8'
+) {
 
-  # is input from a file? (or a connection on a file)
-  in.file = !missing(input) &&
-    (is.character(input) || prod(inherits(input, c('file', 'connection'), TRUE)))
+  in.file = !missing(input) && is.character(input)  # is input provided?
   oconc = knit_concord$get(); on.exit(knit_concord$set(oconc), add = TRUE)
-  if (in.file && !is.character(input)) {
-    warning('The input is a connection. Only the file path is used. The connection is ignored.')
-    input = summary(input)$description
-  }
-  # make a copy of the input path in input2 and change input to file path
-  if (!missing(input)) input2 = input
 
   if (child_mode()) {
     setwd(opts_knit$get('output.dir')) # always restore original working dir
     # in child mode, input path needs to be adjusted
     if (in.file && !is_abs_path(input)) {
       input = paste0(opts_knit$get('child.path'), input)
-      input = input2 = file.path(input_dir(TRUE), input)
+      input = file.path(input_dir(TRUE), input)
     }
     # respect the quiet argument in child mode (#741)
     optk = opts_knit$get(); on.exit(opts_knit$set(optk), add = TRUE)
@@ -198,16 +188,11 @@ knit = function(input, output = NULL, tangle = FALSE, text = NULL, quiet = FALSE
   }
 
   if (is.null(text)) {
-    text = readLines(input2, encoding = 'UTF-8', warn = FALSE)
-    if (!is_utf8(text)) {
-      warning(
-        'The file "', input2, '" should be encoded in UTF-8. Now I will try to ',
-        'read it with the system native encoding (which may not be correct). ',
-        'We will only support UTF-8 in the near future. Please see ',
-        'https://yihui.name/en/2018/11/biggest-regret-knitr/ for more info.'
-      )
-      text = readLines(input2, warn = FALSE)
-    }
+    text = readLines(input, encoding = 'UTF-8', warn = FALSE)
+    if (!is_utf8(text)) warning(
+      'The file "', input, '" must be encoded in UTF-8. Please see ',
+      'https://yihui.name/en/2018/11/biggest-regret-knitr/ for more info.'
+    )
   } else text = split_lines(text) # make sure each element is one line
   if (!length(text)) {
     if (is.character(output)) file.create(output)
@@ -227,10 +212,11 @@ knit = function(input, output = NULL, tangle = FALSE, text = NULL, quiet = FALSE
         return(output)
       }
     }
-    if (!(pattern %in% names(apat)))
-      stop("a pattern list cannot be automatically found for the file extension '",
-           ext, "' in built-in pattern lists; ",
-           'see ?knit_patterns on how to set up customized patterns')
+    if (!(pattern %in% names(apat))) stop(
+      "a pattern list cannot be automatically found for the file extension '",
+      ext, "' in built-in pattern lists; ",
+      'see ?knit_patterns on how to set up customized patterns'
+    )
     set_pattern(pattern)
     if (pattern == 'rnw' && length(sweave_lines <- which_sweave(text)) > 0)
       remind_sweave(if (in.file) input, sweave_lines)
