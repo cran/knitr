@@ -140,9 +140,11 @@ hook_plot_tex = function(x, options) {
     align2 = if (plot2) if (a == 'default') '' else sprintf('\\end{%s}\n\n', align.env)
   }
 
+  ow = options$out.width
   # maxwidth does not work with animations
-  if (animate && identical(options$out.width, '\\maxwidth')) options$out.width = NULL
-  size = paste(c(sprintf('width=%s', options$out.width),
+  if (animate && identical(ow, '\\maxwidth')) ow = NULL
+  if (is.numeric(ow)) ow = paste0(ow, 'px')
+  size = paste(c(sprintf('width=%s', ow),
                  sprintf('height=%s', options$out.height),
                  options$out.extra), collapse = ',')
 
@@ -295,7 +297,10 @@ render_sweave = function() {
   # wrap source code in the Sinput environment, output in Soutput
   hook.i = function(x, options)
     one_string(c('\\begin{Sinput}', hilight_source(x, 'sweave', options), '\\end{Sinput}', ''))
-  hook.s = function(x, options) paste0('\\begin{Soutput}\n', x, '\\end{Soutput}\n')
+  hook.s = function(x, options) {
+    if (output_asis(x, options)) return(x)
+    paste0('\\begin{Soutput}\n', x, '\\end{Soutput}\n')
+  }
   hook.c = function(x, options) {
     if (output_asis(x, options)) return(x)
     paste0('\\begin{Schunk}\n', x, '\\end{Schunk}')
