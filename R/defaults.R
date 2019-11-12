@@ -23,6 +23,9 @@ new_defaults = function(value = list()) {
     if (length(dots)) defaults <<- merge(dots)
     invisible(NULL)
   }
+  delete = function(keys) {
+    for (k in keys) defaults[[k]] <<- NULL
+  }
   merge = function(values) merge_list(defaults, values)
   restore = function(target = value) defaults <<- target
   append = function(...) {
@@ -32,7 +35,10 @@ new_defaults = function(value = list()) {
     invisible(NULL)
   }
 
-  list(get = get, set = set, append = append, merge = merge, restore = restore)
+  list(
+    get = get, set = set, delete = delete,
+    append = append, merge = merge, restore = restore
+  )
 }
 
 #' Default and current chunk options
@@ -158,7 +164,7 @@ set_alias = function(...) {
 #' }
 #' @include hooks-html.R
 opts_knit = new_defaults(list(
-  progress = TRUE, verbose = FALSE, width = 75L, eval.after = 'fig.cap',
+  progress = TRUE, verbose = FALSE, eval.after = 'fig.cap',
   base.dir = NULL, base.url = NULL, root.dir = NULL, child.path = '',
   upload.fun = identity, global.device = FALSE, global.par = FALSE,
   concordance = FALSE, documentation = 1L, self.contained = TRUE,
@@ -173,7 +179,7 @@ opts_knit = new_defaults(list(
 
 # you may modify these options in options(knitr.package.foo)
 opts_knit_names = c(
-  'progress', 'verbose', 'width', 'upload.fun', 'animation.fun', 'global.device',
+  'progress', 'verbose', 'upload.fun', 'animation.fun', 'global.device',
   'eval.after', 'concordance', 'documentation', 'aliases', 'self.contained',
   'unnamed.chunk.label'
 )
