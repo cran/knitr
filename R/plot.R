@@ -24,7 +24,7 @@ dev2ext = function(x) {
     for (i in x[idx]) check_dev(i)
     stop2(
       'cannot find appropriate filename extensions for device ', x[idx], '; ',
-      "please use chunk option 'fig.ext' (https://yihui.name/knitr/options)"
+      "please use chunk option 'fig.ext' (https://yihui.org/knitr/options)"
     )
   }
   unname(res)
@@ -133,11 +133,31 @@ plot2dev = function(plot, name, dev, device, path, width, height, options) {
   }
 
   # compile tikz to pdf
-  if (dev == 'tikz' && options$external) {
-    path = tinytex::latexmk(path, getOption('tikzDefaultEngine'))
+  if (dev == 'tikz') {
+    patch_tikz_tex(path)
+    if (options$external) path = tinytex::latexmk(path, getOption('tikzDefaultEngine'))
   }
 
   fig_process(options$fig.process, path, options)
+}
+
+# the tikz plot may contain raster legends, in which case we need to adjust the
+# paths of these PNG files: https://stackoverflow.com/a/58410965/559676
+patch_tikz_tex = function(path) {
+  d = dirname(path)
+  p = list.files(d, r <- '_ras[0-9]+[.]png$')
+  b = sans_ext(basename(path)); bs = sub(r, '', p)
+  # for foo.tex, there must be foo_ras[N].png, otherwise no need to patch foo.tex
+  if (!(b %in% bs)) return()
+  x = read_utf8(path)
+  r = '^(\\s*\\\\pgfimage\\[.+?]\\{)(.+?_ras[0-9]+}};\\s*)$'
+  i = grep(r, x)
+  i = i[grep(b, x[i], fixed = TRUE)]
+  x1 = sub(r, '\\1', x[i])
+  x2 = sub(r, '\\2', x[i])
+  if (is_windows()) d = gsub('\\\\', '/', d)
+  x[i] = paste0(x1, d, '/', x2)
+  write_utf8(x, path)
 }
 
 # filter the dev.args option
@@ -263,44 +283,30 @@ fig_process = function(FUN, path, options) {
 
 #' Crop a plot (remove the edges) using PDFCrop or ImageMagick
 #'
-#' The command \command{pdfcrop x x} is executed on a PDF plot file, and
-#' \command{convert x -trim x} is executed for other types of plot files, where
-#' \code{x} is the plot filename.
-#'
-#' The utility \command{pdfcrop} is often shipped with a LaTeX distribution, and
-#' \command{convert} is a command in ImageMagick (Windows users may have to put
-#' the bin path of ImageMagick into the \var{PATH} variable).
+#' The command \command{pdfcrop} (often shipped with a LaTeX distribution) is
+#' executed on a PDF plot file, and \code{magick::\link[magick]{image_trim}()}
+#' is executed for other types of plot files.
 #' @param x Filename of the plot.
-#' @param quiet Boolean; whether to suppress standard output from the command line
-#'   utility.
+#' @param quiet Whether to suppress standard output from the command.
 #' @export
-#' @references PDFCrop: \url{https://www.ctan.org/pkg/pdfcrop}; the
-#'   \command{convert} command in ImageMagick:
-#'   \url{http://www.imagemagick.org/script/convert.php}
+#' @references PDFCrop: \url{https://www.ctan.org/pkg/pdfcrop}. If you use
+#'   TinyTeX, you may install \command{pdfcrop} with
+#'   \code{tinytex::tlmgr_install('pdfcrop')}.
 #' @return The original filename.
 plot_crop = function(x, quiet = TRUE) {
-  ext = tolower(file_ext(x))
-  if (ext == 'pdf') {
-    if (!has_utility('pdfcrop')) return(x)
-  } else if (!has_utility('convert', 'ImageMagick')) return(x)
+  is_pdf = grepl('[.]pdf$', x, ignore.case = TRUE)
+  x2 = x
+  x = path.expand(x)
+  if (is_pdf && !has_utility('pdfcrop')) return(x2)
 
   if (!quiet) message('cropping ', x)
-  x = shQuote(x)
-  if (ext == 'pdf') {
-    cmd = 'pdfcrop'
-    args = c(x, x)
+  if (is_pdf) {
+    system2('pdfcrop', shQuote(c(x, x)), stdout = if (quiet) FALSE else "")
   } else {
-    cmd = 'convert'
-    args = c(x, '-trim', x)
+    img = magick::image_read(x)
+    magick::image_write(magick::image_trim(img), x)
   }
-  # see this post for why use shell() on Windoz:
-  # http://comments.gmane.org/gmane.comp.lang.r.devel/38113
-  if (is_windows()) {
-    shell(paste(c(cmd, args), collapse = ' '))  # no way to quiet cmd output on Windoz
-  } else {
-    system2(cmd, args = args, stdout = if (quiet) FALSE else "")
-  }
-  x
+  x2
 }
 
 showtext = function(show) if (isTRUE(show)) showtext::showtext_begin()

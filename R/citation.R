@@ -113,8 +113,6 @@ write_bib = function(
       entry
     }, SIMPLIFY = FALSE)
   })
-  # TODO: remove this hack once https://github.com/mitchelloharawild/vitae/pull/91 is merged
-  if (is_R_CMD_check() && all(c('package:testthat', 'package:vitae') %in% search())) bib2 = NULL
   bib = c(bib, unlist(bib2, recursive = FALSE))
   bib = lapply(bib, function(b) {
     idx = which(names(b) == '')

@@ -137,7 +137,7 @@ parse_params = function(params) {
     eval(parse_only(paste('alist(', quote_label(params), ')'))),
     error = function(e) {
       message('(*) NOTE: I saw chunk options "', params,
-              '"\n please go to https://yihui.name/knitr/options',
+              '"\n please go to https://yihui.org/knitr/options',
               '\n (it is likely that you forgot to quote "character" options)')
     })
 
@@ -267,7 +267,7 @@ print.inline = function(x, ...) {
 #'   that future chunks can (re)use the code by chunk label references. If an
 #'   external chunk has the same label as a chunk in the current session, chunk
 #'   label references by future chunks will refer to the external chunk.
-#' @references \url{https://yihui.name/knitr/demo/externalization/}
+#' @references \url{https://yihui.org/knitr/demo/externalization/}
 #' @note This function can only be used in a chunk which is \emph{not} cached
 #'   (chunk option \code{cache = FALSE}), and the code is read and stored in the
 #'   current session \emph{without} being executed (to actually run the code,
@@ -415,12 +415,17 @@ filter_chunk_end = function(chunk.begin, chunk.end) {
 #' \code{all_labels(engine == 'Rcpp')}.
 #'
 #' For example, suppose the condition expression is \code{engine == 'Rcpp'}, the
-#' object \code{engine} is the local chunk option \code{engine}; if an
+#' object \code{engine} is the local chunk option \code{engine}. If an
 #' expression fails to be evaluated (e.g. when a certain object does not exist),
 #' \code{FALSE} is returned and the label for this chunk will be filtered out.
 #' @param ... A vector of R expressions, each of which should return \code{TRUE}
-#'   or \code{FALSE}; the expressions are evaluated using the local chunk
-#'   options of each code chunk as the environment.
+#'   or \code{FALSE}. The expressions are evaluated using the \emph{local} chunk
+#'   options of each code chunk as the environment, which means global chunk
+#'   options are not considered when evaluating these expressions. For example,
+#'   if you set the global chunk option \code{opts_chunk$set(purl = TRUE)},
+#'   \code{all_labels(purl == TRUE)} will \emph{not} return the labels of all
+#'   code chunks, but will only return the labels of those code chunks that have
+#'   local chunk options \code{purl = TRUE}.
 #' @note Empty code chunks are always ignored, including those chunks that are
 #'   empty in the original document but filled with code using chunk options
 #'   such as \code{ref.label} or \code{code}.

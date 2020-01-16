@@ -25,8 +25,8 @@
 #' @export
 #' @note The Leiningen engine \code{lein} requires lein-exec plugin; see
 #'   \url{https://github.com/yihui/knitr/issues/1176} for details.
-#' @references Usage: \url{https://yihui.name/knitr/objects/}; examples:
-#'   \url{https://yihui.name/knitr/demo/engines/}
+#' @references Usage: \url{https://yihui.org/knitr/objects/}; examples:
+#'   \url{https://yihui.org/knitr/demo/engines/}
 #' @examples knit_engines$get('python'); knit_engines$get('awk')
 #' names(knit_engines$get())
 knit_engines = new_defaults()
@@ -150,7 +150,7 @@ eng_interpreted = function(options) {
     paste(code, opts) else paste(opts, code)
   cmd = get_engine_path(options$engine.path, engine)
   out = if (options$eval) {
-    message('running: ', cmd, ' ', code)
+    if (options$message) message('running: ', cmd, ' ', code)
     tryCatch(
       system2(cmd, code, stdout = TRUE, stderr = TRUE, env = options$engine.env),
       error = function(e) {
@@ -686,8 +686,9 @@ eng_sxss = function(options) {
   if (use_package) {
     message("Converting with the R package sass")
 
+    sass_fun = options$engine.opts$sass_fun %n% sass::sass
     out = tryCatch(
-      sass::sass(sass::sass_file(f), options = sass::sass_options(output_style = style)),
+      sass_fun(sass::sass_file(f), options = sass::sass_options(output_style = style)),
       error = function(e) {
         if (!options$error) stop(e)
         warning2(paste('Error in converting to CSS using sass R package:', e, sep = "\n"))

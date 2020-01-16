@@ -61,7 +61,7 @@ color_def = function(col, variable = 'shadecolor') {
       x = switch(variable, shadecolor = rep(.97, 3), fgcolor = rep(0, 3))
       warning("the color '", col, "' is invalid;",
               'using default color...',
-              'see https://yihui.name/knitr/options')
+              'see https://yihui.org/knitr/options')
     }
   }
   if (length(x) != 3L) stop('invalid color:', col)
@@ -127,7 +127,7 @@ pure_preamble = function(preamble, patterns) {
 #'   standalone mode using \code{\link{knit}()} (instead of being called in
 #'   \code{\link{knit_child}()}); when the parent document is compiled, this
 #'   function in the child document will be ignored.
-#' @references \url{https://yihui.name/knitr/demo/child/}
+#' @references \url{https://yihui.org/knitr/demo/child/}
 #' @export
 #' @examples ## can use, e.g. \Sexpr{set_parent('parent_doc.Rnw')} or
 #'
@@ -341,7 +341,7 @@ is_html_output = function(fmt = pandoc_to(), excludes = NULL) {
   if (length(fmt) == 0) return(FALSE)
   if (grepl('^markdown', fmt)) fmt = 'markdown'
   if (fmt == 'epub3') fmt = 'epub'
-  fmts = c('markdown', 'epub', 'html', 'html4', 'html5', 'revealjs', 's5', 'slideous', 'slidy')
+  fmts = c('markdown', 'epub', 'html', 'html4', 'html5', 'revealjs', 's5', 'slideous', 'slidy', 'gfm')
   fmt %in% setdiff(fmts, excludes)
 }
 
@@ -539,7 +539,7 @@ merge_list = function(x, y) {
 
 # paths of all figures
 all_figs = function(options, ext = options$fig.ext, num = options$fig.num) {
-  fig_path(ext, options, number = seq_len(num))
+  unlist(lapply(ext, fig_path, options = options, number = seq_len(num)))
 }
 
 # evaluate an expression in a diretory and restore wd after that
@@ -598,8 +598,7 @@ read_rforge = function(path, project, extra = '') {
   read_utf8(sprintf('%s/%s?root=%s%s', base, path, project, extra))
 }
 
-# strsplit('', 'foo') should return '' instead of character(0), and I also need
-# strsplit('a\n', '\n') to return c('a', '') instead of c('a')
+# TODO: just import xfun::split_lines()
 split_lines = function(x) {
   if (length(grep('\n', x)) == 0L) return(x)
   x = gsub('\n$', '\n\n', x)
