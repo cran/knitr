@@ -302,10 +302,12 @@ plot_crop = function(x, quiet = TRUE) {
   if (!quiet) message('cropping ', x)
   if (is_pdf) {
     system2('pdfcrop', shQuote(c(x, x)), stdout = if (quiet) FALSE else "")
-  } else {
+  } else if (loadable('magick')) {
     img = magick::image_read(x)
     magick::image_write(magick::image_trim(img), x)
-  }
+  } else message(
+    'The magick package is required to crop "', x2, '" but not available.'
+  )
   x2
 }
 
@@ -345,15 +347,17 @@ par2 = function(x) {
 #' graphics output that work for normal R plots also work for these images, such
 #' as \code{out.width} and \code{out.height}.
 #' @param path A character vector of image paths.
-#' @param auto_pdf Boolean; whether to use PDF images automatically when the output
-#'   format is LaTeX. If \code{TRUE}, then e.g. \file{foo/bar.png} will be replaced by
-#'   \file{foo/bar.pdf} if the latter exists. This can be useful since normally
-#'   PDF images are of higher quality than raster images like PNG, when the
-#'   output is LaTeX/PDF.
-#' @param dpi DPI (dots per inch) value. Used to calculate the output
-#'   width (in inches) of the images. This will be their actual width in pixels,
-#'   divided by \code{dpi}. If not provided, the chunk option \code{dpi} is used; if
+#' @param auto_pdf Whether to use PDF images automatically when the output
+#'   format is LaTeX. If \code{TRUE}, then e.g. \file{foo/bar.png} will be
+#'   replaced by \file{foo/bar.pdf} if the latter exists. This can be useful
+#'   since normally PDF images are of higher quality than raster images like
+#'   PNG, when the output is LaTeX/PDF.
+#' @param dpi DPI (dots per inch) value. Used to calculate the output width (in
+#'   inches) of the images. This will be their actual width in pixels, divided
+#'   by \code{dpi}. If not provided, the chunk option \code{dpi} is used; if
 #'   \code{NA}, the output width will not be calculated.
+#' @param error Whether to signal an error if any files specified in the
+#'   \code{path} argument do not exist and are not web resources.
 #' @note This function is supposed to be used in R code chunks or inline R code
 #'   expressions. You are recommended to use forward slashes (\verb{/}) as path
 #'   separators instead of backslashes in the image paths.
@@ -367,14 +371,18 @@ par2 = function(x) {
 #'   paths to proper output code according to the output format.
 #' @export
 include_graphics = function(
-  path, auto_pdf = getOption('knitr.graphics.auto_pdf', FALSE), dpi = NULL
+  path, auto_pdf = getOption('knitr.graphics.auto_pdf', FALSE), dpi = NULL,
+  error = TRUE
 ) {
+  path = native_encode(path)  # https://d.cosx.org/d/420524
   if (auto_pdf && is_latex_output()) {
     path2 = with_ext(path, 'pdf')
     i = file.exists(path2)
     path[i] = path2[i]
   }
-  path = native_encode(path)
+  if (error && length(p <- path[!is_web_path(path) & !file.exists(path)])) stop(
+    'Cannot find the file(s): ', paste0('"', p, '"', collapse = '; ')
+  )
   structure(path, class = c('knit_image_paths', 'knit_asis'), dpi = dpi)
 }
 

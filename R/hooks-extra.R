@@ -12,9 +12,8 @@
 #' \command{pdfcrop} often comes with a LaTeX distribution such as MiKTeX or
 #' TeXLive, and you may not need to install it separately (use
 #' \code{Sys.which('pdfcrop')} to check it; if it not empty, you are able to use
-#' it). Similarly, when the plot format is not PDF (e.g. PNG), the program
-#' \command{convert} in ImageMagick is used to trim the white margins (call
-#' \command{convert input -trim output}).
+#' it). Similarly, when the plot format is not PDF (e.g. PNG), the \pkg{magick}
+#' package is used to crop the plot.
 #'
 #' The function \code{hook_optipng()} calls the program \command{optipng} to
 #' optimize PNG images. Note the chunk option \code{optipng} can be used to
@@ -63,12 +62,14 @@
 #' # then in code chunks, use the option rgl=TRUE
 hook_pdfcrop = function(before, options, envir) {
   # crops plots after a chunk is evaluated and plot files produced
-  ext = options$fig.ext
-  if (options$dev == 'tikz' && options$external) ext = 'pdf'
-  if (before || (fig.num <- options$fig.num %n% 0L) == 0L) return()
-  paths = all_figs(options, ext, fig.num)
-  in_base_dir(for (f in paths) plot_crop(f))
+  if (before) return()
+  in_base_dir(for (f in get_plot_files()) plot_crop(f))
 }
+
+get_plot_files = function() {
+  unique(opts_knit$get('plot_files'))
+}
+
 #' @export
 #' @rdname chunk_hook
 hook_optipng = function(before, options, envir) {
@@ -79,17 +80,12 @@ hook_png = function(
   before, options, envir, cmd = c('optipng', 'pngquant', 'mogrify'), post_process = identity
 ) {
   if (before) return()
-  num = options$fig.num
-  if (length(num) == 0 || num == 0) return()  # no figures
-  ext = tolower(options$fig.ext)
-  if (ext != 'png') {
-    warning('this hook only works with PNG at the moment'); return()
-  }
   cmd = match.arg(cmd)
   if (!nzchar(Sys.which(cmd))) {
     warning('cannot find ', cmd, '; please install and put it in PATH'); return()
   }
-  paths = all_figs(options, ext)
+  paths = get_plot_files()
+  paths = grep('[.]png$', paths, ignore.case = TRUE, value = TRUE)
 
   in_base_dir(
     lapply(paths, function(x) {
