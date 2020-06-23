@@ -772,6 +772,20 @@ is_R_CMD_check = function() {
     any(c('_R_CHECK_TIMINGS_', '_R_CHECK_LICENSE_') %in% names(Sys.getenv()))
 }
 
+is_CRAN_incoming = function() {
+  isTRUE(as.logical(Sys.getenv('_R_CHECK_CRAN_INCOMING_REMOTE_')))
+}
+
+check_package_name = function() {
+  Sys.getenv('_R_CHECK_PACKAGE_NAME_', NA)
+}
+
+# is R CMD check running on a package that has a version lower or equal to `version`?
+check_old_package = function(name, version) {
+  if (is.na(pkg <- check_package_name()) || pkg != name) return(FALSE)
+  tryCatch(packageVersion(name) <= version, error = function(e) FALSE)
+}
+
 # is the inst dir under . or ..? differs in R CMD build/INSTALL and devtools/roxygen2
 inst_dir = function(...) {
   p = file.path(c('..', '.'), 'inst', ...)
@@ -794,7 +808,7 @@ create_label = function(..., latex = FALSE) {
   } else {
     return('')  # we don't want the label at all
   }
-  paste0(lab1, ..., lab2)
+  paste(c(lab1, ..., lab2), collapse = '')
 }
 
 #' Combine multiple words into a single string
@@ -984,3 +998,19 @@ make_unique = function(x) {
   s = ifelse(is.na(s), i, s)
   paste0(x, s)
 }
+
+#' Encode an image file to a data URI
+#'
+#' This function is the same as \code{xfun::\link{base64_uri}()} (only with a
+#' different function name). It can encode an image file as a base64 string,
+#' which can be used in the \code{img} tag in HTML.
+#' @param f Path to the image file.
+#' @return The data URI as a character string.
+#' @author Wush Wu and Yihui Xie
+#' @export
+#' @references \url{http://en.wikipedia.org/wiki/Data_URI_scheme}
+#' @examples uri = image_uri(file.path(R.home('doc'), 'html', 'logo.jpg'))
+#' if (interactive()) {cat(sprintf('<img src="%s" />', uri), file = 'logo.html')
+#' browseURL('logo.html') # you can check its HTML source
+#' }
+image_uri = function(f) xfun::base64_uri(f)
