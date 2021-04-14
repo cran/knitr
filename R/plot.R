@@ -377,6 +377,12 @@ par2 = function(x) {
     # drawn at (1, 1) instead of (1, 2)
     x$mfg = NULL
   }
+  if (!is.null(x$fg)) {
+    # set fg before the rest of the par because
+    # it resets col to the same value #1603
+    par(fg = x$fg)
+    x$fg = NULL
+  }
   # you are unlikely to want to reset these pars
   x$fig = x$fin = x$pin = x$plt = x$usr = NULL
   x$ask = NULL  # does not make sense for typical non-interactive R sessions
@@ -428,6 +434,8 @@ include_graphics = function(
     i = file.exists(path2)
     path[i] = path2[i]
   }
+  # relative paths can be tricky in child documents, so don't error (#1957)
+  if (child_mode()) error = FALSE
   if (error && length(p <- path[!xfun::is_web_path(path) & !file.exists(path)])) stop(
     'Cannot find the file(s): ', paste0('"', p, '"', collapse = '; ')
   )
@@ -505,7 +513,7 @@ need_screenshot = function(x, ...) {
   if (length(fmt) == 0 || force) return(i1 || i2 || i3)
   html_format = fmt %in% c('html', 'html4', 'html5', 'revealjs', 's5', 'slideous', 'slidy')
   res = ((i1 || i3) && !html_format) || (i2 && !(html_format && runtime_shiny()))
-  res && webshot_available()
+  res && any(webshot_available())
 }
 
 runtime_shiny = function() {
@@ -513,10 +521,18 @@ runtime_shiny = function() {
 }
 
 webshot_available = local({
-  res = NULL  # cache the availablity of webshot/PhantomJS
+  res = NULL  # cache the availability of webshot2/Chrome and webshot/PhantomJS
+  test = function(pkg, fun, pkg2 = pkg) {
+    loadable(pkg) && tryCatch(
+      file.exists(getFromNamespace(fun, pkg2)()),
+      error = function(e) FALSE
+    )
+  }
   function() {
-    if (is.null(res))
-      res <<- loadable('webshot') && !is.null(getFromNamespace('find_phantom', 'webshot')())
+    if (is.null(res)) res <<- c(
+      webshot2 = test('webshot2', 'find_chrome', 'chromote'),
+      webshot  = test('webshot',  'find_phantom')
+    )
     res
   }
 })
@@ -544,6 +560,8 @@ html_screenshot = function(x, options = opts_current$get(), ...) {
   if (is.null(wargs$delay)) wargs$delay = if (i1) 0.2 else 1
   d = tempfile()
   dir.create(d); on.exit(unlink(d, recursive = TRUE), add = TRUE)
+  w = webshot_available()
+  webshot = c(options$webshot, names(w)[w])[[1L]]
   f = in_dir(d, {
     if (i1 || i3) {
       if (i1) {
@@ -551,17 +569,16 @@ html_screenshot = function(x, options = opts_current$get(), ...) {
         save_widget(x, f1, FALSE, options = options)
       } else f1 = x$url
       f2 = wd_tempfile('webshot', ext)
-      f3 = do.call(webshot::webshot, c(list(f1, f2), wargs))
+      f3 = do.call(getFromNamespace('webshot', webshot), c(list(f1, f2), wargs))
       normalizePath(f3)
     } else if (i2) {
       f1 = wd_tempfile('webshot', ext)
-      f2 = do.call(webshot::appshot, c(list(x, f1), wargs))
+      f2 = do.call(getFromNamespace('appshot', webshot), c(list(x, f1), wargs))
       normalizePath(f2)
     }
   })
   lapply(f, function(filename) {
-    # TODO: use xfun::read_bin()
-    res = readBin(filename, 'raw', file.info(filename)[, 'size'])
+    res = xfun::read_bin(filename)
     structure(
       list(image = res, extension = ext, url = if (i3) x$url.orig[filename == f]),
       class = 'html_screenshot'
