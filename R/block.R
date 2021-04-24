@@ -278,9 +278,8 @@ eng_r = function(options) {
   # number of plots in this chunk
   if (is.null(options$fig.num))
     options$fig.num = if (length(res)) sum(sapply(res, function(x) {
-      if (evaluate::is.recordedplot(x)) return(1)
       if (inherits(x, 'knit_image_paths')) return(length(x))
-      if (inherits(x, 'html_screenshot')) return(1)
+      if (is_plot_output(x)) return(1)
       0
     })) else 0L
 
@@ -295,7 +294,7 @@ eng_r = function(options) {
     opts_knit$delete('plot_files')
   }, add = TRUE)  # restore plot number
 
-  output = unlist(wrap(res, options)) # wrap all results together
+  output = unlist(sew(res, options)) # wrap all results together
   res.after = run_hooks(before = FALSE, options, env) # run 'after' hooks
 
   output = paste(c(res.before, output, res.after), collapse = '')  # insert hook results
@@ -389,7 +388,7 @@ chunk_device = function(options, record = TRUE, tmp = tempfile()) {
 
 # fall back to a usable device (e.g., during R CMD check)
 fallback_dev = function(dev) {
-  if (length(dev) != 1 || !getOption('knitr.device.fallback', xfun::is_R_CMD_check()))
+  if (length(dev) != 1 || !getOption('knitr.device.fallback', is_R_CMD_check()))
     return(dev)
   choices = list(
     svg = c('png', 'jpeg', 'bmp'), cairo_pdf = c('pdf'), cairo_ps = c('postscript'),
@@ -422,7 +421,8 @@ find_recordedplot = function(x) {
 }
 
 is_plot_output = function(x) {
-  evaluate::is.recordedplot(x) || inherits(x, 'knit_image_paths')
+  evaluate::is.recordedplot(x) ||
+    inherits(x, c('knit_image_paths', 'html_screenshot', 'knit_other_plot'))
 }
 
 # move plots before source code
@@ -526,7 +526,7 @@ inline_exec = function(
   loc = block$location
   for (i in 1:n) {
     res = hook_eval(code[i], envir)
-    if (inherits(res, 'knit_asis')) res = wrap(res, inline = TRUE)
+    if (inherits(res, 'knit_asis')) res = sew(res, inline = TRUE)
     d = nchar(input)
     # replace with evaluated results
     stringr::str_sub(input, loc[i, 1], loc[i, 2]) = if (length(res)) {

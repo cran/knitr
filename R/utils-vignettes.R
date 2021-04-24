@@ -28,11 +28,12 @@ NULL
 vweave = function(file, driver, syntax, encoding = 'UTF-8', quiet = FALSE, ...) {
   {
     on.exit({opts_chunk$restore(); knit_hooks$restore()}, add = TRUE)
-    oopts = options(markdown.HTML.header = NULL); on.exit(options(oopts), add = TRUE)
+    oopts = options(markdown.HTML.header = NULL, knitr.knit2html.force_v1 = TRUE)
+    on.exit(options(oopts), add = TRUE)
   }
   opts_chunk$set(error = FALSE)  # should not hide errors
   knit_hooks$set(purl = hook_purl)  # write out code while weaving
-  (if (grepl('\\.[Rr]md$', file)) knit2html_v1 else if (grepl('\\.[Rr]rst$', file)) knit2pandoc else knit)(
+  (if (grepl('\\.[Rr]md$', file)) knit2html else if (grepl('\\.[Rr]rst$', file)) knit2pandoc else knit)(
     file, encoding = encoding, quiet = quiet, envir = globalenv(), ...
   )
 }
@@ -94,6 +95,7 @@ register_vignette_engines = function(pkg) {
     }
   } else {
     # TODO: no longer allow fallback to R Markdown v1
+    test_vig_dep('rmarkdown')
     vweave(...)
   }, '[.][Rr](md|markdown)$')
   # vignette engines that disable tangle

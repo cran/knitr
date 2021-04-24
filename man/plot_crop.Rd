@@ -32,7 +32,7 @@ GhostScript. You can check if GhostScript is installed via
 \code{tools::find_gs_cmd()}.
 }
 \references{
-PDFCrop: \url{https://www.ctan.org/pkg/pdfcrop}. If you use
+PDFCrop: \samp{https://www.ctan.org/pkg/pdfcrop}. If you use
   TinyTeX, you may install \command{pdfcrop} with
   \code{tinytex::tlmgr_install('pdfcrop')}.
 }

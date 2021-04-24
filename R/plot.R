@@ -225,8 +225,31 @@ merge_low_plot = function(x, idx = sapply(x, evaluate::is.recordedplot)) {
   if (is.null(m)) x else x[-m]
 }
 
-# compare two recorded plots
+#' Compare two recorded plots
+#'
+#' Check if one plot only contains a low-level update of another plot.
+#' @param p1,p2 Plot objects.
+#' @return Logical value indicating whether \code{p2} is a low-level update of
+#'   \code{p1}.
+#' @export
+#' @examples
+#' pdf(NULL)
+#' dev.control('enable')  # enable plot recording
+#' plot(1:10)
+#' p1 = recordPlot()
+#' abline(0, 1)  # add a line (a low-level change)
+#' p2 = recordPlot()
+#' plot(rnorm(100))
+#' p3 = recordPlot()  # draw a completely new plot
+#' dev.off()
+#' knitr::is_low_change(p1, p2)  # true
+#' knitr::is_low_change(p1, p3)  # false
 is_low_change = function(p1, p2) {
+  UseMethod('is_low_change')
+}
+
+#' @export
+is_low_change.default = function(p1, p2) {
   p1 = p1[[1]]; p2 = p2[[1]]  # real plot info is in [[1]]
   if (length(p2) < (n1 <- length(p1))) return(FALSE)  # length must increase
   identical(p1[1:n1], p2[1:n1])
@@ -333,7 +356,7 @@ fig_process = function(FUN, path, options) {
 #' @param x Filename of the plot.
 #' @param quiet Whether to suppress standard output from the command.
 #' @export
-#' @references PDFCrop: \url{https://www.ctan.org/pkg/pdfcrop}. If you use
+#' @references PDFCrop: \samp{https://www.ctan.org/pkg/pdfcrop}. If you use
 #'   TinyTeX, you may install \command{pdfcrop} with
 #'   \code{tinytex::tlmgr_install('pdfcrop')}.
 #' @return The original filename.
@@ -501,7 +524,7 @@ include_app = function(url, height = '400px') {
 
 need_screenshot = function(x, ...) {
   options = list(...)[['options']]
-  # user may say 'I know the consequence; just let me render HTML'
+  # if users specify screenshot.force = FALSE, skip screenshot and render HTML
   if (isFALSE(options$screenshot.force)) return(FALSE)
   # force screenshotting even if the output format support HTML
   force = is.list(options) && isTRUE(options$screenshot.force)
@@ -561,7 +584,8 @@ html_screenshot = function(x, options = opts_current$get(), ...) {
   d = tempfile()
   dir.create(d); on.exit(unlink(d, recursive = TRUE), add = TRUE)
   w = webshot_available()
-  webshot = c(options$webshot, names(w)[w])[[1L]]
+  webshot = c(options$webshot, names(w)[w])
+  webshot = if (length(webshot) == 0) 'webshot' else webshot[[1L]]
   f = in_dir(d, {
     if (i1 || i3) {
       if (i1) {
