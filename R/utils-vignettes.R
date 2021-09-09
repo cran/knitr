@@ -39,7 +39,11 @@ vweave = function(file, driver, syntax, encoding = 'UTF-8', quiet = FALSE, ...) 
 }
 
 vtangle = function(file, ..., encoding = 'UTF-8', quiet = FALSE) {
-  if (is_R_CMD_check()) {
+  if (is_R_CMD_check() && !file.exists(with_ext(file, 'Rout.save'))) {
+    # Inside CMD check, and no .Rout.save file to compare with, so return an
+    # empty script to avoid errors from vignettes that won't tangle correctly.
+    # NB: This is ~equivalent to setting _R_CHECK_VIGNETTES_SKIP_RUN_MAYBE_=TRUE
+    # and if that becomes the default this is redundant.
     file = with_ext(file, 'R')
     file.create(file)
     return(file)
@@ -80,23 +84,30 @@ vtangle_empty = function(file, ...) {
   return()
 }
 
+# when neither Pandoc nor markdown is available, just silently skip the vignette
+vweave_empty = function(file, ..., .reason = 'Pandoc') {
+  out = with_ext(file, 'html')
+  writeLines(sprintf('The vignette could not be built because %s is not available.', .reason), out)
+  out
+}
+
 register_vignette_engines = function(pkg) {
   # the default engine
   vig_engine('knitr', vweave, '[.]([rRsS](nw|tex)|[Rr](md|html|rst))$')
   vig_engine('docco_linear', vweave_docco_linear, '[.][Rr](md|markdown)$')
   vig_engine('docco_classic', vweave_docco_classic, '[.][Rr]mk?d$')
-  vig_engine('rmarkdown', function(...) if (has_package('rmarkdown')) {
-    test_vig_dep('rmarkdown')
+  vig_engine('rmarkdown', function(...) {
+    if (is_cran_check() && !has_package('rmarkdown'))
+      return(vweave_empty(..., .reason = 'rmarkdown'))
     if (pandoc_available()) {
       vweave_rmarkdown(...)
     } else {
-      warning('Pandoc (>= 1.12.3) not available. Falling back to R Markdown v1.')
-      vweave(...)
+      (if (is_R_CMD_check()) message else stop2)(
+        'Pandoc is required to build R Markdown vignettes but not available. ',
+        'Please make sure it is installed.'
+      )
+      if (has_package('markdown')) vweave(...) else vweave_empty(...)
     }
-  } else {
-    # TODO: no longer allow fallback to R Markdown v1
-    test_vig_dep('rmarkdown')
-    vweave(...)
   }, '[.][Rr](md|markdown)$')
   # vignette engines that disable tangle
   vig_list = tools::vignetteEngine(package = 'knitr')

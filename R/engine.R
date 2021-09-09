@@ -279,6 +279,10 @@ eng_tikz = function(options) {
   lines = read_utf8(
     options$engine.opts$template %n% system.file('misc', 'tikz2pdf.tex', package = 'knitr')
   )
+  # add class options to template
+  lines = insert_template(
+    lines, '%% TIKZ_CLASSOPTION %%', options$engine.opts$classoption %n% 'tikz', TRUE
+  )
   # insert code into preamble
   lines = insert_template(
     lines, '%% EXTRA_TIKZ_PREAMBLE_CODE %%', options$engine.opts$extra.preamble, TRUE
@@ -302,8 +306,9 @@ eng_tikz = function(options) {
     # dvisvgm needs to be on the path
     # dvisvgm for windows needs ghostscript bin dir on the path also
     if (Sys.which('dvisvgm') == '') tinytex::tlmgr_install('dvisvgm')
-    if (system2('dvisvgm', c('-o', shQuote(fig2), fig)) != 0)
-      stop('Failed to compile ', fig, ' to ', fig2)
+    if (system2('dvisvgm', c(
+      options$engine.opts$dvisvgm.opts, '-o', shQuote(fig2), fig
+    )) != 0) stop('Failed to compile ', fig, ' to ', fig2)
   } else {
     # convert to the desired output-format using magick
     if (ext != 'pdf') magick::image_write(do.call(magick::image_convert, c(
@@ -761,6 +766,14 @@ eng_bslib = function(options) {
   eng_sxss(options)
 }
 
+# Target Markdown engine contributed by @wlandau
+# Thread: https://github.com/ropensci/targets/issues/503
+# Usage: https://books.ropensci.org/targets/markdown.html
+# Docs: https://docs.ropensci.org/targets/reference/tar_engine_knitr.html
+eng_targets = function(options) {
+  targets::tar_engine_knitr(options = options)
+}
+
 # set engines for interpreted languages
 local({
   for (i in c(
@@ -777,7 +790,7 @@ knit_engines$set(
   cat = eng_cat, asis = eng_asis, stan = eng_stan, block = eng_block,
   block2 = eng_block2, js = eng_js, css = eng_css, sql = eng_sql, go = eng_go,
   python = eng_python, julia = eng_julia, sass = eng_sxss, scss = eng_sxss, R = eng_r,
-  bslib = eng_bslib
+  bslib = eng_bslib, targets = eng_targets
 )
 
 cache_engines$set(python = cache_eng_python)

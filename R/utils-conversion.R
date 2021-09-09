@@ -86,14 +86,15 @@ knit2pdf = function(
 #' Convert markdown to HTML using knit() and markdownToHTML()
 #'
 #' This is a convenience function to knit the input markdown source and call
-#' \code{markdown::\link{markdownToHTML}()} in the \pkg{markdown} package to
-#' convert the result to HTML.
+#' \code{markdown::\link[markdown]{markdownToHTML}()} in the \pkg{markdown}
+#' package to convert the result to HTML.
 #' @inheritParams knit
-#' @param ... Options passed to \code{markdown::\link{markdownToHTML}()}.
+#' @param ... Options passed to
+#'   \code{markdown::\link[markdown]{markdownToHTML}()}.
 #' @param force_v1 Boolean; whether to force rendering the input document as an
 #'   R Markdown v1 document, even if it is for v2.
 #' @export
-#' @seealso \code{\link{knit}}, \code{markdown::\link{markdownToHTML}}
+#' @seealso \code{\link{knit}}, \code{markdown::\link[markdown]{markdownToHTML}}
 #' @return If the argument \code{text} is NULL, a character string (HTML code)
 #'   is returned; otherwise the result is written into a file and the filename
 #'   is returned.
@@ -111,9 +112,9 @@ knit2html = function(
   input, output = NULL, ..., envir = parent.frame(), text = NULL,
   quiet = FALSE, encoding = 'UTF-8', force_v1 = getOption('knitr.knit2html.force_v1', FALSE)
 ) {
-  # packages containing vignettes using R Markdown v1 should declare dependency
-  # on 'markdown' in DESCRIPTION (typically in Suggests)
-  test_vig_dep('markdown')
+  if (is_cran_check() && !has_package('markdown'))
+    return(vweave_empty(input, .reason = 'markdown'))
+
   if (!force_v1 && is.null(text)) {
     if (length(grep('^---\\s*$', head(read_utf8(input), 1)))) warning2(
       'It seems you should call rmarkdown::render() instead of knitr::knit2html() ',

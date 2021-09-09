@@ -356,7 +356,7 @@ fig_process = function(FUN, path, options) {
 #' @param x Filename of the plot.
 #' @param quiet Whether to suppress standard output from the command.
 #' @export
-#' @references PDFCrop: \samp{https://www.ctan.org/pkg/pdfcrop}. If you use
+#' @references PDFCrop: \url{https://www.ctan.org/pkg/pdfcrop}. If you use
 #'   TinyTeX, you may install \command{pdfcrop} with
 #'   \code{tinytex::tlmgr_install('pdfcrop')}.
 #' @return The original filename.
@@ -509,7 +509,7 @@ include_url = function(url, height = '400px') {
 include_url2 = function(url, height = '400px', orig = url) {
   structure(
     list(url = url, height = height, url.orig = orig),
-    class = c('knit_embed_url', 'knit_asis')
+    class = c('knit_embed_url', 'knit_asis_url')
   )
 }
 

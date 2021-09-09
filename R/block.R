@@ -119,7 +119,7 @@ call_block = function(block) {
 }
 
 # options that should affect cache when cache level = 1,2
-cache1.opts = c('code', 'eval', 'cache', 'cache.path', 'message', 'warning', 'error')
+cache1.opts = c('code', 'eval', 'cache', 'cache.path', 'cache.globals', 'message', 'warning', 'error')
 # more options affecting cache level 2
 cache2.opts = c('fig.keep', 'fig.path', 'fig.ext', 'dev', 'dpi', 'dev.args', 'fig.width', 'fig.height')
 # options that should not affect cache
@@ -312,7 +312,7 @@ eng_r = function(options) {
     if (options$autodep) {
       # you shall manually specify global object names if find_symbols() is not reliable
       cache$objects(
-        objs, options$cache.globals %n% find_globals(code), options$label,
+        objs, cache_globals(options$cache.globals, code), options$label,
         options$cache.path
       )
       dep_auto()
@@ -339,6 +339,12 @@ purge_cache = function(options) {
   cache$purge(paste0(valid_path(
     options$cache.path, c(options$label, dep_list$get(options$label))
   ), '_????????????????????????????????'))
+}
+
+cache_globals = function(option, code) {
+  if (is.character(option)) option else {
+    (if (xfun::isFALSE(option)) find_symbols else find_globals)(code)
+  }
 }
 
 # open a graphical device for a chunk to record plots
@@ -442,13 +448,14 @@ fig_before_code = function(x) {
 
 rearrange_figs = function(res, keep, idx, show) {
   figs = find_recordedplot(res)
-  if (!any(figs)) return(res)
+  if (!any(figs)) return(res) # no figures
   if (keep == 'none') return(res[!figs]) # remove all
 
   if (show == 'hold') {
     res = c(res[!figs], res[figs]) # move to the end
     figs = find_recordedplot(res)
   }
+  if (sum(figs) <= 1) return(res) # return early if only 1 figure to keep
   switch(
     keep,
     first = res[-tail(which(figs), -1L)],
@@ -526,7 +533,10 @@ inline_exec = function(
   loc = block$location
   for (i in 1:n) {
     res = hook_eval(code[i], envir)
-    if (inherits(res, 'knit_asis')) res = sew(res, inline = TRUE)
+    if (inherits(res, c('knit_asis', 'knit_asis_url'))) res = sew(res, inline = TRUE)
+    tryCatch(as.character(res), error = function(e) {
+      stop2("The inline value cannot be coerced to character: ", code[i])
+    })
     d = nchar(input)
     # replace with evaluated results
     stringr::str_sub(input, loc[i, 1], loc[i, 2]) = if (length(res)) {

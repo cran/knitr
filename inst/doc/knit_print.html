@@ -12,7 +12,7 @@
 
 <meta name="author" content="Yihui Xie" />
 
-<meta name="date" content="2021-04-24" />
+<meta name="date" content="2021-09-08" />
 
 <title>Custom Print Methods</title>
 
@@ -141,7 +141,7 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 
 <h1 class="title toc-ignore">Custom Print Methods</h1>
 <h4 class="author">Yihui Xie</h4>
-<h4 class="date">2021-04-24</h4>
+<h4 class="date">2021-09-08</h4>
 
 
 <div id="TOC">
@@ -180,15 +180,16 @@ Valiant           18.1   6  225 105 2.76 3.460 20.22  1  0    3    1</code></pre
 ##         UseMethod(&quot;knit_print&quot;)
 ##     }
 ## }
-## &lt;bytecode: 0x7fa2ad6b8c58&gt;
+## &lt;bytecode: 0x7fc0ecb16e00&gt;
 ## &lt;environment: namespace:knitr&gt;</code></pre>
 <div class="sourceCode" id="cb5"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="fu">methods</span>(knit_print)</span></code></pre></div>
 <pre><code>##  [1] knit_print.css*            knit_print.data.frame*    
 ##  [3] knit_print.default*        knit_print.grouped_df*    
 ##  [5] knit_print.html*           knit_print.knit_asis*     
-##  [7] knit_print.knitr_kable*    knit_print.rowwise_df*    
-##  [9] knit_print.sass*           knit_print.shiny.tag*     
-## [11] knit_print.shiny.tag.list* knit_print.tbl_sql*       
+##  [7] knit_print.knit_asis_url*  knit_print.knitr_kable*   
+##  [9] knit_print.rowwise_df*     knit_print.sass*          
+## [11] knit_print.shiny.tag*      knit_print.shiny.tag.list*
+## [13] knit_print.tbl_sql*       
 ## see &#39;?methods&#39; for accessing help and source code</code></pre>
 <div class="sourceCode" id="cb7"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="fu">getS3method</span>(<span class="st">&#39;knit_print&#39;</span>, <span class="st">&#39;default&#39;</span>)  <span class="co"># the default method</span></span></code></pre></div>
 <pre><code>## function (x, ..., inline = FALSE) 
@@ -197,12 +198,12 @@ Valiant           18.1   6  225 105 2.76 3.460 20.22  1  0    3    1</code></pre
 ##         x
 ##     else normal_print(x)
 ## }
-## &lt;bytecode: 0x7fa2afb65690&gt;
+## &lt;bytecode: 0x7fc0e910b890&gt;
 ## &lt;environment: namespace:knitr&gt;</code></pre>
 <div class="sourceCode" id="cb9"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>normal_print</span></code></pre></div>
 <pre><code>## function (x, ...) 
 ## if (isS4(x)) methods::show(x) else print(x)
-## &lt;bytecode: 0x7fa2afa4e3d0&gt;
+## &lt;bytecode: 0x7fc0e9624670&gt;
 ## &lt;environment: namespace:evaluate&gt;</code></pre>
 <p>As we can see, <code>knit_print()</code> has a <code>default</code> method, which is basically <code>print()</code> or <code>show()</code>, depending on whether the object is an S4 object. This means it does nothing special when printing R objects:</p>
 <div class="sourceCode" id="cb11"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="fu">knit_print</span>(<span class="dv">1</span><span class="sc">:</span><span class="dv">10</span>)</span>
@@ -403,7 +404,7 @@ Valiant           18.1   6  225 105 2.76 3.460 20.22  1  0    3    1</code></pre
 </div>
 <div id="metadata" class="section level3">
 <h3>Metadata</h3>
-<p>The print function can have a side effect of passing “metadata” about objects to <strong>knitr</strong>, and <strong>knitr</strong> will collect this information as it prints objects. The motivation of collecting metadata is to store external dependencies of the objects to be printed. Normally we print an object only to obtain a text representation, but there are cases that can be more complicated. For example, a <a href="http://ggvis.rstudio.com/"><strong>ggvis</strong></a> graph requires external JavaScript and CSS dependencies such as <code>ggvis.js</code>. The graph itself is basically a fragment of JavaScript code, which will not work unless the required libraries are loaded (in the HTML header). Therefore we need to collect the dependencies of an object beside printing the object itself.</p>
+<p>The print function can have a side effect of passing “metadata” about objects to <strong>knitr</strong>, and <strong>knitr</strong> will collect this information as it prints objects. The motivation of collecting metadata is to store external dependencies of the objects to be printed. Normally we print an object only to obtain a text representation, but there are cases that can be more complicated. For example, a <a href="https://ggvis.rstudio.com/"><strong>ggvis</strong></a> graph requires external JavaScript and CSS dependencies such as <code>ggvis.js</code>. The graph itself is basically a fragment of JavaScript code, which will not work unless the required libraries are loaded (in the HTML header). Therefore we need to collect the dependencies of an object beside printing the object itself.</p>
 <p>One way to specify the dependencies is through the <code>meta</code> argument of <code>asis_output()</code>. Here is a pseudo example:</p>
 <div class="sourceCode" id="cb28"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb28-1"><a href="#cb28-1" aria-hidden="true" tabindex="-1"></a><span class="co"># pseudo code</span></span>
 <span id="cb28-2"><a href="#cb28-2" aria-hidden="true" tabindex="-1"></a>knit_print.ggvis <span class="ot">=</span> <span class="cf">function</span>(x, ...) {</span>
@@ -480,7 +481,7 @@ Valiant           18.1   6  225 105 2.76 3.460 20.22  1  0    3    1</code></pre
 ## {
 ##     structure(x, class = &quot;knit_asis&quot;, knit_meta = meta, knit_cacheable = cacheable)
 ## }
-## &lt;bytecode: 0x7fa2af81d9a8&gt;
+## &lt;bytecode: 0x7fc0e963cfb0&gt;
 ## &lt;environment: namespace:knitr&gt;</code></pre>
 <p>Note that you can actually put <strong>knitr</strong> in the <code>Suggests</code> field in DESCRIPTION, and use <code>knitr::asis_output()</code>, so that you can avoid the “hard” dependency on <strong>knitr</strong>.</p></li>
 </ol>
