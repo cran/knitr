@@ -123,6 +123,7 @@ assert('combine_words() combines multiple words into a single string', {
   (cw(NULL) %==% NULL)
   (cw(c('a')) %==% 'a')
   (cw(c('a', 'b')) %==% 'a and b')
+  (cw(c('a', 'b'), and = "") %==% 'a, b')
   (cw(c('a', 'b', 'c')) %==% 'a, b, and c')
   (cw(c('a', 'b', 'c'), and = '') %==% 'a, b, c')
   (cw(c('a', 'b', 'c'), ' / ', '') %==% 'a / b / c')
@@ -185,14 +186,25 @@ assert('block_attr(x) turns a character vector into Pandoc attributes', {
 })
 
 
-keys = unlist(lapply(
-  c('class.', 'attr.'), paste0, c('source', 'output', 'message', 'warning', 'error')
-))
-keys_source = c('class.source', 'attr.source')
-opts = fix_options(opts_chunk$merge(c(setNames(as.list(keys), keys), list(collapse = TRUE))))
 assert('when collapse is TRUE, class.* and attr.* become NULL except for class.source and attr.source', {
+  keys = unlist(lapply(
+    c('class.', 'attr.'), paste0, c('source', 'output', 'message', 'warning', 'error')
+  ))
+  keys_source = c('class.source', 'attr.source')
+  opts = fix_options(opts_chunk$merge(c(setNames(as.list(keys), keys), list(collapse = TRUE))))
   (opts[keys_source] %==% as.list(setNames(keys_source, keys_source)))
   (!any(names(opts) %in% setdiff(keys, keys_source)))
+  rm(keys, keys_source, opts)
+})
+
+assert('default strip.white is conditional to collapse', {
+  opts = opts_chunk$get(default = TRUE)
+  (fix_options(opts)$strip.white %==% TRUE)
+  opts$collapse = TRUE
+  (fix_options(opts)$strip.white %==% FALSE)
+  opts$strip.white = TRUE
+  (fix_options(opts)$strip.white %==% TRUE)
+  rm(opts)
 })
 
 assert('pandoc_to gets the current Pandoc format', {

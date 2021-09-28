@@ -244,7 +244,8 @@ tikz_dict = function(path) {
   paste(sans_ext(basename(path)), 'tikzDictionary', sep = '-')
 }
 
-# compatibility with Sweave and old beta versions of knitr
+# initially for compatibility with Sweave and old beta versions of knitr
+# but now also place to tweak default options
 fix_options = function(options) {
   options = as.strict_list(options)
 
@@ -311,11 +312,16 @@ fix_options = function(options) {
     }
   }
 
+  # adjust some options when collapse is TRUE
   if (options$collapse) {
     options[unlist(lapply(
       c('class.', 'attr.'), paste0, c('output', 'message', 'warning', 'error')
     ))] = NULL
   }
+
+  # change default of value conditionally
+  if (identical(options$strip.white, I(TRUE)))
+    options$strip.white = !options$collapse
 
   options
 }
@@ -842,9 +848,10 @@ create_label = function(..., latex = FALSE) {
 #'
 #' If the length of the input \code{words} is smaller than or equal to 1,
 #' \code{words} is returned. When \code{words} is of length 2, the first word
-#' and second word are combined using the \code{and} string. When the length is
-#' greater than 2, \code{sep} is used to separate all words, and the \code{and}
-#' string is prepended to the last word.
+#' and second word are combined using the \code{and} string, or if blank,
+#' \code{sep} if is used. When the length is greater than 2, \code{sep} is used
+#' to separate all words, and the \code{and} string is prepended to the last
+#' word.
 #' @param words A character vector.
 #' @param sep Separator to be inserted between words.
 #' @param and Character string to be prepended to the last word.
@@ -866,7 +873,7 @@ combine_words = function(
   if (n == 0) return(words)
   words = paste0(before, words, after)
   if (n == 1) return(rs(words))
-  if (n == 2) return(rs(paste(words, collapse = and)))
+  if (n == 2) return(rs(paste(words, collapse = if (is_blank(and)) sep else and)))
   if (oxford_comma && grepl('^ ', and) && grepl(' $', sep)) and = gsub('^ ', '', and)
   words[n] = paste0(and, words[n])
   # combine the last two words directly without the comma
@@ -992,8 +999,6 @@ raw_latex = function(x, ...) raw_block(x, 'latex', ...)
 #' @export
 raw_html = function(x, ...) raw_block(x, 'html', ...)
 
-trimws = function(x) gsub('^\\s+|\\s+$', '', x)
-
 optipng = function(...) {
   warning2('knitr:::optipng() has been deprecated; please use xfun::optipng()')
   xfun::optipng(...)
@@ -1051,3 +1056,5 @@ make_unique = function(x) {
 #' browseURL('logo.html') # you can check its HTML source
 #' }
 image_uri = function(f) xfun::base64_uri(f)
+
+trimws = base::trimws
