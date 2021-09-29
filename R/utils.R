@@ -1056,5 +1056,3 @@ make_unique = function(x) {
 #' browseURL('logo.html') # you can check its HTML source
 #' }
 image_uri = function(f) xfun::base64_uri(f)
-
-trimws = base::trimws

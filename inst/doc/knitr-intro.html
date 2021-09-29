@@ -12,7 +12,7 @@
 
 <meta name="author" content="Yihui Xie" />
 
-<meta name="date" content="2021-09-28" />
+<meta name="date" content="2021-09-29" />
 
 <title>Not An Introduction to knitr</title>
 
@@ -163,7 +163,7 @@ div.csl-indent {
 
 <h1 class="title toc-ignore">Not An Introduction to knitr</h1>
 <h4 class="author">Yihui Xie</h4>
-<h4 class="date">2021-09-28</h4>
+<h4 class="date">2021-09-29</h4>
 
 
 
@@ -171,9 +171,9 @@ div.csl-indent {
 <p>Anyway, here is a code chunk that shows you can compile vignettes with <strong>knitr</strong> as well using R 3.0.x, which supports non-Sweave vignettes:</p>
 <div class="sourceCode" id="cb1"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">options</span>(<span class="at">digits =</span> <span class="dv">4</span>)</span>
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="fu">rnorm</span>(<span class="dv">20</span>)</span></code></pre></div>
-<pre><code>##  [1]  0.5580 -0.6883 -1.1892  0.4507 -0.9905 -0.4106 -0.1077  1.8540  1.0342
-## [10]  0.8691  0.5525  0.6906 -1.3688 -0.6111  1.5521 -0.8787 -0.4292 -0.3374
-## [19] -1.0996 -0.1389</code></pre>
+<pre><code>##  [1] -0.25576  0.26747 -0.23655  0.46139 -0.96636  1.07071  0.36201 -0.12953
+##  [9]  0.06371 -0.69175 -2.03479  1.03667 -1.56607  0.14930  0.63170  0.50667
+## [17]  1.59922  0.74244  0.19559 -0.43211</code></pre>
 <div class="sourceCode" id="cb3"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>fit <span class="ot">=</span> <span class="fu">lm</span>(dist <span class="sc">~</span> speed, <span class="at">data =</span> cars)</span>
 <span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>b <span class="ot">=</span> <span class="fu">coef</span>(fit)</span></code></pre></div>
 <table>
