@@ -12,15 +12,12 @@ split_file = function(lines, set.preamble = TRUE, patterns = knit_patterns$get()
     set_preamble(lines, patterns)  # prepare for tikz option 'standAlone'
   }
 
-  blks = grepl(chunk.begin, lines)
-  txts = filter_chunk_end(blks, grepl(chunk.end, lines), lines, patterns)
-  # tmp marks the starting lines of a code/text chunk by TRUE
-  tmp = blks | head(c(TRUE, txts), -1)
+  markdown_mode = identical(patterns, all_patterns$md)
+  i = group_indices(grepl(chunk.begin, lines), grepl(chunk.end, lines), lines, markdown_mode)
+  groups = unname(split(lines, i))
 
-  groups = unname(split(lines, cumsum(tmp)))
   if (set.preamble)
     knit_concord$set(inlines = sapply(groups, length)) # input line numbers for concordance
-  markdown_mode = identical(patterns, all_patterns$md)
 
   # parse 'em all
   lapply(groups, function(g) {
@@ -136,6 +133,7 @@ parse_block = function(code, header, params.src, markdown_mode = out_format('mar
     params$original.params.src = params.src
     params$chunk.echo = isTRUE(params[['echo']])
     params$yaml.code = parts$src
+    attr(params, 'quarto_options') = c('original.params.src', 'chunk.echo', 'yaml.code')
     # alias 'warning' explicitly set in chunk metadata to the 'message' option
     if (!is.null(parts$options[['warning']])) {
       params$message = parts$options[['warning']]
@@ -288,6 +286,8 @@ partition_chunk = function(engine, code) {
 
 print.block = function(x, ...) {
   params = x$params
+  # don't show internal options for quarto
+  for (i in attr(params, 'quarto_options')) params[[i]] = NULL
   cat('label:', params$label)
   if (length(params) > 1L) {
     cat(' (with options) \n')
@@ -509,34 +509,72 @@ parse_chunk = function(x, rc = knit_patterns$get('ref.chunk')) {
   unlist(x, use.names = FALSE)
 }
 
-# filter chunk.end lines that don't actually end a chunk
-filter_chunk_end = function(chunk.begin, chunk.end, lines = NA, patterns = list()) {
-  in.chunk = FALSE
-  is.md = identical(patterns, all_patterns[['md']])
-  pattern.end = NA
+# split text lines into groups of code and text chunks
+group_indices = function(chunk.begin, chunk.end, lines = NA, is.md = FALSE) {
+  in.chunk = FALSE  # whether inside a chunk now
+  pattern.end = NA  # the expected chunk end pattern (derived from header)
+  b = NA  # the last found chunk header
+  # TODO: for now we only disallow unmatched delimiters during R CMD check
+  # that's not running on CRAN; we will fully disallow it in the future (#2057)
+  signal = if (is_R_CMD_check() && !(is_cran() || is_bioc())) stop2 else warning2
+  g = NA  # group index: odd - text; even - chunk
   fun = function(is.begin, is.end, line, i) {
-    if (in.chunk && is.end && (is.na(pattern.end) || match_chunk_end(pattern.end, line, i))) {
+    if (i == 1) {
+      g <<- if (is.begin) {
+        in.chunk <<- TRUE
+        b <<- i
+        0
+      } else 1
+      return(g)
+    }
+    # begin of another chunk is found while the previous chunk is not complete yet
+    if (in.chunk && is.begin) {
+      if (!is.md || match_chunk_begin(pattern.end, line)) {
+        g <<- g + 2  # same amount of ` as previous chunk, so should be a new chunk
+        if (is.md) b <<- i
+      }  # otherwise ignore the chunk header
+      return(g)
+    }
+    if (in.chunk && is.end && match_chunk_end(pattern.end, line, i, b, lines, signal)) {
       in.chunk <<- FALSE
-      return(TRUE)
+      g <<- g + 1
+      return(g - 1)  # don't use incremented g yet; use it in the next step
     }
     if (!in.chunk && is.begin) {
       in.chunk <<- TRUE
-      if (is.md) pattern.end <<- sub('(^[\t >]*```+).*', '^\\1\\\\s*$', line)
+      if (is.md) {
+        pattern.end <<- sub('(^[\t >]*```+).*', '^\\1\\\\s*$', line)
+        b <<- i
+      }
+      g <<- g + 2 - g%%2  # make sure g is even
     }
-    FALSE
+    g
   }
   mapply(fun, chunk.begin, chunk.end, lines, seq_along(lines))
 }
 
-match_chunk_end = function(pattern, line, i) {
-  if (grepl(pattern, line)) return(TRUE)
-  p = gsub('\\^\\s+', '', pattern)
-  if (!grepl(p, line)) return(FALSE)
-  # TODO: should we tolerate unmatched indentation? (we do for now)
-  warning2(
-    'Line ', i, ' ("', line, '") was not properly indented to match the ',
-    'indentation of the chunk header. You are recommended to change this line to "',
-    gsub('\\^(\\s+`+).*', '\\1', pattern), '".'
+match_chunk_begin = function(pattern.end, x, pattern = '^\\1\\\\{') {
+  grepl(gsub('^([^`]*`+).*', pattern, pattern.end), x)
+}
+
+match_chunk_end = function(pattern, line, i, b, lines, signal = stop) {
+  if (is.na(pattern) || grepl(pattern, line)) return(TRUE)
+  n = length(lines)
+  # if the exact match was not found, look ahead to see if there is another
+  # chunk end that is an exact match before the next chunk begin
+  if (i < n && length(k <- grep(pattern, lines[(i + 1):n]))) {
+    k = k[1]
+    if (k == 1) return(FALSE)  # the next line is real chunk end
+    # no other chunk headers before the new next exact chunk end
+    if (!any(match_chunk_begin(pattern, lines[i + 1:(k - 1)], '^\\1`*\\\\{')))
+      return(FALSE)
+  }
+  signal(
+    'The closing backticks on line ', i, ' ("', line, '") in ', current_input(),
+    ' do not match the opening backticks "',
+    gsub('\\^(\\s*`+).*', '\\1', pattern), '" on line ', b, '. You are recommended to ',
+    'fix either the opening or closing delimiter of the code chunk to use exactly ',
+    'the same numbers of backticks and same level of indentation (or blockquote).'
   )
   TRUE
 }

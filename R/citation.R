@@ -45,7 +45,8 @@
 #'   \file{inst/misc/tweak_bib.csv} in the source package.
 #' @export
 #' @author Yihui Xie and Michael Friendly
-#' @examples write_bib(c('RGtk2', 'gWidgets'), file = 'R-GUI-pkgs.bib')
+#' @examplesIf interactive()
+#' write_bib(c('RGtk2', 'gWidgets'), file = 'R-GUI-pkgs.bib')
 #' unlink('R-GUI-pkgs.bib')
 #'
 #' write_bib(c('animation', 'rgl', 'knitr', 'ggplot2'))
@@ -67,7 +68,8 @@ write_bib = function(
     warning('package(s) ', paste(x[idx], collapse = ', '), ' not found')
     x = x[!idx]
   }
-  x = setdiff(x, .base.pkgs) # remove base packages
+  # no need to write bib for packages in base R other than `base` itself
+  x = setdiff(x, setdiff(xfun::base_pkgs(), 'base'))
   x = sort(x)
   bib = sapply(x, function(pkg) {
     cite = citation(pkg, auto = if (pkg != 'base') {
@@ -153,6 +155,3 @@ write_bib = function(
     x$package
   )
 })
-
-# no need to write bib for these packages
-.base.pkgs = setdiff(rownames(installed.packages(priority = 'base')), 'base')

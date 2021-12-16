@@ -148,34 +148,27 @@ output_asis = function(x, options) {
   is_blank(x) || options$results == 'asis'
 }
 
-# path relative to dir of the input file
-input_dir = function(ignore_root = FALSE) {
+# the working directory: use root.dir if specified, otherwise the dir of the
+# input file unless knitr.use.cwd = TRUE
+input_dir = function() {
   root = opts_knit$get('root.dir')
-  # LyX is a special case: the input file is in tempdir, and we should use
-  # root.dir as the real input dir (#809)
-  if (is_lyx()) return(root)
-  if (ignore_root) {
-    .knitEnv$input.dir %n% '.'
-  } else {
-    root %n% (if (!getOption('knitr.use.cwd', FALSE)) .knitEnv$input.dir) %n% '.'
-  }
+  root %n% (if (!getOption('knitr.use.cwd', FALSE)) .knitEnv$input.dir) %n% '.'
 }
 
-is_lyx = function() {
-  args = commandArgs(TRUE)
-  if (length(args) < 4) return(FALSE)
-  grepl('[.]Rnw$', args[1]) && !is.na(Sys.getenv('LyXDir', NA))
-}
-
-# detect if running on CRAN (assuming that CRAN does not set CI or NOT_CRAN=true)
+# detect if running on CRAN (assuming that CRAN does not set CI or
+# NOT_CRAN=true); or set R_CRANDALF=true (is cran) or false (not cran)
 is_cran = function() {
-  tolower(Sys.getenv('R_CRANDALF')) == 'true' ||
+  x = Sys.getenv('R_CRANDALF', NA)
+  if (!is.na(x)) tolower(x) == 'true' else {
     !any(tolower(Sys.getenv(c('CI', 'NOT_CRAN'))) == 'true')
+  }
 }
 
 is_cran_check = function() {
   is_cran() && is_R_CMD_check()
 }
+
+is_bioc = function() Sys.getenv('BBS_HOME') != ''
 
 # round a number to getOption('digits') decimal places by default, and format()
 # it using significant digits if the option knitr.digits.signif = TRUE
@@ -375,7 +368,8 @@ is_latex_output = function() {
 #'   provided, \code{is_html_output()} uses \code{pandoc_to()}, and
 #'   \code{pandoc_to()} returns the output format name.
 #' @param excludes A character vector of output formats that should not be
-#'   considered as HTML format.
+#'   considered as HTML format. Options are: markdown, epub, html, html4, html5,
+#'   revealjs, s5, slideous, slidy, and gfm.
 #' @rdname output_type
 #' @export
 is_html_output = function(fmt = pandoc_to(), excludes = NULL) {

@@ -41,8 +41,7 @@ vweave = function(file, driver, syntax, encoding = 'UTF-8', quiet = FALSE, ...) 
 vtangle = function(file, ..., encoding = 'UTF-8', quiet = FALSE) {
   # a hack to generate an empty R script to cheat R CMD check because purl() is
   # not reliable (#2052, #2036)
-  # TODO: use is_R_CMD_check() after xfun >= 0.27 is on CRAN
-  if (Sys.getenv('_R_CHECK_LICENSE_') != '' && !file.exists(with_ext(file, 'Rout.save'))) {
+  if (xfun::is_R_CMD_check() && !file.exists(with_ext(file, 'Rout.save'))) {
     file = with_ext(file, '.R')
     file.create(file)
     return(file)
@@ -153,14 +152,10 @@ knit_filter = function(ifile, encoding = 'UTF-8') {
   p = detect_pattern(x, tolower(file_ext(ifile)))
   if (is.null(p)) return(x)
   p = all_patterns[[p]]; p1 = p$chunk.begin; p2 = p$chunk.end
-  i1 = grepl(p1, x)
-  i2 = filter_chunk_end(i1, grepl(p2, x))
-  m = numeric(n)
-  m[i1] = 1; m[i2] = 2  # 1: code; 2: text
-  if (m[1] == 0) m[1] = 2
-  for (i in seq_len(n - 1)) if (m[i + 1] == 0) m[i + 1] = m[i]
-  x[m == 1 | i2] = ''
-  x[m == 2] = stringr::str_replace_all(x[m == 2], p$inline.code, '')
+  m = group_indices(grepl(p1, x), grepl(p2, x))
+  i = m %% 2 == 0
+  x[i] = ''  # remove code chunks
+  x[!i] = stringr::str_replace_all(x[!i], p$inline.code, '')  # remove inline code
   structure(x, control = '-H -t')
 }
 
