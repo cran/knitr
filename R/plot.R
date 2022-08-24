@@ -13,7 +13,7 @@ auto_exts = c(
 
   Cairo_pdf = 'pdf', Cairo_png = 'png', Cairo_ps = 'eps', Cairo_svg = 'svg',
 
-  svglite = 'svg',
+  svglite = 'svg', gridSVG = 'svg',
 
   ragg_png = 'png',
 
@@ -63,6 +63,10 @@ dev_get = function(dev, options = opts_current$get(), dpi = options$dpi[1]) {
     pdf = grDevices::pdf,
     png = function(...) png(..., res = dpi, units = 'in'),
     svg = grDevices::svg,
+    gridSVG = function(filename, width, height, ...) {
+      # use svg() only for redrawing the plot, and will use gridSVG::grid.export() later
+      grDevices::svg(filename, width, height)
+    },
     pictex = grDevices::pictex,
     tiff = function(...) tiff(..., res = dpi, units = 'in'),
     win.metafile = grDevices::win.metafile,
@@ -116,10 +120,10 @@ quartz_dev = function(type, dpi) {
 }
 
 # a wrapper of the tikzDevice::tikz device
-tikz_dev = function(...) {
+tikz_dev = function(..., engine = getOption('tikzDefaultEngine')) {
   loadNamespace('tikzDevice')
   packages = switch(
-    getOption('tikzDefaultEngine'),
+    engine,
     pdftex = getOption('tikzLatexPackages'),
     xetex = getOption('tikzXelatexPackages'),
     luatex = getOption('tikzLualatexPackages')
@@ -159,7 +163,12 @@ plot2dev = function(plot, name, dev, device, path, width, height, options) {
   do.call(device, c(list(path, width = width, height = height), dargs))
   showtext(options)  # maybe begin showtext and set options
   print(plot)
+  # hack: if the device is gridSVG, save the plot to a temp path (with suffix ~)
+  path2 = if (dev == 'gridSVG') paste0(path, '~')
+  if (!is.null(path2)) do.call(gridSVG::grid.export, c(list(name = path2), dargs))
   dev.off()
+  # move the temp svg file to `path`
+  if (!is.null(path2)) file.rename(path2, path)
 
   # Cairo::CairoPS always adds the extension .ps, even if you have specified an
   # extension like .eps (https://github.com/yihui/knitr/issues/1364)
@@ -171,7 +180,9 @@ plot2dev = function(plot, name, dev, device, path, width, height, options) {
   # compile tikz to pdf
   if (dev == 'tikz') {
     patch_tikz_tex(path)
-    if (options$external) path = tinytex::latexmk(path, getOption('tikzDefaultEngine'))
+    if (options$external) path = tinytex::latexmk(
+      path, dargs$engine %n% getOption('tikzDefaultEngine')
+    )
   }
 
   fig_process(options$fig.process, path, options)

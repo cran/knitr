@@ -42,13 +42,16 @@ need_special_plot_hook = function(options) {
 hook_plot_md_base = function(x, options) {
   if (options$fig.show == 'animate') return(hook_plot_html(x, options))
 
-  base = opts_knit$get('base.url') %n% ''
   cap = .img.cap(options)
   alt = .img.cap(options, alt = TRUE)
 
   w = options[['out.width']]; h = options[['out.height']]
   s = options$out.extra; a = options$fig.align
   ai = options$fig.show == 'asis'
+  # whether to use <object> to embed SVG graphics
+  is_svg = grepl('[.]svg$', x, ignore.case = TRUE) && getOption('knitr.svg.object', FALSE)
+  # self-contained mode?
+  sc = any(c('--embed-resources', '--self-contained') %in% opts_knit$get('rmarkdown.pandoc.args'))
   lnk = options$fig.link
   pandoc_html = cap != '' && is_html_output()
   in_bookdown = isTRUE(opts_knit$get('bookdown.internal.label'))
@@ -56,11 +59,12 @@ hook_plot_md_base = function(x, options) {
   plot2 = ai || options$fig.cur == options$fig.num
   to = pandoc_to(); from = pandoc_from()
   if (is.null(w) && is.null(h) && is.null(s) && is.null(options$fig.alt) &&
-      a == 'default' && !(pandoc_html && in_bookdown)) {
+      a == 'default' && !(pandoc_html && in_bookdown) && !is_svg) {
     # append <!-- --> to ![]() to prevent the figure environment in these cases
     nocap = cap == '' && !is.null(to) && !grepl('^markdown', to) &&
       (options$fig.num == 1 || ai) && !grepl('-implicit_figures', from)
-    res = sprintf('![%s](%s%s)', cap, base, .upload.url(x))
+    x2 = paste0(opts_knit$get('base.url'), .upload.url(x))
+    res = sprintf('![%s](%s)', cap, x2)
     if (!is.null(lnk) && !is.na(lnk)) res = sprintf('[%s](%s)', res, lnk)
     res = paste0(res, if (nocap) '<!-- -->' else '', if (is_latex_output()) ' ' else '')
     return(res)
@@ -69,25 +73,38 @@ hook_plot_md_base = function(x, options) {
     if (is.null(lnk) || is.na(lnk)) return(x)
     sprintf('<a href="%s" target="_blank">%s</a>', lnk, x)
   }
+  img_code = function(s2 = NULL) {
+    img = if (is_svg && sc) svg_code(x, s) else .img.tag(x, w, h, alt, c(s, s2))
+    add_link(img)
+  }
   # use HTML syntax <img src=...>
   if (pandoc_html && !isTRUE(grepl('-implicit_figures', from))) {
     d1 = if (plot1) sprintf('<div class="figure"%s>\n', css_text_align(a))
     d2 = sprintf('<p class="caption">%s</p>', cap)
-    img = sprintf(
-      '<img src="%s" alt="%s" %s />',
-      paste0(opts_knit$get('base.url'), .upload.url(x)), alt, .img.attr(w, h, s)
-    )
-    img = add_link(img)
+    img = img_code()
     # whether to place figure caption at the top or bottom of a figure
     if (isTRUE(options$fig.topcaption)) {
       paste0(d1, if (ai || options$fig.cur <= 1) d2, img, if (plot2) '</div>')
     } else {
       paste0(d1, img, if (plot2) paste0('\n', d2, '\n</div>'))
     }
-  } else add_link(.img.tag(
-    .upload.url(x), w, h, alt,
-    c(s, sprintf('style="%s"', css_align(a)))
-  ))
+  } else {
+    img_code(sprintf('style="%s"', css_align(a)))
+  }
+}
+
+# read svg, remove the xml/doctype declaration, and put the code in a raw html block
+svg_code = function(file, extra = NULL) {
+  x = read_utf8(file)
+  while (length(x) > 0 && !grepl('^\\s*<svg .+', x[1])) x = x[-1]
+  if (length(x) > 0 && length(extra) == 1) {
+    if (grepl(r <- '\\s*>\\s*$', x[1])) {
+      x[1] = paste0(gsub(r, ' ', x[1]), extra, '>')
+    } else {
+      x[1] = paste(x[1], extra)
+    }
+  }
+  raw_html(x)
 }
 
 hook_plot_md_pandoc = function(x, options) {

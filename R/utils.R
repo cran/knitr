@@ -330,7 +330,7 @@ fix_options = function(options) {
 #' considered LaTeX output). The function \code{is_html_output()} only works for
 #' R Markdown documents and will test for several Pandoc HTML based output
 #' formats (by default, these formats are considered as HTML formats:
-#' \code{c('markdown', 'epub', 'html', 'html4', 'html5', 'revealjs', 's5',
+#' \code{c('markdown', 'epub', 'epub2', 'html', 'html4', 'html5', 'revealjs', 's5',
 #' 'slideous', 'slidy', 'gfm')}).
 #'
 #' The function \code{pandoc_to()} returns the Pandoc output format, and
@@ -371,7 +371,7 @@ is_latex_output = function() {
 #'   provided, \code{is_html_output()} uses \code{pandoc_to()}, and
 #'   \code{pandoc_to()} returns the output format name.
 #' @param excludes A character vector of output formats that should not be
-#'   considered as HTML format. Options are: markdown, epub, html, html4, html5,
+#'   considered as HTML format. Options are: markdown, epub, epub2, html, html4, html5,
 #'   revealjs, s5, slideous, slidy, and gfm.
 #' @rdname output_type
 #' @export
@@ -379,7 +379,7 @@ is_html_output = function(fmt = pandoc_to(), excludes = NULL) {
   if (length(fmt) == 0) return(FALSE)
   if (grepl('^markdown', fmt)) fmt = 'markdown'
   if (fmt == 'epub3') fmt = 'epub'
-  fmts = c('markdown', 'epub', 'html', 'html4', 'html5', 'revealjs', 's5', 'slideous', 'slidy', 'gfm')
+  fmts = c('markdown', 'epub', 'epub2', 'html', 'html4', 'html5', 'revealjs', 's5', 'slideous', 'slidy', 'gfm')
   fmt %in% setdiff(fmts, excludes)
 }
 
@@ -650,10 +650,11 @@ escape_html = highr:::escape_html
 #' @return A character vector of the source code.
 #' @author Yihui Xie and Peter Ruckdeschel
 #' @export
-#' @examples library(knitr)
-#' \donttest{# relies on r-forge.r-project.org being accessible
+#' @examplesIf interactive()
+#' library(knitr)
+#' # relies on r-forge.r-project.org being accessible
 #' read_rforge('rgl/R/axes.R', project = 'rgl')
-#' read_rforge('rgl/R/axes.R', project = 'rgl', extra='&revision=519')}
+#' read_rforge('rgl/R/axes.R', project = 'rgl', extra='&revision=519')
 read_rforge = function(path, project, extra = '') {
   base = 'http://r-forge.r-project.org/scm/viewvc.php/*checkout*/pkg'
   read_utf8(sprintf('%s/%s?root=%s%s', base, path, project, extra))
@@ -1059,3 +1060,9 @@ make_unique = function(x) {
 #' browseURL('logo.html') # you can check its HTML source
 #' }
 image_uri = function(f) xfun::base64_uri(f)
+
+# Change all "[label](url)" to "label" except leave "`[label](url)`" as is
+remove_urls = function(x) {
+  # regex adapted from https://dev.to/mattkenefick/regex-convert-markdown-links-to-html-anchors-f7j
+  gsub("(?<!`)\\[([^]]+)\\]\\(([^)]+)\\)(?!`)", "\\1", x, perl = TRUE)
+}

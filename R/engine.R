@@ -134,8 +134,9 @@ eng_interpreted = function(options) {
     )
   } else paste(switch(
     engine, bash = '-c', coffee = '-e', groovy = '-e', lein = 'exec -ep',
-    mysql = '-e', node = '-e', octave = '--eval', perl = '-E', psql = '-c',
-    python = '-c', ruby = '-e', scala = '-e', sh = '-c', zsh = '-c', NULL
+    mysql = '-e', node = '-e', octave = '--eval', perl = '-E', php = '-r',
+    psql = '-c', python = '-c', ruby = '-e', scala = '-e', sh = '-c', zsh = '-c',
+    NULL
   ), shQuote(one_string(options$code)))
 
   opts = get_engine_opts(options$engine.opts, engine)
@@ -831,13 +832,21 @@ eng_bslib = function(options) {
 # Usage: https://books.ropensci.org/targets/markdown.html
 # Docs: https://docs.ropensci.org/targets/reference/tar_engine_knitr.html
 eng_targets = function(options) {
-  targets::tar_engine_knitr(options = options)
+  targets::tar_engine_knitr(options)
+}
+
+# an Eviews engine based on EviewsR
+eng_eviews = function(options) {
+  # EviewsR can't be installed in lower versions of R, hence I can't declare
+  # Suggests dependency in DESCRIPTION
+  f = getFromNamespace('eng_eviews', 'EviewsR')
+  f(options)
 }
 
 # a comment engine to return nothing
 eng_comment = function(options) {}
 
-## a verbatim engine that returns its chunk content verbatim
+# a verbatim engine that returns its chunk content verbatim
 eng_verbatim = function(options) {
   # change default for the cat engine
   options$eval = FALSE
@@ -873,7 +882,7 @@ eng_embed = function(options) {
 local({
   for (i in c(
     'awk', 'bash', 'coffee', 'gawk', 'groovy', 'haskell', 'lein', 'mysql',
-    'node', 'octave', 'perl', 'psql', 'Rscript', 'ruby', 'sas',
+    'node', 'octave', 'perl', 'php', 'psql', 'Rscript', 'ruby', 'sas',
     'scala', 'sed', 'sh', 'stata', 'zsh'
   )) knit_engines$set(setNames(list(eng_interpreted), i))
 })
@@ -893,6 +902,7 @@ knit_engines$set(
   ditaa = eng_plot,
   dot = eng_plot,
   embed = eng_embed,
+  eviews = eng_eviews,
   exec = eng_exec,
   fortran = eng_shlib,
   fortran95 = eng_shlib,
