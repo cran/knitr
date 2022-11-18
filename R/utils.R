@@ -54,7 +54,7 @@ valid_path = function(prefix, label) {
 
 # define a color variable in TeX
 color_def = function(col, variable = 'shadecolor') {
-  if (is.na(col)) return('')  # no LaTeX code when color is NA
+  if (all(is.na(col))) return('')  # no LaTeX code when color is NA
   x = if (length(col) == 1L) sc_split(col) else col
   if ((n <- length(x)) != 3L) {
     if (n == 1L) x = drop(col2rgb(x) / 255) else {
@@ -74,7 +74,7 @@ color_def = function(col, variable = 'shadecolor') {
 sc_split = function(string) {
   if (is.call(string)) string = eval(string)
   if (is.numeric(string) || length(string) != 1L) return(string)
-  stringr::str_trim(stringr::str_split(string, ';|,')[[1]])
+  trimws(strsplit(string, ';|,')[[1]])
 }
 
 # extract LaTeX packages for tikzDevice
@@ -383,19 +383,28 @@ is_html_output = function(fmt = pandoc_to(), excludes = NULL) {
   fmt %in% setdiff(fmts, excludes)
 }
 
+#' @param exact Whether to return or use the exact format name. If not, Pandoc
+#'   extensions will be removed from the format name, e.g., \samp{latex-smart}
+#'   will be treated as \samp{latex}.
 #' @rdname output_type
 #' @export
-pandoc_to = function(fmt) {
+pandoc_to = function(fmt, exact = FALSE) {
   # rmarkdown sets an option for the Pandoc output format from markdown
-  to = opts_knit$get('rmarkdown.pandoc.to')
+  to = fmt_name(opts_knit$get('rmarkdown.pandoc.to'), exact)
   if (missing(fmt)) to else !is.null(to) && (to %in% fmt)
 }
 
 #' @rdname output_type
 #' @export
-pandoc_from = function() {
+pandoc_from = function(exact = FALSE) {
   # rmarkdown's input format, obtained from a package option set by rmarkdown
-  opts_knit$get('rmarkdown.pandoc.from') %n% 'markdown'
+  fmt_name(opts_knit$get('rmarkdown.pandoc.from'), exact) %n% 'markdown'
+}
+
+# pandoc format name: if not exact, return base name (remove extensions), e.g.,
+# latex-smart -> latex
+fmt_name = function(x, exact = FALSE) {
+  if (exact || is.null(x)) x else gsub('[-+].*', '', x)
 }
 
 # turn percent width/height to LaTeX unit, e.g. out.width = 30% -> .3\linewidth
@@ -1065,4 +1074,14 @@ image_uri = function(f) xfun::base64_uri(f)
 remove_urls = function(x) {
   # regex adapted from https://dev.to/mattkenefick/regex-convert-markdown-links-to-html-anchors-f7j
   gsub("(?<!`)\\[([^]]+)\\]\\(([^)]+)\\)(?!`)", "\\1", x, perl = TRUE)
+}
+
+# repeat a string for n times
+rep_str = function(x, n, sep = '') paste(rep(x, n), collapse = sep)
+
+# patch strsplit() to split '' into '' instead of character(0)
+str_split = function(x, split, ...) {
+  y = strsplit(x, split, ...)
+  y[x == ''] = list('')
+  y
 }

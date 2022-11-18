@@ -56,7 +56,7 @@ call_block = function(block) {
   if (opts_knit$get('progress')) print(block)
 
   if (!is.null(params$child)) {
-    if (!is_blank(params$code)) warning(
+    if (!is_blank(params[['code']])) warning(
       "The chunk '", params$label, "' has the 'child' option, ",
       "and this code chunk must be empty. Its code will be ignored."
     )
@@ -201,6 +201,10 @@ eng_r = function(options) {
   # open a device to record plots if not using a global device or no device is
   # open, and close this device if we don't want to use a global device
   if (!opts_knit$get('global.device') || is.null(dev.list())) {
+    # reset current device if any is open (#2166)
+    if (!is.null(dev.list())) {
+      dv0 = dev.cur(); on.exit(dev.set(dv0), add = TRUE)
+    }
     chunk_device(options, keep != 'none', tmp.fig)
     dv = dev.cur()
     if (!opts_knit$get('global.device')) on.exit(dev.off(dv), add = TRUE)

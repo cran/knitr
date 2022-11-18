@@ -1,7 +1,7 @@
 Package: knitr
 Type: Package
 Title: A General-Purpose Package for Dynamic Report Generation in R
-Version: 1.40
+Version: 1.41
 Authors@R: c(
     person("Yihui", "Xie", role = c("aut", "cre"), email = "xie@yihui.name", comment = c(ORCID = "0000-0003-0645-5666")),
     person("Abhraneel", "Sarma", role = "ctb"),
@@ -83,6 +83,7 @@ Authors@R: c(
     person("Noam", "Ross", role = "ctb"),
     person("Obada", "Mahdi", role = "ctb"),
     person("Pavel N.", "Krivitsky", role = "ctb", comment=c(ORCID = "0000-0002-9101-3362")),
+    person("Pedro", "Faria", role = "ctb"),
     person("Qiang", "Li", role = "ctb"),
     person("Ramnath", "Vaidyanathan", role = "ctb"),
     person("Richard", "Cotton", role = "ctb"),
@@ -113,13 +114,13 @@ Description: Provides a general-purpose tool for dynamic report generation in R
     using Literate Programming techniques.
 Depends: R (>= 3.3.0)
 Imports: evaluate (>= 0.15), highr, methods, stringr (>= 0.6), yaml (>=
-        2.1.19), xfun (>= 0.29), tools
-Suggests: markdown, formatR, testit, digest, rgl (>= 0.95.1201),
-        codetools, rmarkdown, htmlwidgets (>= 0.7), webshot, tikzDevice
-        (>= 0.10), tinytex, reticulate (>= 1.4), JuliaCall (>= 0.11.1),
-        magick, png, jpeg, gifski, xml2 (>= 1.2.0), httr, DBI (>=
-        0.4-1), showtext, tibble, sass, bslib, ragg, gridSVG, styler
-        (>= 1.2.0), targets (>= 0.6.0)
+        2.1.19), xfun (>= 0.34), tools
+Suggests: markdown (>= 1.3), formatR, testit, digest, rgl (>=
+        0.95.1201), codetools, rmarkdown, htmlwidgets (>= 0.7),
+        webshot, tikzDevice (>= 0.10), tinytex, reticulate (>= 1.4),
+        JuliaCall (>= 0.11.1), magick, png, jpeg, gifski, xml2 (>=
+        1.2.0), httr, DBI (>= 0.4-1), showtext, tibble, sass, bslib,
+        ragg, gridSVG, styler (>= 1.2.0), targets (>= 0.6.0)
 License: GPL
 URL: https://yihui.org/knitr/
 BugReports: https://github.com/yihui/knitr/issues
@@ -137,9 +138,9 @@ Collate: 'block.R' 'cache.R' 'utils.R' 'citation.R' 'hooks-html.R'
         'params.R' 'parser.R' 'pattern.R' 'rocco.R' 'spin.R' 'table.R'
         'template.R' 'utils-conversion.R' 'utils-rd2html.R'
         'utils-sweave.R' 'utils-upload.R' 'utils-vignettes.R' 'zzz.R'
-RoxygenNote: 7.2.1
+RoxygenNote: 7.2.2
 NeedsCompilation: no
-Packaged: 2022-08-24 14:15:10 UTC; yihui
+Packaged: 2022-11-16 23:30:52 UTC; yihui
 Author: Yihui Xie [aut, cre] (<https://orcid.org/0000-0003-0645-5666>),
   Abhraneel Sarma [ctb],
   Adam Vogt [ctb],
@@ -222,6 +223,7 @@ Author: Yihui Xie [aut, cre] (<https://orcid.org/0000-0003-0645-5666>),
   Noam Ross [ctb],
   Obada Mahdi [ctb],
   Pavel N. Krivitsky [ctb] (<https://orcid.org/0000-0002-9101-3362>),
+  Pedro Faria [ctb],
   Qiang Li [ctb],
   Ramnath Vaidyanathan [ctb],
   Richard Cotton [ctb],
@@ -249,4 +251,4 @@ Author: Yihui Xie [aut, cre] (<https://orcid.org/0000-0003-0645-5666>),
   Zhian N. Kamvar [ctb] (<https://orcid.org/0000-0003-1458-7108>)
 Maintainer: Yihui Xie <xie@yihui.name>
 Repository: CRAN
-Date/Publication: 2022-08-24 15:30:03 UTC
+Date/Publication: 2022-11-18 12:00:06 UTC

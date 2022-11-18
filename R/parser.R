@@ -227,7 +227,7 @@ comment_chars = list(
 # reshape it using the language name as the index, i.e., from list(char = lang)
 # to list(lang = char)
 comment_chars = local({
-  res = list()
+  res = list(apl = '\u235D')
   for (i in names(comment_chars)) {
     chars = comment_chars[[i]]
     res = c(res, setNames(rep(list(strsplit(i, ' ')[[1]]), length(chars)), chars))
@@ -345,7 +345,7 @@ print.block = function(x, ...) {
     if (length(code) && !is_blank(code)) {
       cat('\n  ', stringr::str_pad(' R code chunk ', getOption('width') - 10L, 'both', '~'), '\n')
       cat(one_string('  ', code), '\n')
-      cat('  ', stringr::str_dup('~', getOption('width') - 10L), '\n')
+      cat('  ', rep_str('~', getOption('width') - 10L), '\n')
     }
     cat(paste('##------', date(), '------##'), sep = '\n')
   }
@@ -386,7 +386,7 @@ print.inline = function(x, ...) {
                   getOption('width') - 10L, 'both', '-'), '\n')
       cat(sprintf('    %s:%s %s', x$location[, 1], x$location[, 2], x$code),
           sep = '\n')
-      cat('  ', stringr::str_dup('-', getOption('width') - 10L), '\n')
+      cat('  ', rep_str('-', getOption('width') - 10L), '\n')
     } else cat('inline R code fragments\n')
   } else cat('  ordinary text without R code\n')
   cat('\n')
@@ -488,7 +488,7 @@ read_chunk = function(
     idx = c(0, idx); lines = c('', lines)  # no chunk header in the beginning
   }
   groups = unname(split(lines, idx))
-  labels = stringr::str_trim(gsub(lab, '\\3', sapply(groups, `[`, 1)))
+  labels = trimws(gsub(lab, '\\3', sapply(groups, `[`, 1)))
   labels = gsub(',.*', '', labels)  # strip off possible chunk options
   code = lapply(groups, strip_chunk, roxygen_comments)
   for (i in which(!nzchar(labels))) labels[i] = unnamed_chunk()
