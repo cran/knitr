@@ -22,6 +22,10 @@ body {
   margin: auto;
   padding: 1em;
   line-height: 1.5;
+  box-sizing: border-box;
+}
+*, *:before, *:after {
+  box-sizing: inherit;
 }
 tt, code, pre {
   font-family: 'DejaVu Sans Mono', 'Droid Sans Mono', 'Lucida Console', Consolas, Monaco, monospace;
@@ -49,6 +53,7 @@ blockquote {
   border-left: 0.5em #eee solid;
 }
 hr { border: 1px #ddd dashed; }
+.frontmatter { text-align: center; }
 
 @media print {
   * {
@@ -82,7 +87,17 @@ hr { border: 1px #ddd dashed; }
 </head>
 
 <body>
+<div class="include-before">
 
+</div>
+
+<div class="frontmatter">
+<div class="title"><h1>Demos of <code>knit_expand()</code></h1></div>
+<div class="author"><h2></h2></div>
+<div class="date"><h3></h3></div>
+</div>
+
+<div class="body">
 <!--
 %\VignetteEngine{knitr::knitr}
 %\VignetteIndexEntry{Templating with knit_expand()}
@@ -96,7 +111,7 @@ knit_expand(text = 'The value of pi is {{pi}}.')
 </code></pre>
 <pre><code class="language-r">knit_expand(text = 'The value of a is {{a}}, so a + 1 is {{a+1}}.', a = rnorm(1))
 </code></pre>
-<pre><code>## [1] &quot;The value of a is 0.410883809474866, so a + 1 is 1.41088380947487.&quot;
+<pre><code>## [1] &quot;The value of a is -0.0285346304466519, so a + 1 is 0.971465369553348.&quot;
 </code></pre>
 <pre><code class="language-r">knit_expand(text = 'The area of a circle with radius {{r}} is {{pi*r^2}}', r = 5)
 </code></pre>
@@ -120,7 +135,7 @@ knit_expand(text = 'The value of pi is {{pi}}.')
 <p>Arbitrary R code:</p>
 <pre><code class="language-r">knit_expand(text = 'you cannot see the value of x {{x=rnorm(1)}}but it is indeed created: x = {{x}}')
 </code></pre>
-<pre><code>## [1] &quot;you cannot see the value of x but it is indeed created: x = -0.0316230078250368&quot;
+<pre><code>## [1] &quot;you cannot see the value of x but it is indeed created: x = -0.0747822117264385&quot;
 </code></pre>
 <pre><code class="language-r">res = knit_expand(text = c(' x | x^2', '{{x=1:5;paste(sprintf(&quot;%2d | %3d&quot;, x, x^2), collapse = &quot;\n&quot;)}}'))
 cat(res)
@@ -302,9 +317,16 @@ lm(mpg~carb, data=mtcars)
 ##       25.87        -2.06
 ```</code></pre>
 
+</div>
 
+<div class="include-after">
+
+</div>
 
 <script src="https://cdn.jsdelivr.net/combine/npm/@xiee/utils/js/center-img.min.js" async></script>
+<script>
+
+</script>
 </body>
 
 </html>

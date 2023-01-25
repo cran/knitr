@@ -44,6 +44,9 @@ comment_to_var = function(x, varname, pattern, envir) {
   FALSE
 }
 
+# TODO: remove this when we don't support R < 3.5.0
+if (getRversion() < '3.5.0') isFALSE = function(x) identical(x, FALSE)
+
 is_blank = function(x) {
   if (length(x)) all(grepl('^\\s*$', x)) else TRUE
 }
@@ -88,9 +91,9 @@ set_preamble = function(input, patterns = knit_patterns$get()) {
   idx1 = grep(hb, input)[1]
   if (is.na(idx1) || idx1 >= idx2) return()
   txt = one_string(input[idx1:(idx2 - 1L)])  # rough preamble
-  idx = stringr::str_locate(txt, hb)  # locate documentclass
-  options(tikzDocumentDeclaration = stringr::str_sub(txt, idx[, 1L], idx[, 2L]))
-  preamble = pure_preamble(split_lines(stringr::str_sub(txt, idx[, 2L] + 1L)), patterns)
+  idx = str_locate(txt, hb, FALSE)  # locate documentclass
+  options(tikzDocumentDeclaration = substr(txt, idx[, 1L], idx[, 2L]))
+  preamble = pure_preamble(split_lines(substr(txt, idx[, 2L] + 1L, nchar(txt))), patterns)
   .knitEnv$tikzPackages = c(.header.sweave.cmd, preamble, '\n')
   .knitEnv$bibliography = grep('^\\\\bibliography.+', input, value = TRUE)
 }
@@ -318,6 +321,10 @@ fix_options = function(options) {
   # change default of value conditionally
   if (identical(options$strip.white, I(TRUE)))
     options$strip.white = !options$collapse
+
+  # TODO: remove this after https://github.com/DeclareDesign/randomizr/pull/95
+  if (xfun::check_old_package('randomizr', '0.22.0') && identical(options$message, 'hide'))
+    options$message = FALSE
 
   options
 }
@@ -577,7 +584,13 @@ print_knitlog = function() {
 }
 
 # count the number of lines
-line_count = function(x) stringr::str_count(x, '\n') + 1L
+line_count = function(x) {
+  n = lengths(strsplit(x, '\n', fixed = TRUE))
+  i = grep('\n$', x)
+  n[i] = n[i] + 1L  # add an extra count for lines ending with \n
+  n[n == 0] = 1L  # should be at least one line
+  n
+}
 
 has_package = function(pkg) loadable(pkg, FALSE)
 has_packages = function(pkgs) {
@@ -1076,12 +1089,38 @@ remove_urls = function(x) {
   gsub("(?<!`)\\[([^]]+)\\]\\(([^)]+)\\)(?!`)", "\\1", x, perl = TRUE)
 }
 
-# repeat a string for n times
-rep_str = function(x, n, sep = '') paste(rep(x, n), collapse = sep)
-
 # patch strsplit() to split '' into '' instead of character(0)
 str_split = function(x, split, ...) {
   y = strsplit(x, split, ...)
   y[x == ''] = list('')
   y
 }
+
+# default progress bar function in knitr: create a text progress bar, and return
+# methods to update/close it
+txt_pb = function(total, labels) {
+  s = ifelse(labels == '', '', sprintf(' (%s)', labels))  # chunk labels in ()
+  w = nchar(s)  # widths of labels
+  n = max(w)
+  # right-pad spaces for same width of all labels so a wider label of the
+  # progress bar in a previous step could be completely wiped (by spaces)
+  s = paste0(s, strrep(' ', n - w))
+  w2 = getOption('width')
+  con = getOption('knitr.progress.output', '')
+  pb = txtProgressBar(
+    0, total, 0, '.', width = max(w2 - 10 - n, 10), style = 3, file = con
+  )
+  list(
+    update = function(i) {
+      setTxtProgressBar(pb, i)
+      cat(s[i], file = con)  # append chunk label to the progress bar
+    },
+    done = function() {
+      # wipe the progress bar
+      cat(paste0('\r', strrep(' ', max(w2, 10) + 10 + n)), file = con)
+      close(pb)
+    }
+  )
+}
+
+is_quarto = function() isTRUE(.knitEnv$is_quarto)

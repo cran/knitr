@@ -22,6 +22,10 @@ body {
   margin: auto;
   padding: 1em;
   line-height: 1.5;
+  box-sizing: border-box;
+}
+*, *:before, *:after {
+  box-sizing: inherit;
 }
 tt, code, pre {
   font-family: 'DejaVu Sans Mono', 'Droid Sans Mono', 'Lucida Console', Consolas, Monaco, monospace;
@@ -49,6 +53,7 @@ blockquote {
   border-left: 0.5em #eee solid;
 }
 hr { border: 1px #ddd dashed; }
+.frontmatter { text-align: center; }
 
 @media print {
   * {
@@ -82,7 +87,17 @@ hr { border: 1px #ddd dashed; }
 </head>
 
 <body>
+<div class="include-before">
 
+</div>
+
+<div class="frontmatter">
+<div class="title"><h1>jQuery DataTables</h1></div>
+<div class="author"><h2></h2></div>
+<div class="date"><h3></h3></div>
+</div>
+
+<div class="body">
 <!--
 %\VignetteEngine{knitr::knitr}
 %\VignetteIndexEntry{Display Tables with the JavaScript Library DataTables}
@@ -685,9 +700,16 @@ kable(mtcars, 'html', table.attr='id=&quot;mtcars_table&quot;')
 </table>
 <p>This vignette is only a toy example. I’d recommend you to use the <strong>DT</strong> package instead: <a href="https://github.com/rstudio/DT">https://github.com/rstudio/DT</a></p>
 
+</div>
 
+<div class="include-after">
+
+</div>
 
 <script src="https://cdn.jsdelivr.net/combine/npm/@xiee/utils/js/center-img.min.js" async></script>
+<script>
+
+</script>
 </body>
 
 </html>

@@ -1,7 +1,7 @@
 Package: knitr
 Type: Package
 Title: A General-Purpose Package for Dynamic Report Generation in R
-Version: 1.41
+Version: 1.42
 Authors@R: c(
     person("Yihui", "Xie", role = c("aut", "cre"), email = "xie@yihui.name", comment = c(ORCID = "0000-0003-0645-5666")),
     person("Abhraneel", "Sarma", role = "ctb"),
@@ -113,8 +113,8 @@ Authors@R: c(
 Description: Provides a general-purpose tool for dynamic report generation in R
     using Literate Programming techniques.
 Depends: R (>= 3.3.0)
-Imports: evaluate (>= 0.15), highr, methods, stringr (>= 0.6), yaml (>=
-        2.1.19), xfun (>= 0.34), tools
+Imports: evaluate (>= 0.15), highr, methods, yaml (>= 2.1.19), xfun (>=
+        0.34), tools
 Suggests: markdown (>= 1.3), formatR, testit, digest, rgl (>=
         0.95.1201), codetools, rmarkdown, htmlwidgets (>= 0.7),
         webshot, tikzDevice (>= 0.10), tinytex, reticulate (>= 1.4),
@@ -137,10 +137,11 @@ Collate: 'block.R' 'cache.R' 'utils.R' 'citation.R' 'hooks-html.R'
         'hooks-textile.R' 'hooks.R' 'output.R' 'package.R' 'pandoc.R'
         'params.R' 'parser.R' 'pattern.R' 'rocco.R' 'spin.R' 'table.R'
         'template.R' 'utils-conversion.R' 'utils-rd2html.R'
-        'utils-sweave.R' 'utils-upload.R' 'utils-vignettes.R' 'zzz.R'
-RoxygenNote: 7.2.2
+        'utils-string.R' 'utils-sweave.R' 'utils-upload.R'
+        'utils-vignettes.R' 'zzz.R'
+RoxygenNote: 7.2.3
 NeedsCompilation: no
-Packaged: 2022-11-16 23:30:52 UTC; yihui
+Packaged: 2023-01-20 05:51:44 UTC; yihui
 Author: Yihui Xie [aut, cre] (<https://orcid.org/0000-0003-0645-5666>),
   Abhraneel Sarma [ctb],
   Adam Vogt [ctb],
@@ -251,4 +252,4 @@ Author: Yihui Xie [aut, cre] (<https://orcid.org/0000-0003-0645-5666>),
   Zhian N. Kamvar [ctb] (<https://orcid.org/0000-0003-1458-7108>)
 Maintainer: Yihui Xie <xie@yihui.name>
 Repository: CRAN
-Date/Publication: 2022-11-18 12:00:06 UTC
+Date/Publication: 2023-01-25 10:20:08 UTC

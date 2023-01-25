@@ -90,7 +90,7 @@ parse_block = function(code, header, params.src, markdown_mode = out_format('mar
   }
 
   # for quarto, preserve the actual original params.src and do not remove the engine
-  if (!(is_quarto <- !is.null(opts_knit$get('quarto.version')))) params.src = params
+  if (!is_quarto()) params.src = params
   params = parse_params(params)
 
   # remove indent (and possibly markdown blockquote >) from code
@@ -134,7 +134,7 @@ parse_block = function(code, header, params.src, markdown_mode = out_format('mar
   }
 
   # for quarto only
-  if (is_quarto) {
+  if (is_quarto()) {
     params$original.params.src = params.src
     params$chunk.echo = isTRUE(params[['echo']])
     params$yaml.code = parts$src
@@ -333,29 +333,17 @@ get_option_comment = function(engine) {
 
 print.block = function(x, ...) {
   params = x$params
-  # don't show internal options for quarto
-  for (i in attr(params, 'quarto_options')) params[[i]] = NULL
-  cat('label:', params$label)
-  if (length(params) > 1L) {
-    cat(' (with options) \n')
-    str(params[setdiff(names(params), 'label')])
-  }
   if (opts_knit$get('verbose')) {
     code = knit_code$get(params$label)
     if (length(code) && !is_blank(code)) {
-      cat('\n  ', stringr::str_pad(' R code chunk ', getOption('width') - 10L, 'both', '~'), '\n')
-      cat(one_string('  ', code), '\n')
-      cat('  ', rep_str('~', getOption('width') - 10L), '\n')
+      cat('\n')
+      cat(one_string('  |  ', code), '\n')
     }
-    cat(paste('##------', date(), '------##'), sep = '\n')
   }
-  cat('\n')
 }
 
 # extract inline R code fragments (as well as global options)
 parse_inline = function(input, patterns) {
-  input.src = input  # keep a copy of the source
-
   inline.code = patterns$inline.code; inline.comment = patterns$inline.comment
   if (!is.null(inline.comment)) {
     idx = grepl(inline.comment, input)
@@ -365,31 +353,32 @@ parse_inline = function(input, patterns) {
   input = one_string(input) # merge into one line
 
   loc = cbind(start = numeric(0), end = numeric(0))
-  if (group_pattern(inline.code)) loc = stringr::str_locate_all(input, inline.code)[[1]]
+  if (group_pattern(inline.code)) loc = str_locate(input, inline.code)[[1]]
+  code1 = code2 = character()
   if (nrow(loc)) {
-    code = stringr::str_match_all(input, inline.code)[[1L]]
-    code = if (NCOL(code) >= 2L) {
-      code[is.na(code)] = ''
-      apply(code[, -1L, drop = FALSE], 1, paste, collapse = '')
-    } else character(0)
-  } else code = character(0)
+    code = t(str_match(input, inline.code))
+    if (NCOL(code) >= 2L) {
+      code1 = code[, 1L]
+      code2 = apply(code[, -1L, drop = FALSE], 1, paste, collapse = '')
+    }
+  }
 
-  structure(list(input = input, input.src = input.src, location = loc, code = code),
-            class = 'inline')
+  structure(
+    list(input = input, location = loc, code = code2, code.src = code1),
+    class = 'inline'
+  )
 }
 
 print.inline = function(x, ...) {
-  if (nrow(x$location)) {
-    cat('   ')
-    if (opts_knit$get('verbose')) {
-      cat(stringr::str_pad(' inline R code fragments ',
-                  getOption('width') - 10L, 'both', '-'), '\n')
-      cat(sprintf('    %s:%s %s', x$location[, 1], x$location[, 2], x$code),
-          sep = '\n')
-      cat('  ', rep_str('-', getOption('width') - 10L), '\n')
-    } else cat('inline R code fragments\n')
-  } else cat('  ordinary text without R code\n')
-  cat('\n')
+  if (opts_knit$get('verbose')) {
+    cat('\n')
+    if (nrow(x$location)) {
+      cat(sprintf('  |  %s  #%s:%s', x$code, x$location[, 1], x$location[, 2]), sep = '\n')
+    }
+  } else if (nrow(x$location) == 0 && xfun::check_old_package('autonewsmd', '0.0.4')) {
+    # TODO: remove this hack after https://github.com/kapsner/autonewsmd/pull/6
+    cat('  ordinary text without R code\n')
+  }
 }
 
 #' Read chunks from an external script

@@ -24,6 +24,10 @@ body {
   margin: auto;
   padding: 1em;
   line-height: 1.5;
+  box-sizing: border-box;
+}
+*, *:before, *:after {
+  box-sizing: inherit;
 }
 tt, code, pre {
   font-family: 'DejaVu Sans Mono', 'Droid Sans Mono', 'Lucida Console', Consolas, Monaco, monospace;
@@ -51,6 +55,7 @@ blockquote {
   border-left: 0.5em #eee solid;
 }
 hr { border: 1px #ddd dashed; }
+.frontmatter { text-align: center; }
 
 @media print {
   * {
@@ -84,7 +89,17 @@ hr { border: 1px #ddd dashed; }
 </head>
 
 <body>
+<div class="include-before">
 
+</div>
+
+<div class="frontmatter">
+<div class="title"><h1>Package vignettes</h1></div>
+<div class="author"><h2></h2></div>
+<div class="date"><h3></h3></div>
+</div>
+
+<div class="body">
 <!--
 %\VignetteEngine{knitr::knitr}
 %\VignetteIndexEntry{An R Markdown Vignette with knitr}
@@ -117,7 +132,7 @@ browseVignettes('YourPackage')
 10:1
 ##  [1] 10  9  8  7  6  5  4  3  2  1
 rnorm(5)^2
-## [1] 0.3118 0.1680 5.6004 1.1566 0.8242
+## [1] 0.13097 0.18345 0.07464 1.24247 0.01958
 strsplit('hello, markdown vignettes', '')
 ## [[1]]
 ##  [1] &quot;h&quot; &quot;e&quot; &quot;l&quot; &quot;l&quot; &quot;o&quot; &quot;,&quot; &quot; &quot; &quot;m&quot; &quot;a&quot; &quot;r&quot; &quot;k&quot; &quot;d&quot; &quot;o&quot; &quot;w&quot; &quot;n&quot; &quot; &quot; &quot;v&quot; &quot;i&quot; &quot;g&quot;
@@ -133,9 +148,16 @@ plot(rnorm(n), rnorm(n), pch=21, cex=5*runif(n), col='white', bg='gray')
 <pre><code class="language-r">options(markdown.html.css = 'path/to/a/custom/style.css')
 </code></pre>
 
+</div>
 
+<div class="include-after">
+
+</div>
 
 <script src="https://cdn.jsdelivr.net/combine/npm/@xiee/utils/js/center-img.min.js" async></script>
+<script>
+
+</script>
 </body>
 
 </html>

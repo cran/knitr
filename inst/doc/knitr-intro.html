@@ -12,7 +12,7 @@
 
 <meta name="author" content="Yihui Xie" />
 
-<meta name="date" content="2022-11-16" />
+<meta name="date" content="2023-01-19" />
 
 <title>Not An Introduction to knitr</title>
 
@@ -400,7 +400,7 @@ code > span.er { color: #a61717; background-color: #e3d2d2; }
 
 <h1 class="title toc-ignore">Not An Introduction to knitr</h1>
 <h4 class="author">Yihui Xie</h4>
-<h4 class="date">2022-11-16</h4>
+<h4 class="date">2023-01-19</h4>
 
 
 
@@ -416,9 +416,9 @@ with <strong>knitr</strong> as well using R 3.0.x, which supports
 non-Sweave vignettes:</p>
 <div class="sourceCode" id="cb1"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">options</span>(<span class="at">digits =</span> <span class="dv">4</span>)</span>
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="fu">rnorm</span>(<span class="dv">20</span>)</span></code></pre></div>
-<pre><code>##  [1]  1.09408 -1.84512 -1.66938 -1.28898  0.67068  2.54885  1.31644  0.34171
-##  [9] -1.28452 -0.55621 -1.04866 -0.43819  0.44034  0.32769  0.00892  0.41928
-## [17]  1.54341  0.51422  1.65724 -0.24455</code></pre>
+<pre><code>##  [1]  0.61769 -0.80560  0.33799  0.82468  0.27238 -0.01469 -0.53509 -0.28496
+##  [9] -1.00412 -0.92200 -0.33577 -0.16676 -0.40667  0.31883  0.73298  1.09309
+## [17]  0.71330 -1.10522  0.70505  1.38676</code></pre>
 <div class="sourceCode" id="cb3"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>fit <span class="ot">=</span> <span class="fu">lm</span>(dist <span class="sc">~</span> speed, <span class="at">data =</span> cars)</span>
 <span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>b <span class="ot">=</span> <span class="fu">coef</span>(fit)</span></code></pre></div>
 <table>

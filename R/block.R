@@ -56,7 +56,7 @@ call_block = function(block) {
   if (opts_knit$get('progress')) print(block)
 
   if (!is.null(params$child)) {
-    if (!is_blank(params[['code']])) warning(
+    if (!is_blank(params[['code']]) && getOption('knitr.child.warning', TRUE)) warning(
       "The chunk '", params$label, "' has the 'child' option, ",
       "and this code chunk must be empty. Its code will be ignored."
     )
@@ -256,8 +256,8 @@ eng_r = function(options) {
   } else in_input_dir(
     evaluate(
       code, envir = env, new_device = FALSE,
-      keep_warning = !isFALSE(options$warning),
-      keep_message = !isFALSE(options$message),
+      keep_warning = if (is.numeric(options$warning)) TRUE else options$warning,
+      keep_message = if (is.numeric(options$message)) TRUE else options$message,
       stop_on_error = if (is.numeric(options$error)) options$error else {
         if (options$error && options$include) 0L else 2L
       },
@@ -364,7 +364,7 @@ purge_cache = function(options) {
 
 cache_globals = function(option, code) {
   if (is.character(option)) option else {
-    (if (xfun::isFALSE(option)) find_symbols else find_globals)(code)
+    (if (isFALSE(option)) find_symbols else find_globals)(code)
   }
 }
 
@@ -550,23 +550,22 @@ inline_exec = function(
   # run inline code and substitute original texts
   code = block$code; input = block$input
   if ((n <- length(code)) == 0) return(input) # untouched if no code is found
+  code.src = block$code.src
 
-  loc = block$location
+  ans = character(n)
   for (i in 1:n) {
+    tryCatch(parse_only(code[i]), error = function(e) {
+      stop2('Failed to parse the inline R code: ', code.src[i], '\nReason: ', e$message)
+    })
     res = hook_eval(code[i], envir)
     if (inherits(res, c('knit_asis', 'knit_asis_url'))) res = sew(res, inline = TRUE)
     tryCatch(as.character(res), error = function(e) {
       stop2("The inline value cannot be coerced to character: ", code[i])
     })
-    d = nchar(input)
-    # replace with evaluated results
-    stringr::str_sub(input, loc[i, 1], loc[i, 2]) = if (length(res)) {
-      paste(hook(res), collapse = '')
-    } else ''
-    if (i < n) loc[(i + 1):n, ] = loc[(i + 1):n, ] - (d - nchar(input))
-    # may need to move back and forth because replacement may be longer or shorter
+    if (length(res)) ans[i] = paste(hook(res), collapse = '')
   }
-  input
+  # replace with evaluated results
+  str_replace(input, block$location, ans)
 }
 
 process_tangle = function(x) {
@@ -589,18 +588,19 @@ process_tangle.block = function(x) {
   } else knit_code$get(label)
   # read external code if exists
   if (!isFALSE(ev) && length(code) && any(grepl('read_chunk\\(.+\\)', code))) {
-    eval(parse_only(unlist(stringr::str_extract_all(code, 'read_chunk\\(([^)]+)\\)'))))
+    eval(parse_only(unlist(str_extract(code, 'read_chunk\\(([^)]+)\\)'))))
   }
   code = parse_chunk(code)
   if (isFALSE(ev)) code = comment_out(code, params$comment, newline = FALSE)
   if (opts_knit$get('documentation') == 0L) return(one_string(code))
-  label_code(code, x$params.src)
+  # e.g when documentation 1 or 2 with purl()
+  label_code(code, x)
 }
 #' @export
 process_tangle.inline = function(x) {
 
   output = if (opts_knit$get('documentation') == 2L) {
-    output = one_string(line_prompt(x$input.src, "#' ", "#' "))
+    output = paste("#'", gsub('\n', "\n#' ", x$input, fixed = TRUE))
   } else ''
 
   code = x$code
@@ -619,10 +619,14 @@ process_tangle.inline = function(x) {
 
 
 # add a label [and extra chunk options] to a code chunk
-label_code = function(code, label) {
+label_code = function(code, options) {
   code = one_string(c('', code, ''))
-  paste0('## ----', stringr::str_pad(label, max(getOption('width') - 11L, 0L), 'right', '-'),
-         '----', code)
+  comments = if (is_quarto()) one_string(options$params$yaml.code) else paste0(
+    '## ----', options$params.src,
+    strrep('-', max(getOption('width') - 11L - nchar(options$params.src), 0L)),
+    '----'
+  )
+  paste0(comments, code)
 }
 
 as.source = function(code) {
