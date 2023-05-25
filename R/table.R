@@ -17,11 +17,11 @@
 #'   returned value from \code{kable()}.
 #' @param format A character string. Possible values are \code{latex},
 #'   \code{html}, \code{pipe} (Pandoc's pipe tables), \code{simple} (Pandoc's
-#'   simple tables), and \code{rst}. The value of this argument will be
-#'   automatically determined if the function is called within a \pkg{knitr}
-#'   document. The \code{format} value can also be set in the global option
-#'   \code{knitr.table.format}. If \code{format} is a function, it must return a
-#'   character string.
+#'   simple tables), \code{rst}, and \code{jira}. The value of this argument
+#'   will be automatically determined if the function is called within a
+#'   \pkg{knitr} document. The \code{format} value can also be set in the global
+#'   option \code{knitr.table.format}. If \code{format} is a function, it must
+#'   return a character string.
 #' @param digits Maximum number of digits for numeric columns, passed to
 #'   \code{round()}. This can also be a vector of length \code{ncol(x)}, to set
 #'   the number of digits for individual columns.
@@ -390,7 +390,7 @@ kable_html = function(
 #' @noRd
 kable_mark = function(x, sep.row = c('=', '=', '='), sep.col = '  ', padding = 0,
                       align.fun = function(s, a) s, rownames.name = '',
-                      sep.head = sep.col, ...) {
+                      sep.head = sep.col, newline = NULL, ...) {
   # when the column separator is |, replace existing | with its HTML entity
   if (sep.col == '|') for (j in seq_len(ncol(x))) {
     x[, j] = gsub('\\|', '&#124;', x[, j])
@@ -412,7 +412,9 @@ kable_mark = function(x, sep.row = c('=', '=', '='), sep.col = '  ', padding = 0
   res = rbind(if (!is.na(sep.row[1])) s, cn, align.fun(s, align),
               x, if (!is.na(sep.row[3])) s)
   res = mat_pad(res, l, align)
-  add_mark_col_sep(res, sep.col, sep.head)
+  res = add_mark_col_sep(res, sep.col, sep.head)
+  if (is.character(newline)) res = gsub('\n', newline, res, fixed = TRUE)
+  res
 }
 
 # add column separators to header and body separately

@@ -203,7 +203,9 @@ patch_tikz_tex = function(path) {
 # filter the dev.args option
 get_dargs = function(dargs, dev) {
   if (length(dargs) == 0) return()
-  if (is.list(dargs) && all(sapply(dargs, is.list))) {
+  nms = names(dargs)
+  if (is.list(dargs) && all(sapply(dargs, is.list)) && length(nms) &&
+      (dev %in% nms || all(nms %in% names(auto_exts)))) {
     # dev.args is list(dev1 = list(arg1 = val1, ...), dev2 = list(arg2, ...))
     dargs = dargs[[dev]]
   }
@@ -371,7 +373,7 @@ plot_crop = function(x, quiet = TRUE) {
   is_pdf = grepl('[.]pdf$', x, ignore.case = TRUE)
   x2 = x
   x = path.expand(x)
-  if (is_pdf && !has_utility('pdfcrop') && !has_utility('ghostscript')) return(x2)
+  if (is_pdf && !has_utility('pdfcrop')) return(x2)
 
   if (!quiet) message('cropping ', x)
   if (is_pdf) {

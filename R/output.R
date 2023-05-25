@@ -288,13 +288,13 @@ process_file = function(text, output) {
   # when in R CMD check, turn off the progress bar (R-exts said the progress bar
   # was not appropriate for non-interactive mode, and I don't want to argue)
   progress = opts_knit$get('progress') && !is_R_CMD_check()
+  labels = unlist(lapply(groups, function(g) {
+    if (is.list(g$params)) g[[c('params', 'label')]] else ''
+  }))
   if (progress) {
-    labels = unlist(lapply(groups, function(g) {
-      if (is.list(g$params)) g[[c('params', 'label')]] else ''
-    }))
     pb_fun = getOption('knitr.progress.fun', txt_pb)
     pb = if (is.function(pb_fun)) pb_fun(n, labels)
-    on.exit(if (!is.null(pb)) pb$done(), add = TRUE)
+    on.exit(if (is.function(pb$done)) pb$done(), add = TRUE)
   }
   wd = getwd()
   for (i in 1:n) {
@@ -306,16 +306,21 @@ process_file = function(text, output) {
       }
       break  # must have called knit_exit(), so exit early
     }
-    if (progress && !is.null(pb)) pb$update(i)
+    if (progress && is.function(pb$update)) pb$update(i)
     group = groups[[i]]
     res[i] = withCallingHandlers(
-      if (tangle) process_tangle(group) else process_group(group),
+      withCallingHandlers(
+        if (tangle) process_tangle(group) else process_group(group),
+        # TODO: remove the learnr hack https://github.com/rstudio/learnr/pull/781
+        error = function(e) if (xfun::pkg_available('rlang', '1.0.0') && !xfun::check_old_package('learnr', '0.11.3')) rlang::entrace(e)
+      ),
       error = function(e) {
         setwd(wd)
-        cat(res, sep = '\n', file = output %n% '')
+        write_utf8(res, output %n% stdout())
         message(
-          'Quitting from lines ', paste(current_lines(i), collapse = '-'),
-          ' (', knit_concord$get('infile'), ') '
+          '\nQuitting from lines ', paste(current_lines(i), collapse = '-'),
+          if (labels[i] != '') sprintf(' [%s]', labels[i]),
+          sprintf(' (%s)', knit_concord$get('infile'))
         )
       }
     )
@@ -464,6 +469,20 @@ sew.character = function(x, options, ...) {
   knit_hooks$get('output')(x, options)
 }
 
+asis_token = '<!-- KNITR_ASIS_OUTPUT_TOKEN -->'
+wrap_asis = function(x, options) {
+  # do nothing when inside quarto as it is not needed
+  # https://github.com/yihui/knitr/pull/2212#pullrequestreview-1292924523
+  if (is_quarto()) return(x)
+
+  x = as.character(x)
+  if ((n <- length(x)) == 0 || !out_format('markdown') || missing(options) || !isTRUE(options$collapse))
+    return(x)
+  x[1] = paste0(asis_token, x[1])
+  x[n] = paste0(x[n], asis_token)
+  x
+}
+
 # If you provide a custom print function that returns a character object of
 # class 'knit_asis', it will be written as is.
 #' @export
@@ -481,10 +500,15 @@ sew.knit_asis = function(x, options, inline = FALSE, ...) {
     if (inherits(x, 'knit_asis_htmlwidget')) {
       options$fig.cur = plot_counter()
       options = reduce_plot_opts(options)
-      return(add_html_caption(options, x))
+      # look for attribute 'aria-labelledby="label"' in the first HTML tag and
+      # use the label to provide alt text if found
+      return(add_html_caption(
+        options, wrap_asis(x, options),
+        xfun::grep_sub('^[^<]*<[^>]+aria-labelledby[ ]*=[ ]*"([^"]+)".*$', '\\1', x)
+      ))
     }
   }
-  x = as.character(x)
+  x = wrap_asis(x, options)
   if (!out_format('latex') || inline) return(x)
   # latex output need the \end{kframe} trick
   options$results = 'asis'
@@ -624,12 +648,27 @@ sew.knit_embed_url = function(x, options = opts_chunk$get(), inline = FALSE, ...
   ))
 }
 
-add_html_caption = function(options, code) {
+add_html_caption = function(options, code, id = NULL) {
   cap = .img.cap(options)
-  if (cap == '') return(code)
+  if (cap == '' && !length(id)) return(code)
+
+  if (length(id)) {
+    alt = .img.cap(options, alt = TRUE)
+    if (cap == alt && cap != '') {
+      # both are the same, so insert cap with id
+      alttext = sprintf('<p class="caption" id="%s">%s</p>\n', id, cap)
+      # prevent a second insertion
+      cap = ''
+    } else {
+      alttext = sprintf('<p id="%s" hidden>%s</p>\n', id, alt)
+    }
+  } else alttext = ''
+
+  captext = if (cap == '') '' else sprintf('<p class="caption">%s</p>\n', cap)
+
   sprintf(
-    '<div class="figure"%s>\n%s\n<p class="caption">%s</p>\n</div>',
-    css_text_align(options$fig.align), code, cap
+    '<div class="figure"%s>\n%s\n%s%s</div>',
+    css_text_align(options$fig.align), code, captext, alttext
   )
 }
 

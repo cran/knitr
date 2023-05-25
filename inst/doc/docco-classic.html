@@ -5,9 +5,74 @@
     <meta charset="utf-8">
     <meta name="generator" content="knitr" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/7.3/styles/github.min.css">
-<!-- MathJax scripts -->
-<script src="https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-MML-AM_CHTML" async>
-</script>
+#!mathjax#
+<style type="text/css">
+<style type="text/css">
+/**
+ * Prism.s theme ported from highlight.js's xcode style
+ */
+pre code {
+  padding: 1em;
+}
+.token.comment {
+  color: #007400;
+}
+.token.punctuation {
+  color: #999;
+}
+.token.tag,
+.token.selector {
+  color: #aa0d91;
+}
+.token.boolean,
+.token.number,
+.token.constant,
+.token.symbol {
+  color: #1c00cf;
+}
+.token.property,
+.token.attr-name,
+.token.string,
+.token.char,
+.token.builtin {
+  color: #c41a16;
+}
+.token.inserted {
+  background-color: #ccffd8;
+}
+.token.deleted {
+  background-color: #ffebe9;
+}
+.token.operator,
+.token.entity,
+.token.url,
+.language-css .token.string,
+.style .token.string {
+  color: #9a6e3a;
+}
+.token.atrule,
+.token.attr-value,
+.token.keyword {
+  color: #836c28;
+}
+.token.function,
+.token.class-name {
+  color: #DD4A68;
+}
+.token.regex,
+.token.important,
+.token.variable {
+  color: #5c2699;
+}
+.token.important,
+.token.bold {
+  font-weight: bold;
+}
+.token.italic {
+  font-style: italic;
+}
+</style>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex/dist/katex.min.css">
 <style type="text/css">
 /* Derived from the Docco package by Jeremy Ashkenas: https://github.com/jashkenas/docco/ */
 body {
@@ -134,13 +199,14 @@ div.handler{
       z-index: 5;
 }
 </style>
+</style>
 
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/7.3/highlight.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/7.3/highlight.min.js" defer></script>
 <script type="text/javascript">
 hljs.LANGUAGES.r=function(a){var b="([a-zA-Z]|\\.[a-zA-Z.])[a-zA-Z0-9._]*";return{c:[a.HCM,{b:b,l:b,k:{keyword:"function if in break next repeat else for return switch while try tryCatch|10 stop warning require library attach detach source setMethod setGeneric setGroupGeneric setClass ...|10",literal:"NULL NA TRUE FALSE T F Inf NaN NA_integer_|10 NA_real_|10 NA_character_|10 NA_complex_|10"},r:0},{cN:"number",b:"0[xX][0-9a-fA-F]+[Li]?\\b",r:0},{cN:"number",b:"\\d+(?:[eE][+\\-]?\\d*)?L\\b",r:0},{cN:"number",b:"\\d+\\.(?!\\d)(?:i\\b)?",r:0},{cN:"number",b:"\\d+(?:\\.\\d*)?(?:[eE][+\\-]?\\d*)?i?\\b",r:0},{cN:"number",b:"\\.\\d+(?:[eE][+\\-]?\\d*)?i?\\b",r:0},{b:"`",e:"`",r:0},{cN:"string",b:'"',e:'"',c:[a.BE],r:0},{cN:"string",b:"'",e:"'",c:[a.BE],r:0}]}}(hljs);
 </script>
     <script>hljs.initHighlightingOnLoad();</script>
-    <script src="https://yihui.org/js/center-img.js"></script>
+    <script src="https://yihui.org/js/center-img.js" defer></script>
   </head>
   <body>
     <div id="container">
@@ -149,9 +215,9 @@ hljs.LANGUAGES.r=function(a){var b="([a-zA-Z]|\\.[a-zA-Z.])[a-zA-Z0-9._]*";retur
 %\VignetteEngine{knitr::docco_classic}
 %\VignetteIndexEntry{R Markdown with the Docco Classic Style}
 -->
-<h1>R Markdown with the Docco Classic Style</h1>
+<h1 id="r-markdown-with-the-docco-classic-style">R Markdown with the Docco Classic Style</h1>
 <p>This is an example of Markdown vignettes using the <a href="http://ashkenas.com/docco/">Docco style</a>.</p>
-<h2>Docco</h2>
+<h2 id="docco">Docco</h2>
 <p>To use the Docco style for Markdown vignettes in an R package, you need to</p>
 <ul>
 <li>add <code>*.Rmd</code> files under the <code>vignettes</code> directory</li>
@@ -161,7 +227,7 @@ hljs.LANGUAGES.r=function(a){var b="([a-zA-Z]|\\.[a-zA-Z.])[a-zA-Z0-9._]*";retur
 <p>After building and installing the package, you can view vignettes via</p>
 </td><td class="code"><pre><code class="language-r">browseVignettes(package = 'Your_Package')
 </code></pre></td></tr><tr id="row2"><td class="docs"><div class="pilwrap"><a class="pilcrow" href="#row2">&para;</a></div>
-<h2>Examples</h2>
+<h2 id="examples">Examples</h2>
 <p>Below are some code chunks as examples.</p>
 </td><td class="code"><pre><code class="language-r">cat('_hello_ **markdown**!', '\n')
 </code></pre></td></tr><tr id="row3"><td class="docs"><div class="pilwrap"><a class="pilcrow" href="#row3">&para;</a></div>
@@ -191,7 +257,7 @@ hljs.LANGUAGES.r=function(a){var b="([a-zA-Z]|\\.[a-zA-Z.])[a-zA-Z0-9._]*";retur
 </td><td class="code"><pre><code class="language-r">n=300; set.seed(123)
 par(mar=c(4,4,.1,.1))
 plot(rnorm(n), rnorm(n), pch=21, cex=5*runif(n), col='white', bg='gray')
-</code></pre></td></tr><tr id="row6"><td class="docs"><div class="pilwrap"><a class="pilcrow" href="#row6">&para;</a></div><h2>How does it work</h2>
+</code></pre></td></tr><tr id="row6"><td class="docs"><div class="pilwrap"><a class="pilcrow" href="#row6">&para;</a></div><h2 id="how-does-it-work">How does it work</h2>
 <p>The <strong>markdown</strong> package (&gt;= v0.6.2) supports custom HTML templates, and the <code>docco</code> engine in <strong>knitr</strong> uses a custom template to compile Markdown to HTML:</p>
 </td><td class="code"><pre><code class="language-r">head(knitr::rocco, 5)
 </code></pre>
@@ -209,7 +275,7 @@ happens.</p>
 </td><td class="code"></td></tr>
       </table><!--table end-->
     </div>
-  <script src="https://code.jquery.com/jquery-2.1.1.min.js"></script>
-  <script src="https://yihui.org/knitr/js/docco-resize.js"></script>
+  <script src="https://code.jquery.com/jquery-2.1.1.min.js" defer></script>
+  <script src="https://yihui.org/knitr/js/docco-resize.js" defer></script>
   </body>
 </html>
