@@ -490,6 +490,29 @@ include_graphics = function(
   structure(path, class = c('knit_image_paths', 'knit_asis'), dpi = dpi)
 }
 
+#' Download an image from the web and include it in a document
+#'
+#' When including images in non-HTML output formats such as LaTeX/PDF, URLs will
+#' not work as image paths. In this case, we have to download the images. This
+#' function is a wrapper of \code{xfun::\link[xfun]{download_file}()} and
+#' \code{\link{include_graphics}()}.
+#' @param url The URL of an image.
+#' @param path The download path (inferred from the URL by default). If the file
+#'   exists, it will not be downloaded (downloading can take time and requires
+#'   Internet connection). If you are sure the file needs to be downloaded
+#'   again, delete it beforehand.
+#' @param use_file Whether to use the URL or the download path to include the
+#'   image. By default, the URL is used for HTML output formats, and the file
+#'   path is used for other output formats.
+#' @param ... Other arguments to be passed to \code{\link{include_graphics}()}.
+#' @export
+#' @examplesIf interactive()
+#' knitr::download_image('https://www.r-project.org/Rlogo.png')
+download_image = function(url, path = xfun::url_filename(url), use_file = !pandoc_to('html'), ...) {
+  if (!file.exists(path) && use_file) xfun::download_file(url, path)
+  include_graphics(if (use_file) path else url, ...)
+}
+
 # calculate the width in inches for PNG/JPEG images given a DPI
 raster_dpi_width = function(path, dpi) {
   if (!file.exists(path) || is.na(dpi)) return()
@@ -611,11 +634,17 @@ html_screenshot = function(x, options = opts_current$get(), ...) {
   w = webshot_available()
   webshot = c(options$webshot, names(w)[w])
   webshot = if (length(webshot) == 0) 'webshot' else webshot[[1L]]
+  if (webshot == 'webshot2' && ext == 'pdf' && getOption('knitr.warn.webshot2', TRUE)) warning(
+    "webshot2 may take the PDF screenshot with the wrong size. You are recommended ",
+    "to use the 'png' format instead (i.e., set the chunk option '",
+    if (is_quarto()) "fig-format" else "dev", "' to 'png'). ",
+    "See https://github.com/yihui/knitr/issues/2276 for more information."
+  )
   f = in_dir(d, {
     if (i1 || i3) {
       if (i1) {
         f1 = wd_tempfile('widget', '.html')
-        save_widget(x, f1, FALSE, options = options)
+        htmlwidgets::saveWidget(x, f1, FALSE, knitrOptions = options)
       } else f1 = x$url
       f2 = wd_tempfile('webshot', ext)
       f3 = do.call(getFromNamespace('webshot', webshot), c(list(f1, f2), wargs))
@@ -633,11 +662,4 @@ html_screenshot = function(x, options = opts_current$get(), ...) {
       class = 'html_screenshot'
     )
   })
-}
-
-save_widget = function(..., options) {
-  FUN = htmlwidgets::saveWidget
-  if ('knitrOptions' %in% names(formals(FUN))) {
-    FUN(..., knitrOptions = options)
-  } else FUN(...)
 }

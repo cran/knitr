@@ -12,7 +12,7 @@
 
 <meta name="author" content="Yihui Xie" />
 
-<meta name="date" content="2023-05-23" />
+<meta name="date" content="2023-09-08" />
 
 <title>Custom Print Methods</title>
 
@@ -51,7 +51,7 @@ overflow: visible;
 </style>
 <style type="text/css" data-origin="pandoc">
 pre > code.sourceCode { white-space: pre; position: relative; }
-pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span { line-height: 1.25; }
 pre > code.sourceCode > span:empty { height: 1.2em; }
 .sourceCode { overflow: visible; }
 code.sourceCode > span { color: inherit; text-decoration: inherit; }
@@ -378,7 +378,7 @@ code > span.er { color: #a61717; background-color: #e3d2d2; }
 
 <h1 class="title toc-ignore">Custom Print Methods</h1>
 <h4 class="author">Yihui Xie</h4>
-<h4 class="date">2023-05-23</h4>
+<h4 class="date">2023-09-08</h4>
 
 
 <div id="TOC">
@@ -432,16 +432,17 @@ or <code>x</code> and <code>...</code>. The default value for the
 ##         UseMethod(&quot;knit_print&quot;)
 ##     }
 ## }
-## &lt;bytecode: 0x7f897a13c670&gt;
+## &lt;bytecode: 0x7fb5e22723d8&gt;
 ## &lt;environment: namespace:knitr&gt;</code></pre>
 <div class="sourceCode" id="cb5"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" tabindex="-1"></a><span class="fu">methods</span>(knit_print)</span></code></pre></div>
-<pre><code>##  [1] knit_print.css*            knit_print.data.frame*    
-##  [3] knit_print.default*        knit_print.grouped_df*    
-##  [5] knit_print.html*           knit_print.knit_asis*     
-##  [7] knit_print.knit_asis_url*  knit_print.knitr_kable*   
-##  [9] knit_print.rowwise_df*     knit_print.sass*          
-## [11] knit_print.shiny.tag*      knit_print.shiny.tag.list*
-## [13] knit_print.tbl_sql*       
+<pre><code>##  [1] knit_print.css*                      knit_print.data.frame*              
+##  [3] knit_print.default*                  knit_print.grouped_df*              
+##  [5] knit_print.html*                     knit_print.html_dependency*         
+##  [7] knit_print.knit_asis*                knit_print.knit_asis_url*           
+##  [9] knit_print.knitr_kable*              knit_print.output_format_dependency*
+## [11] knit_print.rowwise_df*               knit_print.sass*                    
+## [13] knit_print.shiny.tag*                knit_print.shiny.tag.list*          
+## [15] knit_print.tbl_sql*                 
 ## see &#39;?methods&#39; for accessing help and source code</code></pre>
 <div class="sourceCode" id="cb7"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" tabindex="-1"></a><span class="fu">getS3method</span>(<span class="st">&#39;knit_print&#39;</span>, <span class="st">&#39;default&#39;</span>)  <span class="co"># the default method</span></span></code></pre></div>
 <pre><code>## function (x, ..., inline = FALSE) 
@@ -450,12 +451,12 @@ or <code>x</code> and <code>...</code>. The default value for the
 ##         x
 ##     else normal_print(x)
 ## }
-## &lt;bytecode: 0x7f8974773f08&gt;
+## &lt;bytecode: 0x7fb5e1047f48&gt;
 ## &lt;environment: namespace:knitr&gt;</code></pre>
 <div class="sourceCode" id="cb9"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" tabindex="-1"></a>normal_print</span></code></pre></div>
 <pre><code>## function (x, ...) 
 ## if (isS4(x)) methods::show(x) else print(x)
-## &lt;bytecode: 0x7f897786eb18&gt;
+## &lt;bytecode: 0x7fb5e1978e18&gt;
 ## &lt;environment: namespace:evaluate&gt;</code></pre>
 <p>As we can see, <code>knit_print()</code> has a <code>default</code>
 method, which is basically <code>print()</code> or <code>show()</code>,
@@ -821,30 +822,39 @@ examples below to see how <code>knit_meta()</code> works.</p>
 <p>If you are implementing a custom print method in your own package,
 here are two tips:</p>
 <ol style="list-style-type: decimal">
-<li><p>Normally you need to import <code>knit_print</code> in your
+<li><p>With R &gt;= 3.6.0 (2019-04-26), you can declare the S3 method in
+the package <code>NAMESPACE</code> with
+<code>S3method(knitr::knit_print, class)</code>. If you use
+<strong>roxygen2</strong> package, that means a roxygen comment like
+this:</p>
+<div class="sourceCode" id="cb40"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb40-1"><a href="#cb40-1" tabindex="-1"></a><span class="co">#&#39; @exportS3Method knitr::knit_print</span></span>
+<span id="cb40-2"><a href="#cb40-2" tabindex="-1"></a>knit_print.class <span class="ot">&lt;-</span> </span></code></pre></div>
+<p>With this method, you do not need to import <strong>knitr</strong> to
+your package, i.e., <strong>knitr</strong> can be listed in
+<code>Suggests</code> and not necessarily <code>Imports</code> in the
+package <code>DESCRIPTION</code>. The S3 methods will be automatically
+registered when <strong>knitr</strong> is actually loaded.</p>
+<p>For R &lt; 3.6.0, you need to import <code>knit_print</code> in your
 package namespace via <code>importFrom(knitr, knit_print)</code> (or
 roxygen: <code>#&#39; @importFrom knitr knit_print</code>) (see <a href="https://github.com/yihui/printr">the <strong>printr</strong>
-package</a> for an example). If you don’t want to import
-<strong>knitr</strong>, you can call <code>registerS3method()</code> in
-your <code>.onLoad()</code> hook (see <a href="https://github.com/rstudio/htmltools/pull/108/files">rstudio/htmltools#108</a>
-for an example);</p></li>
+package</a> for an example).</p></li>
 <li><p><code>asis_output()</code> is simply a function that marks an
 object with the class <code>knit_asis</code>, and you do not have to
-import this function to your package, either – just let your print
-method return <code>structure(x, class = &#39;knit_asis&#39;)</code>, and if
-there are additional metadata, just put it in the <code>knit_meta</code>
+import this function to your package, either—just let your print method
+return <code>structure(x, class = &#39;knit_asis&#39;)</code>, and if there are
+additional metadata, just put it in the <code>knit_meta</code>
 attribute; here is the source code of this function:</p>
-<div class="sourceCode" id="cb40"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb40-1"><a href="#cb40-1" tabindex="-1"></a>knitr<span class="sc">::</span>asis_output</span></code></pre></div>
+<div class="sourceCode" id="cb41"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb41-1"><a href="#cb41-1" tabindex="-1"></a>knitr<span class="sc">::</span>asis_output</span></code></pre></div>
 <pre><code>## function (x, meta = NULL, cacheable = NA) 
 ## {
 ##     structure(x, class = &quot;knit_asis&quot;, knit_meta = meta, knit_cacheable = cacheable)
 ## }
-## &lt;bytecode: 0x7f897a6420a8&gt;
+## &lt;bytecode: 0x7fb5e68bb618&gt;
 ## &lt;environment: namespace:knitr&gt;</code></pre>
-<p>Note that you can actually put <strong>knitr</strong> in the
-<code>Suggests</code> field in DESCRIPTION, and use
-<code>knitr::asis_output()</code>, so that you can avoid the “hard”
-dependency on <strong>knitr</strong>.</p></li>
+<p>You may put <strong>knitr</strong> in the <code>Suggests</code> field
+in <code>DESCRIPTION</code>, and use <code>knitr::asis_output()</code>,
+so that you can avoid the “hard” dependency on
+<strong>knitr</strong>.</p></li>
 </ol>
 </div>
 </div>

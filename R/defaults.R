@@ -2,6 +2,7 @@
 
 new_defaults = function(value = list()) {
   defaults = value
+  locked = FALSE
 
   get = function(name, default = FALSE, drop = TRUE) {
     if (default) defaults = value  # this is only a local version
@@ -20,7 +21,10 @@ new_defaults = function(value = list()) {
   }
   set2 = function(values) {
     old = get(names(values), drop = FALSE)
-    if (length(values)) defaults <<- merge(values)
+    if (length(values)) {
+      if (locked) stop('The object is read-only and cannot be modified.')
+      defaults <<- merge(values)
+    }
     invisible(old)
   }
   set = function(...) {
@@ -36,10 +40,11 @@ new_defaults = function(value = list()) {
     for (i in names(dots)) dots[[i]] <- c(defaults[[i]], dots[[i]])
     set2(dots)
   }
+  lock = function(status = TRUE) locked <<- status
 
   list(
-    get = get, set = set, delete = delete,
-    append = append, merge = merge, restore = restore
+    get = get, set = set, delete = delete, append = append, merge = merge,
+    restore = restore, lock = lock
   )
 }
 
@@ -63,9 +68,8 @@ new_defaults = function(value = list()) {
 #'   A list of available options:
 #'   \url{https://yihui.org/knitr/options/#chunk-options}
 #' @note \code{opts_current} should be treated as read-only and you are supposed
-#'   to only query its values via \code{opts_current$get()}. Technically you
-#'   could also call \code{opts_current$set()} to change the values, but you are
-#'   not recommended to do so unless you understand the consequences.
+#'   to only query its values via \code{opts_current$get()}. Calling
+#'   \code{opts_current$set()} will throw an error.
 #' @export
 #' @examples opts_chunk$get('prompt'); opts_chunk$get('fig.keep')
 opts_chunk = new_defaults(list(
@@ -116,18 +120,32 @@ opts_chunk_attr = local({
     opts$dev = grep('^quartz_', opts$dev, value = TRUE, invert = TRUE)
   if (.Platform$OS.type != 'windows')
     opts$dev = setdiff(opts$dev, 'win.metafile')
-  opts$dev = as.list(opts$dev)
+  opts$dev = opts$fig.format = as.list(opts$dev)
+  opts$fig.dpi = 'numeric'
   opts$fig.ext = as.list(unique(auto_exts))
   opts$external = opts$sanitize = NULL  # hide these two rare options
   opts$fig.process = 'function'
-  opts$fig.asp = 'numeric'
-  opts$fig.alt = 'character'
+  opts[c('fig.asp', 'fig.ncol')] = 'numeric'
   opts$fig.dim = 'list'
   opts$fig.id = 'logical'
+  opts[c(
+    'opts.label', 'resize.width', 'resize.height', 'fig.alt', 'fig.link', 'fig.sep',
+    'ffmpeg.bitrate', 'ffmpeg.format'
+  )] = 'character'
   opts$lang = 'list'
   opts$R.options = 'list'
   opts$cache.comments = 'logical'
+  opts$cache.globals = 'list'
   opts$animation.hook = list('ffmpeg', 'gifski')
+  for (i in c('class', 'attr')) {
+    for (j in c('source', 'output', 'message', 'warning', 'error', 'chunk')) {
+      opts[[paste(i, j, sep = '.')]] = 'character'
+    }
+  }
+  # for R Markdown paged tables
+  opts[paste0(c(
+    'max', 'sql.max', 'paged', 'rows', 'cols', 'cols.min', 'pages', 'paged', 'rownames'
+  ), '.print')] = 'numeric'
   opts
 })
 
