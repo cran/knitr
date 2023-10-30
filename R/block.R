@@ -52,6 +52,7 @@ call_block = function(block) {
   }
 
   # save current chunk options in opts_current
+  optc = opts_current$get(); on.exit(opts_current$restore(optc), add = TRUE)
   opts_current$restore(params)
 
   if (opts_knit$get('progress')) print(block)
@@ -111,7 +112,6 @@ call_block = function(block) {
   params$params.src = block$params.src
   opts_current$restore(params)  # save current options
   # prevent users from modifying opts_current (#1798)
-  if (!xfun::check_old_package('lingglosses', '0.0.6'))  # TODO: remove this hack https://github.com/agricolamz/lingglosses/issues/22
   opts_current$lock(); on.exit(opts_current$lock(FALSE), add = TRUE)
 
   # set local options() for the current R chunk
@@ -546,6 +546,9 @@ merge_character = function(res) {
 }
 
 call_inline = function(block) {
+  optc = opts_current$get(); on.exit(opts_current$restore(optc), add = TRUE)
+  params = opts_chunk$merge(list(label = unnamed_chunk()))
+  opts_current$restore(params)
   if (opts_knit$get('progress')) print(block)
   in_input_dir(inline_exec(block))
 }
