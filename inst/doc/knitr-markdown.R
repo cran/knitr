@@ -1,6 +1,3 @@
-## ----setup, include=FALSE-----------------------------------------------------
-library(knitr)
-
 ## ----eval=FALSE---------------------------------------------------------------
 #  help(package = 'YourPackage', help_type = 'html')
 #  # or see a standalone list of vignettes
@@ -19,7 +16,4 @@ strsplit('hello, markdown vignettes', '')
 n=300; set.seed(123)
 par(mar=c(4,4,.1,.1))
 plot(rnorm(n), rnorm(n), pch=21, cex=5*runif(n), col='white', bg='gray')
-
-## ----css, eval=FALSE----------------------------------------------------------
-#  options(markdown.html.css = 'path/to/a/custom/style.css')
 

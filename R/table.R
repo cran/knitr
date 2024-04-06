@@ -35,10 +35,11 @@
 #'   are left-aligned. If \code{length(align) == 1L}, the string will be
 #'   expanded to a vector of individual letters, e.g. \code{'clc'} becomes
 #'   \code{c('c', 'l', 'c')}, unless the output format is LaTeX.
-#' @param caption The table caption.
+#' @param caption The table caption. By default, it is retrieved from the chunk
+#'   option \code{tab.cap}.
 #' @param label The table reference label. By default, the label is obtained
-#'   from \code{knitr::\link{opts_current}$get('label')}. To disable the label,
-#'   use \code{label = NA}.
+#'   from \code{knitr::\link{opts_current}$get('label')} (i.e., the current
+#'   chunk label). To disable the label, use \code{label = NA}.
 #' @param format.args A list of arguments to be passed to \code{\link{format}()}
 #'   to format table values, e.g. \code{list(big.mark = ',')}.
 #' @param escape Boolean; whether to escape special characters when producing
@@ -100,7 +101,8 @@
 #' kables(list(kable(d1, align = 'l'), kable(d2)), caption = 'A tale of two tables')
 kable = function(
   x, format, digits = getOption('digits'), row.names = NA, col.names = NA,
-  align, caption = NULL, label = NULL, format.args = list(), escape = TRUE, ...
+  align, caption = opts_current$get('tab.cap'), label = NULL, format.args = list(),
+  escape = TRUE, ...
 ) {
 
   format = kable_format(format)
@@ -148,7 +150,8 @@ kable = function(
   n = nrow(x)
   x = replace_na(to_character(x), is.na(x))
   if (!is.matrix(x)) x = matrix(x, nrow = n)
-  x = trimws(x)
+  # trim white spaces except those escaped by \ at the end (#2308)
+  x = gsub('^\\s+|(?<!\\\\)\\s+$', '', x, perl = TRUE)
   colnames(x) = col.names
   if (format != 'latex' && length(align) && !all(align %in% c('l', 'r', 'c')))
     stop("'align' must be a character vector of possible values 'l', 'r', and 'c'")
@@ -166,7 +169,7 @@ kable_caption = function(label, caption, format) {
   # create a label for bookdown if applicable
   if (is.null(label)) label = opts_current$get('label')
   if (is.null(label)) label = NA
-  if (!is.null(caption) && !is.na(caption) && !is.na(label)) caption = paste0(
+  if (!is.null(caption) && !anyNA(caption) && !anyNA(label)) caption = paste0(
     create_label(
       opts_knit$get('label.prefix')[['table']],
       label, latex = (format == 'latex')

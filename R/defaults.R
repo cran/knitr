@@ -137,7 +137,7 @@ opts_chunk_attr = local({
   opts$fig.id = 'logical'
   opts[c(
     'opts.label', 'resize.width', 'resize.height', 'fig.alt', 'fig.link', 'fig.sep',
-    'ffmpeg.bitrate', 'ffmpeg.format'
+    'tab.cap', 'ffmpeg.bitrate', 'ffmpeg.format'
   )] = 'character'
   opts$lang = 'list'
   opts$R.options = 'list'
@@ -188,7 +188,7 @@ set_alias = function(...) {
 #' @references Usage: \url{https://yihui.org/knitr/objects/}
 #'
 #'   A list of available options:
-#'   \url{https://yihui.org/knitr/options/#package_options}
+#'   \url{https://yihui.org/knitr/options/#package-options}
 #' @export
 #' @examples opts_knit$get('verbose'); opts_knit$set(verbose = TRUE)  # change it
 #' if (interactive()) {

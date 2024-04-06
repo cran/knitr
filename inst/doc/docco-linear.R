@@ -12,6 +12,3 @@ n=300; set.seed(123)
 par(mar=c(4,4,.1,.1))
 plot(rnorm(n), rnorm(n), pch=21, cex=5*runif(n), col='white', bg='gray')
 
-## ----header, eval=FALSE-------------------------------------------------------
-#  knit2html(..., template = system.file('misc', 'docco-template.html', package='knitr'))
-

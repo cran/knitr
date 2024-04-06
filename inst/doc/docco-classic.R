@@ -13,14 +13,14 @@ par(mar=c(4,4,.1,.1))
 plot(rnorm(n), rnorm(n), pch=21, cex=5*runif(n), col='white', bg='gray')
 
 ## -----------------------------------------------------------------------------
-head(knitr::rocco, 5)
+knitr::rocco
 
 ## ----setup, echo=FALSE, results='asis'----------------------------------------
-x = readLines('docco-linear.Rmd')[-(1:7)]
+x = readLines('docco-linear.Rmd')[-(1:11)]
 x = gsub('linear', 'classic', x)
-i = grep('^knit2html[(][.]{3}', x)
+i = grep('^knitr:::docco_classic', x)
 x[i - 1] = '```{r}'
-x[i] = 'head(knitr::rocco, 5)'
+x[i] = 'knitr::rocco'
 library(knitr)
 cat(knit_child(text = x, quiet = TRUE), sep = '\n')
 

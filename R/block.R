@@ -1,15 +1,10 @@
-# S3 method to deal with chunks and inline text respectively
+# process chunks and inline text
 process_group = function(x) {
-  UseMethod('process_group', x)
+  if (inherits(x, 'block')) call_block(x) else {
+    x = call_inline(x)
+    knit_hooks$get('text')(x)
+  }
 }
-#' @export
-process_group.block = function(x) call_block(x)
-#' @export
-process_group.inline = function(x) {
-  x = call_inline(x)
-  knit_hooks$get('text')(x)
-}
-
 
 call_block = function(block) {
   # now try eval all options except those in eval.after and their aliases
@@ -55,7 +50,7 @@ call_block = function(block) {
   optc = opts_current$get(); on.exit(opts_current$restore(optc), add = TRUE)
   opts_current$restore(params)
 
-  if (opts_knit$get('progress')) print(block)
+  if (opts_knit$get('progress')) print_block(block)
 
   params[['code']] = parse_chunk(params[['code']]) # parse sub-chunk references
 
@@ -154,6 +149,11 @@ block_exec = function(options) {
   # when code is not R language
   res.before = run_hooks(before = TRUE, options)
   engine = get_engine(options$engine)
+  # special case: quarto-dev/quarto-cli#5994
+  if (is_quarto() && options$engine %in% c('dot', 'mermaid', 'ojs')) {
+    options$code = c(options$yaml.code, options$code)
+    options$yaml.code = NULL
+  }
   output = in_input_dir(engine(options))
   if (is.list(output)) output = unlist(output)
   res.after = run_hooks(before = FALSE, options)
@@ -340,7 +340,7 @@ eng_r = function(options) {
         objs, cache_globals(options$cache.globals, code), options$label,
         options$cache.path
       )
-      dep_auto()
+      dep_auto(labels = options$label)
     }
     if (options$cache < 3) {
       if (options$cache.rebuild || !cache.exists) block_cache(options, res.orig, objs)
@@ -414,7 +414,7 @@ chunk_device = function(options, record = TRUE, tmp = tempfile()) {
   } else if (identical(getOption('device'), pdf_null)) {
     if (!is.null(dev.args)) {
       dev.args = get_dargs(dev.args, 'pdf')
-      dev.args = dev.args[intersect(names(dev.args), c('pointsize', 'bg'))]
+      dev.args = dev.args[intersect(names(dev.args), names(formals(pdf)))]
     }
     do.call(pdf_null, c(list(width = width, height = height), dev.args))
   } else dev.new(width = width, height = height)
@@ -549,7 +549,7 @@ call_inline = function(block) {
   optc = opts_current$get(); on.exit(opts_current$restore(optc), add = TRUE)
   params = opts_chunk$merge(list(label = unnamed_chunk()))
   opts_current$restore(params)
-  if (opts_knit$get('progress')) print(block)
+  if (opts_knit$get('progress')) print_inline(block)
   in_input_dir(inline_exec(block))
 }
 
@@ -580,10 +580,10 @@ inline_exec = function(
 }
 
 process_tangle = function(x) {
-  UseMethod('process_tangle', x)
+  if (inherits(x, 'block')) tangle_block(x) else tangle_inline(x)
 }
-#' @export
-process_tangle.block = function(x) {
+
+tangle_block = function(x) {
   params = opts_chunk$merge(x$params)
   for (o in c('purl', 'eval', 'child')) {
     if (inherits(try(params[o] <- list(eval_lang(params[[o]]))), 'try-error')) {
@@ -609,9 +609,8 @@ process_tangle.block = function(x) {
   # e.g. when documentation 1 or 2 with purl()
   label_code(code, x)
 }
-#' @export
-process_tangle.inline = function(x) {
 
+tangle_inline = function(x) {
   output = if (opts_knit$get('documentation') == 2L) {
     output = paste("#'", gsub('\n', "\n#' ", x$input, fixed = TRUE))
   } else ''

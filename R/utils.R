@@ -64,13 +64,14 @@ color_def = function(col, variable = 'shadecolor') {
       x = switch(variable, shadecolor = rep(.97, 3), fgcolor = rep(0, 3))
       warning("the color '", col, "' is invalid;",
               'using default color...',
-              'see https://yihui.org/knitr/options')
+              'see https://yihui.org/knitr/options/')
     }
   }
   if (length(x) != 3L) stop('invalid color:', col)
   if (is.numeric(x)) x = round(x, 3L)
-  outdec = options(OutDec = '.'); on.exit(options(outdec))
-  sprintf('\\definecolor{%s}{rgb}{%s, %s, %s}', variable, x[1], x[2], x[3])
+  xfun::decimal_dot(
+    sprintf('\\definecolor{%s}{rgb}{%s, %s, %s}', variable, x[1], x[2], x[3])
+  )
 }
 
 # split by semicolon or colon
@@ -270,7 +271,7 @@ dot_names = function(x) {
 }
 
 dash_names = function(x) {
-  fix_names(x, '.', '-', c(dev = 'fig-format', dpi = 'fig-dpi'))
+  fix_names(x, '.', '-', c(dev = 'fig-format', dpi = 'fig-dpi', tab.cap = 'tbl-cap'))
 }
 
 # initially for compatibility with Sweave and old beta versions of knitr
@@ -1051,8 +1052,14 @@ raw_output = function(x, markers = raw_markers, ...) {
 #' knitr::raw_latex('\\emph{some text}')
 raw_block = function(x, type = 'latex', ...) {
   if (!rmarkdown::pandoc_available('2.0.0')) warning('raw_block() requires Pandoc >= 2.0.0')
-  x = c(sprintf('\n```{=%s}', type), x, '```\n')
-  asis_output(one_string(x), ...)
+  x = fenced_block(x, attr = paste0('=', type))
+  x = gsub('^\n|\n$', '', x)
+  # TODO: get rid of this hack for davidgohel/flextable#621
+  if ('flextable' %in% xfun:::sys.packages() && packageVersion('flextable') <= '0.9.5') {
+    x = gsub('^(\\s*)```+', '\\1```', x)
+    x = gsub('```+(\\s*)$', '```\\1', x)
+  }
+  asis_output(x, ...)
 }
 
 #' @rdname raw_block
