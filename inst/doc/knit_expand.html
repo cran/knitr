@@ -11,11 +11,11 @@
 <div class="frontmatter">
 <div class="title"><h1>Templating with knit_expand()</h1></div>
 <div class="author"><h2>Yihui Xie</h2></div>
-<div class="date"><h3>2024-04-05</h3></div>
+<div class="date"><h3>2024-05-27</h3></div>
 </div>
 <div class="body">
 <!--
-%\VignetteEngine{knitr::knitr}
+%\VignetteEngine{knitr::knitr_notangle}
 %\VignetteIndexEntry{Templating with knit_expand()}
 -->
 <p>A few simple examples:</p>
@@ -26,7 +26,7 @@ knit_expand(text = 'The value of pi is {{pi}}.')
 </code></pre>
 <pre><code class="language-r">knit_expand(text = 'The value of a is {{a}}, so a + 1 is {{a+1}}.', a = rnorm(1))
 </code></pre>
-<pre><code>## [1] &quot;The value of a is -0.53420885071924, so a + 1 is 0.46579114928076.&quot;
+<pre><code>## [1] &quot;The value of a is -0.762876251006842, so a + 1 is 0.237123748993158.&quot;
 </code></pre>
 <pre><code class="language-r">knit_expand(text = 'The area of a circle with radius {{r}} is {{pi*r^2}}', r = 5)
 </code></pre>
@@ -50,7 +50,7 @@ knit_expand(text = 'The value of pi is {{pi}}.')
 <p>Arbitrary R code:</p>
 <pre><code class="language-r">knit_expand(text = 'you cannot see the value of x {{x=rnorm(1)}}but it is indeed created: x = {{x}}')
 </code></pre>
-<pre><code>## [1] &quot;you cannot see the value of x but it is indeed created: x = -1.43591569627506&quot;
+<pre><code>## [1] &quot;you cannot see the value of x but it is indeed created: x = -0.201937141656936&quot;
 </code></pre>
 <pre><code class="language-r">res = knit_expand(text = c(' x | x^2', '{{x=1:5;paste(sprintf(&quot;%2d | %3d&quot;, x, x^2), collapse = &quot;\n&quot;)}}'))
 cat(res)
@@ -83,7 +83,7 @@ res = paste('&lt;pre&gt;&lt;code&gt;', gsub('^\\s*|\\s*$', '', res), '&lt;/code&
 </code></pre>
 <pre><code># Regression on cyl
 
-```r
+``` r
 lm(mpg~cyl, data=mtcars)
 ```
 
@@ -98,7 +98,7 @@ lm(mpg~cyl, data=mtcars)
 ```
 # Regression on disp
 
-```r
+``` r
 lm(mpg~disp, data=mtcars)
 ```
 
@@ -113,7 +113,7 @@ lm(mpg~disp, data=mtcars)
 ```
 # Regression on hp
 
-```r
+``` r
 lm(mpg~hp, data=mtcars)
 ```
 
@@ -128,7 +128,7 @@ lm(mpg~hp, data=mtcars)
 ```
 # Regression on drat
 
-```r
+``` r
 lm(mpg~drat, data=mtcars)
 ```
 
@@ -143,7 +143,7 @@ lm(mpg~drat, data=mtcars)
 ```
 # Regression on wt
 
-```r
+``` r
 lm(mpg~wt, data=mtcars)
 ```
 
@@ -158,7 +158,7 @@ lm(mpg~wt, data=mtcars)
 ```
 # Regression on qsec
 
-```r
+``` r
 lm(mpg~qsec, data=mtcars)
 ```
 
@@ -173,7 +173,7 @@ lm(mpg~qsec, data=mtcars)
 ```
 # Regression on vs
 
-```r
+``` r
 lm(mpg~vs, data=mtcars)
 ```
 
@@ -188,7 +188,7 @@ lm(mpg~vs, data=mtcars)
 ```
 # Regression on am
 
-```r
+``` r
 lm(mpg~am, data=mtcars)
 ```
 
@@ -203,7 +203,7 @@ lm(mpg~am, data=mtcars)
 ```
 # Regression on gear
 
-```r
+``` r
 lm(mpg~gear, data=mtcars)
 ```
 
@@ -218,7 +218,7 @@ lm(mpg~gear, data=mtcars)
 ```
 # Regression on carb
 
-```r
+``` r
 lm(mpg~carb, data=mtcars)
 ```
 

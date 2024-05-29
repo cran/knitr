@@ -11,7 +11,7 @@
 <div class="frontmatter">
 <div class="title"><h1>Custom Print Methods</h1></div>
 <div class="author"><h2>Yihui Xie</h2></div>
-<div class="date"><h3>2024-04-05</h3></div>
+<div class="date"><h3>2024-05-27</h3></div>
 </div>
 <div class="body">
 <div id="TOC">
@@ -52,7 +52,7 @@ knit_print  # an S3 generic function
 ##         UseMethod(&quot;knit_print&quot;)
 ##     }
 ## }
-## &lt;bytecode: 0x104017b20&gt;
+## &lt;bytecode: 0x106e7edf8&gt;
 ## &lt;environment: namespace:knitr&gt;
 </code></pre>
 <pre><code class="language-r">methods(knit_print)
@@ -74,20 +74,21 @@ knit_print  # an S3 generic function
 ##         x
 ##     else normal_print(x)
 ## }
-## &lt;bytecode: 0x122f63820&gt;
+## &lt;bytecode: 0x106e11660&gt;
 ## &lt;environment: namespace:knitr&gt;
 </code></pre>
 <pre><code class="language-r">normal_print
 </code></pre>
 <pre><code>## function (x, ...) 
 ## if (isS4(x)) methods::show(x) else print(x)
-## &lt;bytecode: 0x116530a60&gt;
+## &lt;bytecode: 0x106423ae8&gt;
 ## &lt;environment: namespace:evaluate&gt;
 </code></pre>
 <p>As we can see, <code>knit_print()</code> has a <code>default</code> method, which is basically <code>print()</code> or <code>show()</code>, depending on whether the object is an S4 object. This means it does nothing special when printing R objects:</p>
 <pre><code class="language-r">knit_print(1:10)
 ##  [1]  1  2  3  4  5  6  7  8  9 10
-knit_print(head(mtcars))
+</code></pre>
+<pre><code class="language-r">knit_print(head(mtcars))
 ##                    mpg cyl disp  hp drat    wt  qsec vs am gear carb
 ## Mazda RX4         21.0   6  160 110 3.90 2.620 16.46  0  1    4    4
 ## Mazda RX4 Wag     21.0   6  160 110 3.90 2.875 17.02  0  1    4    4
@@ -276,13 +277,17 @@ knit_print.classD = function(x, options, inline = FALSE, ...) {
 <p>Now we use the chunk option <code>render = dummy_print</code>:</p>
 <pre><code class="language-r">1 + 1
 ## I do not know what to print!
-head(letters)
+</code></pre>
+<pre><code class="language-r">head(letters)
 ## I do not know what to print!
-list(a = 1, b = 9:4)
+</code></pre>
+<pre><code class="language-r">list(a = 1, b = 9:4)
 ## I do not know what to print!
-head(mtcars)
+</code></pre>
+<pre><code class="language-r">head(mtcars)
 ## I do not know what to print!
-cat('This is cool.')
+</code></pre>
+<pre><code class="language-r">cat('This is cool.')
 ## This is cool.
 </code></pre>
 <p>Note the <code>render</code> function is only applied to visible objects. There are cases in which the objects returned are invisible, e.g. those wrapped in <code>invisible()</code>.</p>
@@ -331,7 +336,7 @@ new_foo('hello')
 <pre><code class="language-r">str(knit_meta(clean = FALSE))
 </code></pre>
 <pre><code>## List of 2
-##  $ js : chr &quot;/Users/yihui/R-tmp/shiny/www/shared/shiny.js&quot;
+##  $ js : chr &quot;/Users/yihui/R/shiny/www/shared/shiny.js&quot;
 ##  $ css: chr &quot;&quot;
 ##  - attr(*, &quot;knit_meta_id&quot;)= chr [1:2] &quot;unnamed-chunk-9&quot; &quot;unnamed-chunk-9&quot;
 </code></pre>
@@ -360,9 +365,9 @@ new_bar('&gt; **hello** world!')
 <pre><code class="language-r">str(knit_meta())
 </code></pre>
 <pre><code>## List of 6
-##  $ js  : chr &quot;/Users/yihui/R-tmp/shiny/www/shared/shiny.js&quot;
+##  $ js  : chr &quot;/Users/yihui/R/shiny/www/shared/shiny.js&quot;
 ##  $ css : chr &quot;&quot;
-##  $ js  : chr &quot;/Users/yihui/R-tmp/shiny/www/shared/shiny.js&quot;
+##  $ js  : chr &quot;/Users/yihui/R/shiny/www/shared/shiny.js&quot;
 ##  $ css : chr &quot;&quot;
 ##  $ head: chr &quot;&lt;script&gt;console.log(\&quot;bar!\&quot;)&lt;/script&gt;&quot;
 ##  $ head: chr &quot;&lt;script&gt;console.log(\&quot;bar!\&quot;)&lt;/script&gt;&quot;
@@ -391,7 +396,7 @@ knit_print.class &lt;-
 ## {
 ##     structure(x, class = &quot;knit_asis&quot;, knit_meta = meta, knit_cacheable = cacheable)
 ## }
-## &lt;bytecode: 0x122b55628&gt;
+## &lt;bytecode: 0x107578318&gt;
 ## &lt;environment: namespace:knitr&gt;
 </code></pre>
 <p>You may put <strong>knitr</strong> in the <code>Suggests</code> field in <code>DESCRIPTION</code>, and use <code>knitr::asis_output()</code>, so that you can avoid the “hard” dependency on <strong>knitr</strong>.</p>

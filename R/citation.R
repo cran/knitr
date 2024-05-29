@@ -90,20 +90,13 @@ write_bib = function(
     # don't use the citation() URL if the package has provided its own URL
     cite = citation(pkg, auto = if (is.null(meta$URL)) meta else {
       if (packageURL) meta$Repository = meta$RemoteType = NULL
-      # the package may have provided multiple URLs, in which case we use the
-      # first. We also work around a bug in citation() up to R 4.3.1. The grep
-      # pattern here is problematic, but it's what citation() was using.
-      if (getRversion() < '4.3.2' && grepl('[, ]', meta$URL))
-        meta$URL = sub('[, ].*', '', meta$URL)
-      # always remove URLs after the first one
-      meta$URL = sub(',? .*', '', meta$URL)
+      # use the first URL in case the package provided multiple URLs
+      meta$URL = sub('[, \t\n].*', '', meta$URL)
       meta
     })
     if (tweak) {
       # e.g. gpairs has "gpairs: " in the title
       cite$title = gsub(sprintf('^(%s: )(\\1)', pkg), '\\1', cite$title)
-      # e.g. KernSmooth has & in the title
-      cite$title = gsub(' & ', ' \\\\& ', cite$title)
     }
     entry = toBibtex(cite)
     entry[1] = sub('\\{,$', sprintf('{%s%s,', prefix, pkg), entry[1])
@@ -150,7 +143,12 @@ write_bib = function(
   bib = lapply(bib, function(b) {
     idx = which(names(b) == '')
     if (!is.null(width)) b[-idx] = str_wrap(b[-idx], width, 2, 4)
-    structure(c(b[idx[1L]], b[-idx], b[idx[2L]], ''), class = 'Bibtex')
+    lines = c(b[idx[1L]], b[-idx], b[idx[2L]], '')
+    if (tweak) {
+      # e.g. KernSmooth and spam has & in the title and the journal, respectively
+      lines = gsub('(?<!\\\\)&', '\\\\&', lines, perl = TRUE)
+    }
+    structure(lines, class = 'Bibtex')
   })
   if (!is.null(file) && length(x)) write_utf8(unlist(bib), file)
   invisible(bib)

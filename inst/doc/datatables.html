@@ -12,15 +12,15 @@
 <div class="frontmatter">
 <div class="title"><h1>Display Tables with the JavaScript Library DataTables</h1></div>
 <div class="author"><h2>Yihui Xie</h2></div>
-<div class="date"><h3>2024-04-05</h3></div>
+<div class="date"><h3>2024-05-27</h3></div>
 </div>
 <div class="body">
 <!--
-%\VignetteEngine{knitr::knitr}
+%\VignetteEngine{knitr::knitr_notangle}
 %\VignetteIndexEntry{Display Tables with the JavaScript Library DataTables}
 -->
 <h2 id="jquery-datatables">jQuery DataTables</h2>
-<p>We can use the JavaScript library <a href="https://www.datatables.net"><strong>DataTables</strong></a> to generate enhanced tables in HTML. In the example below, we create a table for the <code>mtcars</code> data:</p>
+<p>We can use the JavaScript library <a href="https://datatables.net"><strong>DataTables</strong></a> to generate enhanced tables in HTML. In the example below, we create a table for the <code>mtcars</code> data:</p>
 <pre><code class="language-r">library(knitr)
 kable(mtcars, 'html', table.attr='id=&quot;mtcars_table&quot;')
 </code></pre>
