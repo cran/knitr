@@ -92,13 +92,13 @@ compiled by <strong>knitr</strong>:</p>
 
 <div class="chunk" id="cars-demo"><div class="rcode"><div class="source"><pre class="knitr r"><span class="hl kwd">summary</span><span class="hl def">(cars)</span>
 </pre></div>
-<div class="output"><pre class="knitr r">##      speed           dist       
-##  Min.   : 4.0   Min.   :  2.00  
-##  1st Qu.:12.0   1st Qu.: 26.00  
-##  Median :15.0   Median : 36.00  
-##  Mean   :15.4   Mean   : 42.98  
-##  3rd Qu.:19.0   3rd Qu.: 56.00  
-##  Max.   :25.0   Max.   :120.00
+<div class="output"><pre class="knitr r">##      speed           dist    
+##  Min.   : 4.0   Min.   :  2  
+##  1st Qu.:12.0   1st Qu.: 26  
+##  Median :15.0   Median : 36  
+##  Mean   :15.4   Mean   : 43  
+##  3rd Qu.:19.0   3rd Qu.: 56  
+##  Max.   :25.0   Max.   :120
 </pre></div>
 <div class="source"><pre class="knitr r"><span class="hl def">fit</span><span class="hl kwb">=</span><span class="hl kwd">lm</span><span class="hl def">(dist</span><span class="hl opt">~</span><span class="hl def">speed,</span> <span class="hl kwc">data</span><span class="hl def">=cars)</span>
 <span class="hl kwd">summary</span><span class="hl def">(fit)</span>
@@ -108,19 +108,19 @@ compiled by <strong>knitr</strong>:</p>
 ## lm(formula = dist ~ speed, data = cars)
 ## 
 ## Residuals:
-##     Min      1Q  Median      3Q     Max 
-## -29.069  -9.525  -2.272   9.215  43.201 
+##    Min     1Q Median     3Q    Max 
+## -29.07  -9.53  -2.27   9.21  43.20 
 ## 
 ## Coefficients:
 ##             Estimate Std. Error t value Pr(&gt;|t|)    
-## (Intercept) -17.5791     6.7584  -2.601   0.0123 *  
-## speed         3.9324     0.4155   9.464 1.49e-12 ***
+## (Intercept)  -17.579      6.758   -2.60    0.012 *  
+## speed          3.932      0.416    9.46  1.5e-12 ***
 ## ---
 ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
 ## 
-## Residual standard error: 15.38 on 48 degrees of freedom
-## Multiple R-squared:  0.6511,	Adjusted R-squared:  0.6438 
-## F-statistic: 89.57 on 1 and 48 DF,  p-value: 1.49e-12
+## Residual standard error: 15.4 on 48 degrees of freedom
+## Multiple R-squared:  0.651,	Adjusted R-squared:  0.644 
+## F-statistic: 89.6 on 1 and 48 DF,  p-value: 1.49e-12
 </pre></div>
 </div></div>
 

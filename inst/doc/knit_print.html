@@ -4,28 +4,147 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 <title>Custom Print Methods</title>
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/rstudio/markdown/inst/resources/default.css">
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/rstudio/markdown/inst/resources/prism-xcode.css">
+<style type="text/css">
+/**
+ * Prism.s theme ported from highlight.js's xcode style
+ */
+pre code {
+  padding: 1em;
+}
+.token.comment {
+  color: #007400;
+}
+.token.punctuation {
+  color: #999;
+}
+.token.tag,
+.token.selector {
+  color: #aa0d91;
+}
+.token.boolean,
+.token.number,
+.token.constant,
+.token.symbol {
+  color: #1c00cf;
+}
+.token.property,
+.token.attr-name,
+.token.string,
+.token.char,
+.token.builtin {
+  color: #c41a16;
+}
+.token.inserted {
+  background-color: #ccffd8;
+}
+.token.deleted {
+  background-color: #ffebe9;
+}
+.token.operator,
+.token.entity,
+.token.url,
+.language-css .token.string,
+.style .token.string {
+  color: #9a6e3a;
+}
+.token.atrule,
+.token.attr-value,
+.token.keyword {
+  color: #836c28;
+}
+.token.function,
+.token.class-name {
+  color: #DD4A68;
+}
+.token.regex,
+.token.important,
+.token.variable {
+  color: #5c2699;
+}
+.token.important,
+.token.bold {
+  font-weight: bold;
+}
+.token.italic {
+  font-style: italic;
+}
+</style>
+<style type="text/css">
+body {
+  font-family: sans-serif;
+  max-width: 800px;
+  margin: auto;
+  padding: 1em;
+  line-height: 1.5;
+  box-sizing: border-box;
+}
+body, .footnotes, code { font-size: .9em; }
+li li { font-size: .95em; }
+*, *:before, *:after {
+  box-sizing: inherit;
+}
+pre, img { max-width: 100%; }
+pre, pre:hover {
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+pre code {
+  display: block;
+  overflow-x: auto;
+}
+code { font-family: 'DejaVu Sans Mono', 'Droid Sans Mono', 'Lucida Console', Consolas, Monaco, monospace; }
+:not(pre) > code, code[class] { background-color: #F8F8F8; }
+code.language-undefined, pre > code:not([class]) {
+  background-color: inherit;
+  border: 1px solid #eee;
+}
+table {
+  margin: auto;
+  border-top: 1px solid #666;
+}
+table thead th { border-bottom: 1px solid #ddd; }
+th, td { padding: 5px; }
+thead, tfoot, tr:nth-child(even) { background: #eee; }
+blockquote {
+  color: #666;
+  margin: 0;
+  padding-left: 1em;
+  border-left: 0.5em solid #eee;
+}
+hr, .footnotes::before { border: 1px dashed #ddd; }
+.frontmatter { text-align: center; }
+#TOC .numbered li { list-style: none; }
+#TOC .numbered { padding-left: 0; }
+#TOC .numbered ul { padding-left: 1em; }
+table, .body h2 { border-bottom: 1px solid #666; }
+.body .appendix, .appendix ~ h2 { border-bottom-style: dashed; }
+.footnote-ref a::before { content: "["; }
+.footnote-ref a::after { content: "]"; }
+section.footnotes::before {
+  content: "";
+  display: block;
+  max-width: 20em;
+}
+
+@media print {
+  body {
+    font-size: 12pt;
+    max-width: 100%;
+  }
+  tr, img { page-break-inside: avoid; }
+}
+@media only screen and (min-width: 992px) {
+  pre { white-space: pre; }
+}
+</style>
 </head>
 <body>
 <div class="frontmatter">
 <div class="title"><h1>Custom Print Methods</h1></div>
 <div class="author"><h2>Yihui Xie</h2></div>
-<div class="date"><h3>2024-07-05</h3></div>
+<div class="date"><h3>2024-11-06</h3></div>
 </div>
 <div class="body">
-<div id="TOC">
-<ul>
-<li><a href="#customize-printing">Customize Printing</a></li>
-<li><a href="#a-low-level-explanation">A Low-level Explanation</a>
-<ul>
-<li><a href="#the-render-option">The <code>render</code> option</a></li>
-<li><a href="#metadata">Metadata</a></li>
-<li><a href="#for-package-authors">For package authors</a></li>
-</ul>
-</li>
-</ul>
-</div>
 <p>Before <strong>knitr</strong> v1.6, printing objects in R code chunks basically emulates the R console. For example, a data frame is printed like this^[Note R prints an object without an explicit <code>print()</code> call when it is <em>visible</em>; see <code>?invisible</code>]:</p>
 <pre><code class="language-r">head(mtcars)
 </code></pre>
@@ -52,18 +171,13 @@ knit_print  # an S3 generic function
 ##         UseMethod(&quot;knit_print&quot;)
 ##     }
 ## }
-## &lt;bytecode: 0x1239d9aa8&gt;
+## &lt;bytecode: 0x1371ace70&gt;
 ## &lt;environment: namespace:knitr&gt;
 </code></pre>
 <pre><code class="language-r">methods(knit_print)
 </code></pre>
-<pre><code>##  [1] knit_print.data.frame*               knit_print.default*                 
-##  [3] knit_print.grouped_df*               knit_print.html*                    
-##  [5] knit_print.html_dependency*          knit_print.knit_asis*               
-##  [7] knit_print.knit_asis_url*            knit_print.knitr_kable*             
-##  [9] knit_print.output_format_dependency* knit_print.rowwise_df*              
-## [11] knit_print.shiny.tag*                knit_print.shiny.tag.list*          
-## [13] knit_print.tbl_sql*                 
+<pre><code>## [1] knit_print.default*       knit_print.knit_asis*    
+## [3] knit_print.knit_asis_url* knit_print.knitr_kable*  
 ## see '?methods' for accessing help and source code
 </code></pre>
 <pre><code class="language-r">getS3method('knit_print', 'default')  # the default method
@@ -74,15 +188,19 @@ knit_print  # an S3 generic function
 ##         x
 ##     else normal_print(x)
 ## }
-## &lt;bytecode: 0x123a754b0&gt;
+## &lt;bytecode: 0x1369490e0&gt;
 ## &lt;environment: namespace:knitr&gt;
 </code></pre>
 <pre><code class="language-r">normal_print
 </code></pre>
 <pre><code>## function (x, ...) 
-## if (isS4(x)) methods::show(x) else print(x)
-## &lt;bytecode: 0x12307ee48&gt;
-## &lt;environment: namespace:evaluate&gt;
+## {
+##     if (isS4(x)) 
+##         methods::show(x)
+##     else print(x)
+## }
+## &lt;bytecode: 0x136074468&gt;
+## &lt;environment: namespace:knitr&gt;
 </code></pre>
 <p>As we can see, <code>knit_print()</code> has a <code>default</code> method, which is basically <code>print()</code> or <code>show()</code>, depending on whether the object is an S4 object. This means it does nothing special when printing R objects:</p>
 <pre><code class="language-r">knit_print(1:10)
@@ -331,7 +449,7 @@ new_foo('hello')
 <pre><code class="language-r">str(knit_meta(clean = FALSE))
 </code></pre>
 <pre><code>## List of 2
-##  $ js : chr &quot;/Users/yihui/R/shiny/www/shared/shiny.js&quot;
+##  $ js : chr &quot;&quot;
 ##  $ css: chr &quot;&quot;
 ##  - attr(*, &quot;knit_meta_id&quot;)= chr [1:2] &quot;unnamed-chunk-9&quot; &quot;unnamed-chunk-9&quot;
 </code></pre>
@@ -360,9 +478,9 @@ new_bar('&gt; **hello** world!')
 <pre><code class="language-r">str(knit_meta())
 </code></pre>
 <pre><code>## List of 6
-##  $ js  : chr &quot;/Users/yihui/R/shiny/www/shared/shiny.js&quot;
+##  $ js  : chr &quot;&quot;
 ##  $ css : chr &quot;&quot;
-##  $ js  : chr &quot;/Users/yihui/R/shiny/www/shared/shiny.js&quot;
+##  $ js  : chr &quot;&quot;
 ##  $ css : chr &quot;&quot;
 ##  $ head: chr &quot;&lt;script&gt;console.log(\&quot;bar!\&quot;)&lt;/script&gt;&quot;
 ##  $ head: chr &quot;&lt;script&gt;console.log(\&quot;bar!\&quot;)&lt;/script&gt;&quot;
@@ -391,7 +509,7 @@ knit_print.class &lt;-
 ## {
 ##     structure(x, class = &quot;knit_asis&quot;, knit_meta = meta, knit_cacheable = cacheable)
 ## }
-## &lt;bytecode: 0x1252f4320&gt;
+## &lt;bytecode: 0x13710f1f0&gt;
 ## &lt;environment: namespace:knitr&gt;
 </code></pre>
 <p>You may put <strong>knitr</strong> in the <code>Suggests</code> field in <code>DESCRIPTION</code>, and use <code>knitr::asis_output()</code>, so that you can avoid the “hard” dependency on <strong>knitr</strong>.</p>
