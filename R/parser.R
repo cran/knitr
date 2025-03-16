@@ -99,7 +99,6 @@ parse_block = function(code, header, params.src, markdown_mode = out_format('mar
   # for quarto, preserve the actual original params.src and do not remove the engine
   if (!is_quarto() || opts_knit$get('tangle')) params.src = params
   params = xfun::csv_options(params)
-  if (is.null(params$label)) params$label = unnamed_chunk()
 
   # remove indent (and possibly markdown blockquote >) from code
   if (nzchar(spaces <- get_chunk_indent(header))) {
@@ -113,10 +112,17 @@ parse_block = function(code, header, params.src, markdown_mode = out_format('mar
   # merge with possible chunk options written as (YAML or CSV) metadata in
   # chunk, and remove metadata from code body
   parts = partition_chunk(engine, code)
+  dup = intersect(names(params), names(parts$options))
   params = merge_list(params, parts$options)
-  code = parts$code
+  if (is.null(params$label)) params$label = unnamed_chunk()
+  label = params$label
+  if (length(dup)) warning(
+    "Duplicated chunk option(s) ", paste0("'", dup, "'", collapse = ', '),
+    " in both chunk header and pipe comments of the chunk '", label, "'.", call. = FALSE
+  )
 
-  label = params$label; .knitEnv$labels = c(.knitEnv$labels, label)
+  code = parts$code
+  .knitEnv$labels = c(.knitEnv$labels, label)
   if (length(code) || length(params[['file']]) || length(params[['code']])) {
     if (label %in% names(knit_code$get())) {
       if (identical(getOption('knitr.duplicate.label'), 'allow')) {
@@ -226,18 +232,21 @@ parse_inline = function(input, patterns) {
   loc = cbind(start = numeric(0), end = numeric(0))
   if (group_pattern(inline.code)) loc = str_locate(input, inline.code)[[1]]
   code1 = code2 = character()
+  lines = integer()
   if (nrow(loc)) {
     code = t(str_match(input, inline.code))
     if (NCOL(code) >= 2L) {
       code1 = code[, 1L]
       code2 = apply(code[, -1L, drop = FALSE], 1, paste, collapse = '')
+      nl = gregexpr('\n', input, fixed = TRUE)[[1]]
+      lines = if (length(nl) > 1 || nl > -1) findInterval(loc, nl) else 0L
     }
   }
 
-  structure(
-    list(input = input, location = loc, code = code2, code.src = code1),
-    class = 'inline'
-  )
+  structure(list(
+    input = input, location = loc, code = code2, code.src = code1,
+    lines = matrix(lines, ncol = 2, nrow = nrow(loc))
+  ), class = 'inline')
 }
 
 print_inline = function(x) {

@@ -332,7 +332,7 @@ eng_r = function(options) {
     obj.new = if (is.null(options$cache.vars)) setdiff(ls(globalenv(), all.names = TRUE), obj.before)
     copy_env(globalenv(), env, obj.new)
     objs = if (isFALSE(ev) || length(code) == 0) character(0) else
-      options$cache.vars %n% xfun:::find_locals(code)
+      options$cache.vars %n% xfun::find_locals(code)
     # make sure all objects to be saved exist in env
     objs = intersect(c(objs, obj.new), ls(env, all.names = TRUE))
     if (options$autodep) {
@@ -374,7 +374,7 @@ purge_cache = function(options) {
 
 cache_globals = function(option, code) {
   if (is.character(option)) option else {
-    if (isFALSE(option)) find_symbols(code) else xfun:::find_globals(code, knit_global())
+    if (isFALSE(option)) find_symbols(code) else xfun::find_globals(code, knit_global())
   }
 }
 
@@ -568,9 +568,11 @@ inline_exec = function(
   code = block$code; input = block$input
   if ((n <- length(code)) == 0) return(input) # untouched if no code is found
   code.src = block$code.src
+  lines = block$lines
 
   ans = character(n)
   for (i in 1:n) {
+    knit_concord$set(offset = lines[i, ])
     tryCatch(parse_only(code[i]), error = function(e) {
       stop2('Failed to parse the inline R code: ', code.src[i], '\nReason: ', e$message)
     })
